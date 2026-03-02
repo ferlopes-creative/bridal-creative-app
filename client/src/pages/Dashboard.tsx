@@ -65,7 +65,7 @@ const fadeUp = {
 export default function Dashboard() {
   return (
     <div
-      className="min-h-screen pb-28 max-w-[480px] mx-auto relative"
+      className="min-h-screen pb-28 w-full max-w-7xl mx-auto relative"
       style={{
         backgroundImage: `url(${FLORAL_BG})`,
         backgroundSize: "400px auto",
