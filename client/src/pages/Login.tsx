@@ -1,23 +1,39 @@
 /**
  * Login Page — Bridal Creative
- * Desktop Responsive Version
+ * Desktop Responsive + Supabase Magic Link
  */
 
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { Mail } from "lucide-react";
 import { motion } from "framer-motion";
+import { supabase } from "@/lib/supabase";
 
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [, setLocation] = useLocation();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocation("/dashboard");
+
+    if (!email) return;
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+    });
+
+    if (error) {
+      alert("Erro ao enviar email.");
+      setLoading(false);
+      return;
+    }
+
+    alert("Verifique seu email para entrar.");
+    setLoading(false);
   };
 
   return (
@@ -32,7 +48,7 @@ export default function Login() {
     >
       <div className="w-full max-w-md lg:max-w-6xl bg-transparent flex flex-col lg:flex-row items-center justify-center gap-16 py-16">
 
-        {/* LADO ESQUERDO — BRANDING (aparece só no desktop) */}
+        {/* LADO ESQUERDO — BRANDING (desktop) */}
         <motion.div
           className="hidden lg:flex flex-col items-center text-center"
           initial={{ opacity: 0, x: -40 }}
@@ -71,7 +87,7 @@ export default function Login() {
           </p>
         </motion.div>
 
-        {/* LADO DIREITO — FORM */}
+        {/* FORM */}
         <motion.div
           className="w-full max-w-[420px] bg-white/70 backdrop-blur-md rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.08)] border border-[#E8E3DA]/60"
           initial={{ opacity: 0, y: 30 }}
@@ -86,7 +102,7 @@ export default function Login() {
               fontVariant: "small-caps",
             }}
           >
-            Faça seu cadastro
+            Acessar sua área
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -107,33 +123,24 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Use o e-mail informado no momento da compra"
+                  placeholder="Use o e-mail informado na compra"
                   className="w-full pl-11 pr-4 py-3 text-[14px] bg-white border border-[#E8E3DA] rounded-xl text-[#3A3A3A] placeholder:text-[#B5B5A8] focus:outline-none focus:border-[#677354]/50 focus:ring-2 focus:ring-[#677354]/15 transition-all duration-300"
                   style={{ fontFamily: "var(--font-body)" }}
                 />
               </div>
             </div>
 
-            <p className="text-center text-[13px] text-[#8A8A7A]" style={{ fontFamily: "var(--font-body)" }}>
-              Já tem uma conta?{" "}
-              <button
-                type="button"
-                className="text-[#677354] underline underline-offset-2 hover:text-[#556244] transition-colors duration-200 font-medium"
-              >
-                Faça login
-              </button>
-            </p>
-
             <button
               type="submit"
-              className="w-full py-3.5 bg-[#677354] text-white text-[15px] rounded-xl hover:bg-[#5a6649] transition-all duration-300 shadow-[0_4px_16px_rgba(103,115,84,0.35)]"
+              disabled={loading}
+              className="w-full py-3.5 bg-[#677354] text-white text-[15px] rounded-xl hover:bg-[#5a6649] transition-all duration-300 shadow-[0_4px_16px_rgba(103,115,84,0.35)] disabled:opacity-70"
               style={{
                 fontFamily: "var(--font-body)",
                 fontVariant: "small-caps",
                 letterSpacing: "0.12em",
               }}
             >
-              Entrar
+              {loading ? "Enviando..." : "Entrar"}
             </button>
           </form>
         </motion.div>
