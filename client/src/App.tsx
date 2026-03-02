@@ -7,17 +7,19 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Community from "./pages/Community";
+import Layout from "./components/Layout";
 
 function Router() {
   return (
     <Switch>
-      <Route path={"/"}>
+      <Route path="/">
         <Redirect to="/login" />
       </Route>
-      <Route path={"/login"} component={Login} />
-      <Route path={"/dashboard"} component={Dashboard} />
-      <Route path={"/community"} component={Community} />
-      <Route path={"/404"} component={NotFound} />
+
+      <Route path="/login" component={Login} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/community" component={Community} />
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -28,8 +30,11 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
+          <Layout>
+            <Router />
+          </Layout>
+
           <Toaster />
-          <Router />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
