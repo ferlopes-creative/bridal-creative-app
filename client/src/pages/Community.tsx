@@ -395,12 +395,13 @@ export default function Community() {
   };
 
   return (
-    <div
-      className="min-h-screen pb-24 max-w-[480px] mx-auto"
-      style={{
-        backgroundColor: "#F7F5F0",
-      }}
-    >
+  <div
+    className="min-h-screen pb-28 w-full relative"
+    style={{ backgroundColor: "#F7F5F0" }}
+  >
+    {/* Container responsivo central */}
+    <div className="w-full max-w-[620px] lg:max-w-[720px] mx-auto">
+
       {/* Community Header */}
       <header className="sticky top-0 z-50 bg-[#F7F5F0]/95 backdrop-blur-md border-b border-[#E8E3DA]/50">
         <div className="flex items-center justify-between px-4 py-3">
@@ -411,6 +412,7 @@ export default function Community() {
           >
             <ChevronLeft className="w-6 h-6 text-[#677354]" strokeWidth={1.8} />
           </button>
+
           <h1
             className="text-[16px] tracking-[0.12em] text-[#3A3A3A]"
             style={{
@@ -421,26 +423,23 @@ export default function Community() {
           >
             Comunidade
           </h1>
-          <div className="w-8" /> {/* Spacer for centering */}
+
+          <div className="w-8" />
         </div>
       </header>
 
-      {/* Stories-like section */}
+      {/* Stories */}
       <div className="bg-white border-b border-[#E8E3DA]/50 py-4">
-        <div
-          className="flex gap-4 overflow-x-auto px-4"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {/* Add story button */}
+        <div className="flex gap-4 overflow-x-auto px-4">
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#B8A88A] flex items-center justify-center bg-[#F7F5F0]">
               <span className="text-[#677354] text-xl font-light">+</span>
             </div>
-            <span className="text-[10px] text-[#8A8A7A]" style={{ fontFamily: "var(--font-body)" }}>
+            <span className="text-[10px] text-[#8A8A7A]">
               Sua história
             </span>
           </div>
-          {/* Story circles */}
+
           {INITIAL_POSTS.slice(0, 4).map((post) => (
             <div key={`story-${post.id}`} className="flex flex-col items-center gap-1.5 flex-shrink-0">
               <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-br from-[#677354] via-[#B8A88A] to-[#677354]">
@@ -452,10 +451,7 @@ export default function Community() {
                   />
                 </div>
               </div>
-              <span
-                className="text-[10px] text-[#3A3A3A] max-w-[64px] truncate text-center"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
+              <span className="text-[10px] text-[#3A3A3A] max-w-[64px] truncate text-center">
                 {post.user.split(" ")[0]}
               </span>
             </div>
@@ -463,9 +459,9 @@ export default function Community() {
         </div>
       </div>
 
-      {/* Posts Feed */}
+      {/* Feed */}
       <div className="mt-2">
-        {posts.map((post, index) => (
+        {posts.map((post) => (
           <PostCard
             key={post.id}
             post={post}
@@ -476,21 +472,20 @@ export default function Community() {
         ))}
       </div>
 
-      {/* End of feed message */}
+      {/* End */}
       <div className="py-10 text-center">
         <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E8E3DA]/50 flex items-center justify-center">
           <Heart className="w-5 h-5 text-[#B8A88A]" strokeWidth={1.5} />
         </div>
-        <p
-          className="text-[13px] text-[#8A8A7A]"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
+        <p className="text-[13px] text-[#8A8A7A]">
           Você viu todas as postagens recentes
         </p>
       </div>
 
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
-  );
+
+    {/* Bottom Navigation */}
+    <BottomNav />
+  </div>
+);
 }
