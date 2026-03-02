@@ -32,17 +32,15 @@ export default function BottomNav() {
           </button>
 
           {/* Comunidade */}
-          <button
-            onClick={() => {
-              // Feature coming soon
-            }}
-            className="flex flex-col items-center gap-1 group"
-            aria-label="Comunidade"
-          >
-            <div className="w-11 h-11 rounded-full flex items-center justify-center group-hover:bg-white/15 transition-colors duration-300">
-              <MessageCircle className="w-[22px] h-[22px] text-white/75" strokeWidth={1.8} />
-            </div>
-          </button>
+<button
+  onClick={() => setLocation("/community")}
+  className="flex flex-col items-center gap-1 group"
+  aria-label="Comunidade"
+>
+  <div className="w-11 h-11 rounded-full flex items-center justify-center bg-white/20 group-hover:bg-white/30 transition-colors duration-300">
+    <MessageCircle className="w-[22px] h-[22px] text-white" strokeWidth={1.8} />
+  </div>
+</button>
         </div>
       </div>
     </nav>
