@@ -16,11 +16,19 @@ const HERO_IMG =
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 
+/**
+ * UUID do produto "Kit Convites Digitais Elegantes"
+ */
+const CONVITES_ID = "65f67c26-86f3-46a7-bcb8-2e739fb0c800";
+
+/**
+ * IDs dos bônus liberados quando compra convites
+ */
 const BONUS_PRODUCTS = [
-  "site-casamento",
-  "manual-padrinhos",
-  "save-the-date",
-  "convite-video",
+  "72a859b9-abdc-4a4d-80b3-83d5c260aa38", // Convite vídeo
+  "786ee019-d0ef-4e7e-9769-15f8d2811ac3", // Save the date
+  "d303e1a3-ad53-4a76-87db-5fb364b15834", // Site casamento
+  "f0b69d4f-142d-4699-bda5-8734eb00b8fc", // Manual padrinhos
 ];
 
 export default function Dashboard() {
@@ -39,7 +47,9 @@ export default function Dashboard() {
         return;
       }
 
-      // pegar compras
+      /**
+       * Buscar compras do usuário
+       */
       const { data: purchasesData } = await supabase
         .from("purchases")
         .select("*")
@@ -51,7 +61,9 @@ export default function Dashboard() {
 
       setPurchases(purchasedIds);
 
-      // pegar produtos
+      /**
+       * Buscar produtos
+       */
       const { data: productsData } = await supabase
         .from("products")
         .select("*");
@@ -66,18 +78,30 @@ export default function Dashboard() {
     loadDashboard();
   }, []);
 
+  /**
+   * verifica acesso ao produto
+   */
   const hasAccess = (id: string) => purchases.includes(id);
 
-  const hasConvites = hasAccess("convites");
+  /**
+   * verifica se comprou o kit convites
+   */
+  const hasConvites = purchases.includes(CONVITES_ID);
 
-  const userProducts = products.filter((p) => {
-    if (hasConvites && BONUS_PRODUCTS.includes(p.id)) return true;
-    return hasAccess(p.id);
+  /**
+   * produtos liberados
+   */
+  const unlockedProducts = products.filter((product) => {
+    if (hasConvites && BONUS_PRODUCTS.includes(product.id)) return true;
+    return hasAccess(product.id);
   });
 
-  const lockedProducts = products.filter((p) => {
-    if (hasConvites && BONUS_PRODUCTS.includes(p.id)) return false;
-    return !hasAccess(p.id);
+  /**
+   * produtos bloqueados
+   */
+  const lockedProducts = products.filter((product) => {
+    if (hasConvites && BONUS_PRODUCTS.includes(product.id)) return false;
+    return !hasAccess(product.id);
   });
 
   if (loading) {
@@ -108,6 +132,7 @@ export default function Dashboard() {
             className="absolute inset-0 w-full h-full object-cover opacity-50"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#677354]/85 via-[#677354]/50 to-transparent" />
+
           <div className="relative z-10 flex items-center h-full px-7">
             <h2
               className="text-white text-[22px]"
@@ -122,7 +147,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* PRODUTOS COMPRADOS */}
+      {/* PRODUTOS LIBERADOS */}
       <section className="px-5 mt-8">
         <h2
           className="mb-4 text-[17px]"
@@ -135,7 +160,7 @@ export default function Dashboard() {
         </h2>
 
         <div className="flex gap-4 flex-wrap">
-          {userProducts.map((product) => (
+          {unlockedProducts.map((product) => (
             <ProductCard
               key={product.id}
               title={product.name}
