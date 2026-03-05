@@ -1,6 +1,6 @@
 /**
  * Dashboard Page — Bridal Creative
- * Área de membros com bônus automáticos ao comprar "convites"
+ * Produtos dinâmicos + bônus automáticos
  */
 
 import { useEffect, useState } from "react";
@@ -13,26 +13,25 @@ import BottomNav from "@/components/BottomNav";
 const HERO_IMG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/hero-dashboard-3bwfV63NU8FVBh4sbUDr2w.webp";
 
-const PRODUCT_CONVITES =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/product-convites-icGCijVnJ8YrAisPF779Ja.webp";
-
-const PRODUCT_MENU =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/product-menu-8fF3qQuSeZEDW2wUNBPvC6.webp";
-
-const PRODUCT_VENTAROLA =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/product-ventarola-XyZhQnZPw6CkFLubxmxdwo.webp";
-
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 
+const BONUS_PRODUCTS = [
+  "site-casamento",
+  "manual-padrinhos",
+  "save-the-date",
+  "convite-video",
+];
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const [userProducts, setUserProducts] = useState<string[]>([]);
+
+  const [products, setProducts] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 Verifica login + carrega compras
   useEffect(() => {
-    const loadUser = async () => {
+    const loadDashboard = async () => {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
@@ -40,34 +39,51 @@ export default function Dashboard() {
         return;
       }
 
-      const { data } = await supabase
+      // pegar compras
+      const { data: purchasesData } = await supabase
         .from("purchases")
         .select("*")
         .eq("user_id", userData.user.id)
         .eq("status", "active");
 
-      if (data) {
-        const productIds = data.map((p) => p.product_id);
-        setUserProducts(productIds);
+      const purchasedIds =
+        purchasesData?.map((p) => p.product_id) || [];
+
+      setPurchases(purchasedIds);
+
+      // pegar produtos
+      const { data: productsData } = await supabase
+        .from("products")
+        .select("*");
+
+      if (productsData) {
+        setProducts(productsData);
       }
 
       setLoading(false);
     };
 
-    loadUser();
+    loadDashboard();
   }, []);
 
-  const hasAccess = (productId: string) => {
-    return userProducts.includes(productId);
-  };
+  const hasAccess = (id: string) => purchases.includes(id);
 
-  // 🎁 Regra: se comprou convites, libera todos bônus
   const hasConvites = hasAccess("convites");
+
+  const userProducts = products.filter((p) => {
+    if (hasConvites && BONUS_PRODUCTS.includes(p.id)) return true;
+    return hasAccess(p.id);
+  });
+
+  const lockedProducts = products.filter((p) => {
+    if (hasConvites && BONUS_PRODUCTS.includes(p.id)) return false;
+    return !hasAccess(p.id);
+  });
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p style={{ fontFamily: "var(--font-body)" }}>Carregando...</p>
+        <p>Carregando...</p>
       </div>
     );
   }
@@ -106,7 +122,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* SEUS PRODUTOS */}
+      {/* PRODUTOS COMPRADOS */}
       <section className="px-5 mt-8">
         <h2
           className="mb-4 text-[17px]"
@@ -119,16 +135,17 @@ export default function Dashboard() {
         </h2>
 
         <div className="flex gap-4 flex-wrap">
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Kit de Convites Editáveis"
-            locked={!hasConvites}
-            size="large"
-          />
+          {userProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              title={product.name}
+              locked={false}
+            />
+          ))}
         </div>
       </section>
 
-      {/* 🎁 BÔNUS INCLUSOS */}
+      {/* PRODUTOS BLOQUEADOS */}
       <section className="px-5 mt-9">
         <h2
           className="mb-4 text-[17px]"
@@ -137,66 +154,17 @@ export default function Dashboard() {
             fontVariant: "small-caps",
           }}
         >
-          Bônus Inclusos
+          Disponível para você
         </h2>
 
         <div className="flex gap-4 flex-wrap">
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Site Editável"
-            locked={!hasConvites}
-          />
-
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Save the Date"
-            locked={!hasConvites}
-          />
-
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Manual dos Padrinhos"
-            locked={!hasConvites}
-          />
-
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Manual de Edição"
-            locked={!hasConvites}
-          />
-
-          <ProductCard
-            image={PRODUCT_CONVITES}
-            title="Convite Vídeo Editável"
-            locked={!hasConvites}
-          />
-        </div>
-      </section>
-
-      {/* OUTROS PRODUTOS */}
-      <section className="px-5 mt-9">
-        <h2
-          className="mb-4 text-[17px]"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontVariant: "small-caps",
-          }}
-        >
-          Outros Produtos
-        </h2>
-
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          <ProductCard
-            image={PRODUCT_VENTAROLA}
-            title="Ventarola"
-            locked={!hasAccess("ventarola")}
-          />
-
-          <ProductCard
-            image={PRODUCT_MENU}
-            title="Menu Editável"
-            locked={!hasAccess("menu")}
-          />
+          {lockedProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              title={product.name}
+              locked={true}
+            />
+          ))}
         </div>
       </section>
 
