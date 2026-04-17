@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Home, Lock, MessageCircle, X } from "lucide-react";
+import { Bell, Home, Lock, MessageCircle, PlayCircle, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 
@@ -68,7 +68,7 @@ export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [lockedProduct, setLockedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
 
   const getType = (product: Product) => (product.type || "PRO").toUpperCase();
@@ -242,7 +242,7 @@ export default function Dashboard() {
                 product={product}
                 locked={false}
                 onClick={() => {
-                  setLocation(`/dashboard/product/${product.id}`);
+                  setSelectedProduct(product);
                 }}
               />
             ))}
@@ -266,7 +266,7 @@ export default function Dashboard() {
                 product={product}
                 locked={true}
                 onClick={() => {
-                  setLockedProduct(product);
+                  setSelectedProduct(product);
                 }}
               />
             ))}
@@ -290,11 +290,7 @@ export default function Dashboard() {
                 product={product}
                 locked={!hasAccess(product)}
                 onClick={() => {
-                  if (hasAccess(product)) {
-                    setLocation(`/dashboard/product/${product.id}`);
-                    return;
-                  }
-                  setLockedProduct(product);
+                  setSelectedProduct(product);
                 }}
               />
             ))}
@@ -333,11 +329,7 @@ export default function Dashboard() {
                 product={product}
                 locked={!hasAccess(product)}
                 onClick={() => {
-                  if (hasAccess(product)) {
-                    setLocation(`/dashboard/product/${product.id}`);
-                    return;
-                  }
-                  setLockedProduct(product);
+                  setSelectedProduct(product);
                 }}
               />
             ))}
@@ -357,35 +349,97 @@ export default function Dashboard() {
         </button>
       </nav>
 
-      {lockedProduct && (
+      {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="w-full max-w-2xl rounded-3xl bg-[#F7F5F0] p-4 shadow-xl md:p-6">
+            {(() => {
+              const title = selectedProduct.name || "Produto";
+              const imageSrc =
+                selectedProduct.image_url ||
+                selectedProduct.image ||
+                selectedProduct.thumbnail_url ||
+                "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+              const unlocked = hasAccess(selectedProduct);
+
+              return (
+                <>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-2xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
-                {lockedProduct.name}
+                {title}
               </h3>
               <button
                 type="button"
-                onClick={() => setLockedProduct(null)}
+                onClick={() => setSelectedProduct(null)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p className="mb-6 text-sm text-zinc-600">
-              Este conteúdo está bloqueado para sua conta no momento.
-            </p>
-            <a
-              href={lockedProduct.link_compra || "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-[#6B705C] px-4 text-sm font-medium tracking-wide text-white"
-              onClick={(e) => {
-                if (!lockedProduct.link_compra) e.preventDefault();
-              }}
-            >
-              QUERO TER ACESSO AGORA
-            </a>
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-2xl border border-[#6B705C]/25 bg-white">
+                <img src={imageSrc} alt={title} className="h-[180px] w-full object-cover md:h-[240px]" />
+              </div>
+
+              <div>
+                <h4 className="text-xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
+                  {title}
+                </h4>
+                <p className="mt-1 text-sm text-zinc-600">
+                  {selectedProduct.description || "Sem descrição disponível."}
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-[#6B705C]/25 bg-white p-4">
+                {selectedProduct.video_url ? (
+                  <video
+                    src={selectedProduct.video_url}
+                    controls
+                    preload="metadata"
+                    className="mx-auto aspect-video w-full rounded-xl bg-[#e8eadf]"
+                  />
+                ) : (
+                  <div className="flex h-[170px] items-center justify-center rounded-xl bg-[#eef1e9] text-[#6B705C]">
+                    <div className="flex flex-col items-center gap-2">
+                      <PlayCircle className="h-8 w-8" />
+                      <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
+                        Vídeo demonstrativo indisponível
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                {unlocked ? (
+                  <a
+                    href={selectedProduct.link_compra || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#6B705C] px-5 text-sm tracking-wide text-[#6B705C]"
+                    onClick={(e) => {
+                      if (!selectedProduct.link_compra) e.preventDefault();
+                    }}
+                  >
+                    LINK
+                  </a>
+                ) : (
+                  <a
+                    href={selectedProduct.link_compra || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-[#6B705C] px-5 text-sm tracking-wide text-white"
+                    onClick={(e) => {
+                      if (!selectedProduct.link_compra) e.preventDefault();
+                    }}
+                  >
+                    QUERO TER ACESSO AGORA
+                  </a>
+                )}
+              </div>
+            </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
