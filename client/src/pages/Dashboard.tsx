@@ -165,7 +165,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen pb-28 -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
+    <div className="relative min-h-screen overflow-x-hidden pb-28 -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
       <div
         className={`fixed top-0 right-0 left-0 z-40 bg-white/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
