@@ -341,10 +341,20 @@ export default function Dashboard() {
       </div>
 
       <nav className="fixed right-0 bottom-0 left-0 mx-auto flex h-20 w-full max-w-6xl items-center justify-center gap-16 rounded-t-[28px] bg-[#6B705C] text-white">
-        <button type="button" className="opacity-100" aria-label="Início">
+        <button
+          type="button"
+          onClick={() => setLocation("/dashboard")}
+          className="opacity-100"
+          aria-label="Início"
+        >
           <Home className="h-8 w-8" />
         </button>
-        <button type="button" className="opacity-95" aria-label="Comunidade">
+        <button
+          type="button"
+          onClick={() => setLocation("/community")}
+          className="opacity-95"
+          aria-label="Comunidade"
+        >
           <MessageCircle className="h-8 w-8" />
         </button>
       </nav>
