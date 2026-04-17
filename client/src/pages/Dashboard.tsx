@@ -69,6 +69,7 @@ export default function Dashboard() {
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [lockedProduct, setLockedProduct] = useState<Product | null>(null);
+  const [showScrollHeader, setShowScrollHeader] = useState(false);
 
   const getType = (product: Product) => (product.type || "PRO").toUpperCase();
   const hasAccess = (product: Product) => purchasedIds.has(product.id);
@@ -124,6 +125,16 @@ export default function Dashboard() {
     loadProducts();
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollHeader(window.scrollY > 90);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const nonBonusProducts = useMemo(
     () => products.filter((product) => getType(product) !== "BON"),
     [products]
@@ -155,6 +166,25 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen pb-28 -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
+      <div
+        className={`fixed top-0 right-0 left-0 z-40 bg-white/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
+          showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
+        }`}
+      >
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#6B705C]/30 text-[#6B705C]">
+            <span className="text-lg" style={{ fontFamily: "var(--font-display)" }}>BC</span>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            aria-label="Notificações"
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
       <div
         className="absolute inset-0 opacity-[0.08]"
         style={{
