@@ -1,199 +1,364 @@
-/**
- * Dashboard Page — Bridal Creative
- * Produtos dinâmicos + bônus automáticos
- */
-
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, Home, Lock, MessageCircle, X } from "lucide-react";
 import { useLocation } from "wouter";
-import Header from "@/components/Header";
-import ProductCard from "@/components/ProductCard";
-import BottomNav from "@/components/BottomNav";
-
-const HERO_IMG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/hero-dashboard-3bwfV63NU8FVBh4sbUDr2w.webp";
+import { supabase } from "@/lib/supabase";
 
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
+type Product = {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  type: "PRO" | "BON" | string;
+  image_url?: string | null;
+  image?: string | null;
+  thumbnail_url?: string | null;
+  video_url?: string | null;
+  link_compra?: string | null;
+};
 
-/**
- * UUID do produto "Kit Convites Digitais Elegantes"
- */
-const CONVITES_ID = "65f67c26-86f3-46a7-bcb8-2e739fb0c800";
+function ProductCard({
+  product,
+  locked = false,
+  onClick,
+}: {
+  product: Product;
+  locked?: boolean;
+  onClick: () => void;
+}) {
+  const productTitle = product.name || "Produto";
+  const imageSrc =
+    product.image_url ||
+    product.image ||
+    product.thumbnail_url ||
+    "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
 
-/**
- * IDs dos bônus liberados quando compra convites
- */
-const BONUS_PRODUCTS = [
-  "72a859b9-abdc-4a4d-80b3-83d5c260aa38", // Convite vídeo
-  "786ee019-d0ef-4e7e-9769-15f8d2811ac3", // Save the date
-  "d303e1a3-ad53-4a76-87db-5fb364b15834", // Site casamento
-  "f0b69d4f-142d-4699-bda5-8734eb00b8fc", // Manual padrinhos
-];
+  return (
+    <article
+      onClick={onClick}
+      className="w-[164px] cursor-pointer overflow-hidden rounded-[22px] bg-[#5F684F] p-3 shadow-sm transition-transform hover:scale-[1.01]"
+    >
+      <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
+        <img
+          src={imageSrc}
+          alt={productTitle}
+          className={`h-[146px] w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
+        />
+        {locked && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="rounded-xl bg-white/90 p-3">
+              <Lock className="h-8 w-8 text-[#6B705C]" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <h3
+        className="mt-3 line-clamp-2 text-center text-[14px] leading-[1.15] text-white"
+        style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
+      >
+        {productTitle}
+      </h3>
+    </article>
+  );
+}
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-
-  const [products, setProducts] = useState<any[]>([]);
-  const [purchases, setPurchases] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [lockedProduct, setLockedProduct] = useState<Product | null>(null);
+
+  const getType = (product: Product) => (product.type || "PRO").toUpperCase();
+  const hasAccess = (product: Product) => purchasedIds.has(product.id);
 
   useEffect(() => {
-    const loadDashboard = async () => {
+    const loadProducts = async () => {
+      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
       const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData.user) {
+      if (!userData.user && !isDevBypass) {
         setLocation("/");
         return;
       }
 
-      /**
-       * Buscar compras do usuário
-       */
-      const { data: purchasesData } = await supabase
-        .from("purchases")
-        .select("*")
-        .eq("user_id", userData.user.id)
-        .eq("status", "active");
+      if (userData.user) {
+        const { data: purchasesData, error: purchasesError } = await supabase
+          .from("purchases")
+          .select("product_id, status")
+          .eq("user_id", userData.user.id)
+          .eq("status", "active");
 
-      const purchasedIds =
-        purchasesData?.map((p) => p.product_id) || [];
-
-      setPurchases(purchasedIds);
-
-      /**
-       * Buscar produtos
-       */
-      const { data: productsData } = await supabase
-        .from("products")
-        .select("*");
-
-      if (productsData) {
-        setProducts(productsData);
+        if (!purchasesError && purchasesData) {
+          setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
+        }
+      } else {
+        setPurchasedIds(new Set());
       }
 
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar dashboard/products:", error);
+        console.log("Erro detalhado dashboard/products:", JSON.stringify(error, null, 2));
+      } else if (data) {
+        const normalized = data.map((item: any) => ({
+          id: item.id,
+          name: item.name ?? item.title ?? "Produto",
+          description: item.description ?? item.descricao ?? null,
+          type: (item.type ?? item.tipo ?? "PRO") as "PRO" | "BON" | string,
+          image_url: item.image_url ?? item.image ?? null,
+          image: item.image ?? null,
+          thumbnail_url: item.thumbnail_url ?? null,
+          video_url: item.video_url ?? item.video ?? null,
+          link_compra: item.link_compra ?? item.link ?? null,
+        }));
+        setProducts(normalized);
+      }
       setLoading(false);
     };
 
-    loadDashboard();
+    loadProducts();
   }, []);
 
-  /**
-   * verifica acesso ao produto
-   */
-  const hasAccess = (id: string) => purchases.includes(id);
-
-  /**
-   * verifica se comprou o kit convites
-   */
-  const hasConvites = purchases.includes(CONVITES_ID);
-
-  /**
-   * produtos liberados
-   */
-  const unlockedProducts = products.filter((product) => {
-    if (hasConvites && BONUS_PRODUCTS.includes(product.id)) return true;
-    return hasAccess(product.id);
-  });
-
-  /**
-   * produtos bloqueados
-   */
-  const lockedProducts = products.filter((product) => {
-    if (hasConvites && BONUS_PRODUCTS.includes(product.id)) return false;
-    return !hasAccess(product.id);
-  });
+  const nonBonusProducts = useMemo(
+    () => products.filter((product) => getType(product) !== "BON"),
+    [products]
+  );
+  const bonusProducts = useMemo(
+    () => products.filter((product) => getType(product) === "BON"),
+    [products]
+  );
+  const purchasedProducts = useMemo(
+    () => nonBonusProducts.filter((product) => hasAccess(product)),
+    [nonBonusProducts, purchasedIds]
+  );
+  const suggestedProducts = useMemo(
+    () => nonBonusProducts.filter((product) => !hasAccess(product)),
+    [nonBonusProducts, purchasedIds]
+  );
+  const otherProducts = useMemo(
+    () => nonBonusProducts,
+    [nonBonusProducts]
+  );
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Carregando...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
+        <p className="text-sm text-[#6B705C]">Carregando produtos...</p>
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen pb-28 w-full max-w-7xl mx-auto"
-      style={{
-        backgroundImage: `url(${FLORAL_BG})`,
-        backgroundSize: "400px auto",
-        backgroundRepeat: "repeat",
-        backgroundColor: "#F7F5F0",
-      }}
-    >
-      <Header />
-
-      {/* HERO */}
-      <section className="mx-4 mt-2 rounded-2xl overflow-hidden shadow-lg">
-        <div className="relative h-[260px] bg-[#677354]">
-          <img
-            src={HERO_IMG}
-            className="absolute inset-0 w-full h-full object-cover opacity-50"
+    <div className="relative min-h-screen pb-28 -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
+      <div
+        className="absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundSize: "360px auto",
+          backgroundRepeat: "repeat",
+          backgroundColor: "#FBFAF6",
+        }}
+      />
+      <section className="relative min-h-[270px] overflow-hidden">
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, #C7CDBE 0%, #9FA792 34%, #6B705C 100%)",
+            }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#677354]/85 via-[#677354]/50 to-transparent" />
-
-          <div className="relative z-10 flex items-center h-full px-7">
+          <div className="relative z-10 flex min-h-[270px] w-full flex-col px-4 pt-6 pb-6">
+            <header className="mb-4 flex items-center justify-between">
+              <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 text-white">
+                <span className="text-2xl" style={{ fontFamily: "var(--font-display)" }}>BC</span>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                aria-label="Notificações"
+              >
+                <Bell className="h-6 w-6" />
+              </button>
+            </header>
+            <div className="flex flex-1 items-center text-white">
             <h2
-              className="text-white text-[22px]"
-              style={{
-                fontFamily: "var(--font-display)",
-                fontVariant: "small-caps",
-              }}
+              className="max-w-[72%] text-[34px] leading-[1.12] md:max-w-[62%] md:text-[40px]"
+              style={{ fontFamily: "var(--font-display)" }}
             >
               Nosso propósito é tornar seu sonho uma realidade!
             </h2>
+            </div>
+          </div>
+      </section>
+
+      <div className="relative w-full px-4 pt-8">
+
+        <section>
+          <h2
+            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            SEUS PRODUTOS
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {purchasedProducts.map((product) => (
+              <ProductCard
+                key={`owned-${product.id}`}
+                product={product}
+                locked={false}
+                onClick={() => {
+                  setLocation(`/dashboard/product/${product.id}`);
+                }}
+              />
+            ))}
+          </div>
+          {purchasedProducts.length === 0 && (
+            <p className="text-sm text-[#6B705C]/75">Nenhum produto liberado no momento.</p>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h2
+            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            PENSADOS PARA VOCÊ
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {suggestedProducts.map((product) => (
+              <ProductCard
+                key={`suggested-${product.id}`}
+                product={product}
+                locked={true}
+                onClick={() => {
+                  setLockedProduct(product);
+                }}
+              />
+            ))}
+          </div>
+          {suggestedProducts.length === 0 && (
+            <p className="text-sm text-[#6B705C]/75">Sem sugestões bloqueadas para agora.</p>
+          )}
+        </section>
+
+        <section className="mt-8">
+          <h2
+            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            BÔNUS
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {bonusProducts.map((product) => (
+              <ProductCard
+                key={`bonus-${product.id}`}
+                product={product}
+                locked={!hasAccess(product)}
+                onClick={() => {
+                  if (hasAccess(product)) {
+                    setLocation(`/dashboard/product/${product.id}`);
+                    return;
+                  }
+                  setLockedProduct(product);
+                }}
+              />
+            ))}
+          </div>
+          {bonusProducts.length === 0 && (
+            <p className="text-sm text-[#6B705C]/75">Nenhum bônus cadastrado.</p>
+          )}
+        </section>
+
+        <section className="mt-9 -mx-4 bg-[#6B705C] px-5 py-6 text-center text-white md:-mx-8 lg:-mx-16 xl:-mx-24">
+          <p className="text-3xl leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+            Quer algo mais personalizado?
+          </p>
+          <a
+            href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-3xl underline underline-offset-4"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Chame nossa equipe.
+          </a>
+        </section>
+
+        <section className="mt-10">
+          <h2
+            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            OUTROS PRODUTOS
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {otherProducts.map((product) => (
+              <ProductCard
+                key={`other-${product.id}`}
+                product={product}
+                locked={!hasAccess(product)}
+                onClick={() => {
+                  if (hasAccess(product)) {
+                    setLocation(`/dashboard/product/${product.id}`);
+                    return;
+                  }
+                  setLockedProduct(product);
+                }}
+              />
+            ))}
+          </div>
+          {otherProducts.length === 0 && (
+            <p className="text-sm text-[#6B705C]/75">Nenhum outro produto disponível.</p>
+          )}
+        </section>
+      </div>
+
+      <nav className="fixed right-0 bottom-0 left-0 mx-auto flex h-20 w-full max-w-6xl items-center justify-center gap-16 rounded-t-[28px] bg-[#6B705C] text-white">
+        <button type="button" className="opacity-100" aria-label="Início">
+          <Home className="h-8 w-8" />
+        </button>
+        <button type="button" className="opacity-95" aria-label="Comunidade">
+          <MessageCircle className="h-8 w-8" />
+        </button>
+      </nav>
+
+      {lockedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-2xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
+                {lockedProduct.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setLockedProduct(null)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mb-6 text-sm text-zinc-600">
+              Este conteúdo está bloqueado para sua conta no momento.
+            </p>
+            <a
+              href={lockedProduct.link_compra || "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 w-full items-center justify-center rounded-md bg-[#6B705C] px-4 text-sm font-medium tracking-wide text-white"
+              onClick={(e) => {
+                if (!lockedProduct.link_compra) e.preventDefault();
+              }}
+            >
+              QUERO TER ACESSO AGORA
+            </a>
           </div>
         </div>
-      </section>
-
-      {/* PRODUTOS LIBERADOS */}
-      <section className="px-5 mt-8">
-        <h2
-          className="mb-4 text-[17px]"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontVariant: "small-caps",
-          }}
-        >
-          Seus Produtos
-        </h2>
-
-        <div className="flex gap-4 flex-wrap">
-          {unlockedProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              title={product.name}
-              locked={false}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* PRODUTOS BLOQUEADOS */}
-      <section className="px-5 mt-9">
-        <h2
-          className="mb-4 text-[17px]"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontVariant: "small-caps",
-          }}
-        >
-          Disponível para você
-        </h2>
-
-        <div className="flex gap-4 flex-wrap">
-          {lockedProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              title={product.name}
-              locked={true}
-            />
-          ))}
-        </div>
-      </section>
-
-      <BottomNav />
+      )}
     </div>
   );
 }
