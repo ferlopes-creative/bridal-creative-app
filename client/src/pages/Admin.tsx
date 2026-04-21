@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { LogOut, Pencil, Plus, Save, X } from "lucide-react";
+import { LogOut, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import BrandLogo from "@/components/BrandLogo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
 
 type Product = {
@@ -38,6 +41,7 @@ export default function AdminPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sortedProducts = useMemo(
     () =>
@@ -122,6 +126,30 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setLocation("/");
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    const label = product.name || product.title || "este produto";
+    if (!window.confirm(`Excluir "${label}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    setDeletingId(product.id);
+    try {
+      const { error } = await supabase.from("products").delete().eq("id", product.id);
+      if (error) throw error;
+
+      if (editingProductId === product.id) {
+        closeModal();
+      }
+      await fetchProducts(true);
+      toast.success("Produto excluído.");
+    } catch (error) {
+      console.error("Erro ao excluir produto:", error);
+      toast.error("Não foi possível excluir o produto. Verifique permissões no Supabase.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const uploadFileToStorage = async (
@@ -235,9 +263,14 @@ export default function AdminPage() {
     <div className="min-h-screen w-full bg-[#F7F5F0] px-3 py-6 md:px-6">
       <section className="mx-auto w-full max-w-6xl rounded-[28px] border border-zinc-700/80 bg-[#F7F5F0] p-4 md:p-6">
         <div className="mb-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-zinc-700">/admin</p>
-            <h1 className="font-serif text-3xl text-[#6B705C]">BC produtos</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-white/80 p-1">
+              <BrandLogo className="h-full w-full" />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-700">/admin</p>
+              <h1 className="font-serif text-3xl text-[#6B705C]">BC produtos</h1>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -261,7 +294,29 @@ export default function AdminPage() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-zinc-600">Carregando produtos...</p>
+          <div className="space-y-4" aria-busy="true" aria-live="polite">
+            <div className="flex items-center gap-2 text-sm text-[#6B705C]">
+              <Spinner className="size-5 shrink-0" />
+              Carregando catálogo de produtos...
+            </div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={`sk-${i}`}
+                  className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+                >
+                  <Skeleton className="h-28 w-full rounded-none bg-zinc-200/90" />
+                  <div className="space-y-2 p-3">
+                    <Skeleton className="h-4 w-4/5 bg-zinc-200/80" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-8 flex-1 bg-zinc-200/70" />
+                      <Skeleton className="h-8 flex-1 bg-zinc-200/70" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {sortedProducts.map((product) => {
@@ -284,14 +339,29 @@ export default function AdminPage() {
                     <p className="line-clamp-2 text-sm font-medium text-zinc-900">
                       {product.name || product.title || "Sem nome"}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(product)}
-                      className="inline-flex h-8 items-center gap-1 rounded-md border border-[#6B705C]/50 px-2.5 text-xs text-[#6B705C] hover:bg-[#6B705C]/10"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Editar
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(product)}
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-[#6B705C]/50 px-2.5 text-xs text-[#6B705C] hover:bg-[#6B705C]/10"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(product)}
+                        disabled={deletingId === product.id}
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-red-300/80 px-2.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {deletingId === product.id ? (
+                          <Spinner className="size-3.5 text-red-700" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        {deletingId === product.id ? "Excluindo..." : "Excluir"}
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -327,7 +397,11 @@ export default function AdminPage() {
               </p>
             </header>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form
+              onSubmit={handleSave}
+              className={`space-y-4 ${saving ? "pointer-events-none opacity-80" : ""}`}
+              aria-busy={saving}
+            >
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Título do Conteúdo</label>
                 <input
@@ -398,11 +472,20 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                  className="inline-flex h-11 min-w-[140px] items-center justify-center gap-2 rounded-md px-8 text-sm font-medium tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-70"
                   style={{ backgroundColor: "#6B705C" }}
                 >
-                  <Save className="h-4 w-4" />
-                  {saving ? "SALVANDO..." : "SALVAR"}
+                  {saving ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      SALVANDO...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      SALVAR
+                    </>
+                  )}
                 </button>
               </div>
             </form>

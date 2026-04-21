@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell, Home, Lock, MessageCircle, PlayCircle, X } from "lucide-react";
 import { useLocation } from "wouter";
+import BrandLogo from "@/components/BrandLogo";
+import { PageLoading } from "@/components/PageLoading";
 import { supabase } from "@/lib/supabase";
 
 const FLORAL_BG =
@@ -158,8 +160,17 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
-        <p className="text-sm text-[#6B705C]">Carregando produtos...</p>
+      <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage: `url(${FLORAL_BG})`,
+            backgroundSize: "360px auto",
+            backgroundRepeat: "repeat",
+            backgroundColor: "#FBFAF6",
+          }}
+        />
+        <PageLoading label="Carregando seus produtos..." className="relative min-h-screen flex-1" />
       </div>
     );
   }
@@ -172,8 +183,8 @@ export default function Dashboard() {
         }`}
       >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#6B705C]/30 text-[#6B705C]">
-            <span className="text-lg" style={{ fontFamily: "var(--font-display)" }}>BC</span>
+          <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-0.5">
+            <BrandLogo className="h-full w-full" />
           </div>
           <button
             type="button"
@@ -204,8 +215,8 @@ export default function Dashboard() {
           />
           <div className="relative z-10 flex min-h-[270px] w-full flex-col px-4 pt-6 pb-6">
             <header className="mb-4 flex items-center justify-between">
-              <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 text-white">
-                <span className="text-2xl" style={{ fontFamily: "var(--font-display)" }}>BC</span>
+              <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1">
+                <BrandLogo className="h-full w-full brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)]" />
               </div>
               <button
                 type="button"
@@ -288,7 +299,7 @@ export default function Dashboard() {
               <ProductCard
                 key={`bonus-${product.id}`}
                 product={product}
-                locked={!hasAccess(product)}
+                locked={false}
                 onClick={() => {
                   setSelectedProduct(product);
                 }}
@@ -369,7 +380,8 @@ export default function Dashboard() {
                 selectedProduct.image ||
                 selectedProduct.thumbnail_url ||
                 "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
-              const unlocked = hasAccess(selectedProduct);
+              const isBonus = getType(selectedProduct) === "BON";
+              const unlocked = hasAccess(selectedProduct) || isBonus;
 
               return (
                 <>

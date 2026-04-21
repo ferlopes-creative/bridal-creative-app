@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Gem, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
+import BrandLogo from "@/components/BrandLogo";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase";
 
@@ -80,21 +82,7 @@ export default function Login() {
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[460px] items-center justify-center">
         <section className="w-full">
           <header className="mb-12 flex flex-col items-center text-center">
-            <Gem className="mb-1 h-3.5 w-3.5 text-[#6B7459]" strokeWidth={1.4} />
-            <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
-              <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" fill="none">
-                <circle cx="50" cy="50" r="44" stroke="#8D927F" strokeWidth="0.9" />
-                <path d="M10 52 C 18 36, 18 64, 10 52Z" fill="#8D927F" opacity="0.45" />
-                <path d="M90 52 C 82 36, 82 64, 90 52Z" fill="#8D927F" opacity="0.45" />
-                <path d="M50 6 C 46 10, 54 10, 50 6Z" fill="#8D927F" opacity="0.45" />
-              </svg>
-              <span
-                className="text-[36px] leading-none text-[#6B7459]"
-                style={{ fontFamily: serifFont, fontWeight: 500 }}
-              >
-                BC
-              </span>
-            </div>
+            <BrandLogo className="mx-auto mb-8 h-[100px] w-auto max-w-[160px]" />
 
             <h1
               className="text-[42px] leading-none text-[#6B7459] md:text-[52px]"
@@ -160,18 +148,28 @@ export default function Login() {
                 </a>
               </p>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="mx-auto block h-10 rounded-lg px-8 text-[22px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70"
-                style={{
-                  backgroundColor: "#6B7459",
-                  fontFamily: serifFont,
-                  letterSpacing: "0.15em",
-                }}
-              >
-                {loading ? "ENVIANDO..." : "ENTRAR"}
-              </button>
+              <div className="flex w-full justify-center">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  aria-busy={loading}
+                  className="inline-flex h-10 min-w-[200px] items-center justify-center gap-2 rounded-lg px-8 text-[22px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                  style={{
+                    backgroundColor: "#6B7459",
+                    fontFamily: serifFont,
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <Spinner className="size-5 shrink-0 text-white" />
+                      ENVIANDO...
+                    </>
+                  ) : (
+                    "ENTRAR"
+                  )}
+                </button>
+              </div>
             </form>
 
             <button

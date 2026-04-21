@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, CircleUserRound, Filter, MessageCirclePlus } from "lucide-react";
+import { Bell, ChevronLeft, CircleUserRound, Filter, Home, MessageCircle, MessageCirclePlus } from "lucide-react";
 import { useLocation } from "wouter";
-import BottomNav from "@/components/BottomNav";
+import BrandLogo from "@/components/BrandLogo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
@@ -24,6 +27,7 @@ export default function Community() {
   const [, setLocation] = useLocation();
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -34,28 +38,35 @@ export default function Community() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [imageFilter, setImageFilter] = useState<ImageFilter>("all");
 
-  const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .select("*")
-      .order("created_at", { ascending: false });
+  const fetchComments = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (silent) setRefreshing(true);
+    else setLoading(true);
 
-    if (error) {
-      console.error("Erro ao carregar comentários:", error);
-      setLoading(false);
-      return;
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao carregar comentários:", error);
+        return;
+      }
+
+      const normalized = (data || []).map((item: any) => ({
+        id: String(item.id),
+        name: item.name || "Sem nome",
+        comment: item.comment || item.text || "",
+        image_url: item.image_url || null,
+        created_at: item.created_at || new Date().toISOString(),
+      }));
+
+      setComments(normalized);
+    } finally {
+      if (silent) setRefreshing(false);
+      else setLoading(false);
     }
-
-    const normalized = (data || []).map((item: any) => ({
-      id: String(item.id),
-      name: item.name || "Sem nome",
-      comment: item.comment || item.text || "",
-      image_url: item.image_url || null,
-      created_at: item.created_at || new Date().toISOString(),
-    }));
-
-    setComments(normalized);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -66,7 +77,7 @@ export default function Community() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: TABLE_NAME },
-        fetchComments
+        () => fetchComments({ silent: true })
       )
       .subscribe();
 
@@ -89,6 +100,13 @@ export default function Community() {
     const { error } = await supabase.from(TABLE_NAME).insert(payload);
     if (error) {
       console.error("Erro ao criar comentário:", error);
+      if (error.code === "PGRST205") {
+        toast.error(
+          "Tabela community_comments não existe no Supabase. Rode o SQL em supabase/migrations no SQL Editor."
+        );
+      } else {
+        toast.error(error.message || "Não foi possível enviar o comentário.");
+      }
       setSubmitting(false);
       return;
     }
@@ -139,23 +157,36 @@ export default function Community() {
 
   return (
     <div
-      className="min-h-screen w-full pb-28"
+      className="relative min-h-screen w-full pb-28 -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24"
       style={{
         backgroundImage: `url(${FLORAL_BG})`,
-        backgroundSize: "380px auto",
+        backgroundSize: "360px auto",
         backgroundRepeat: "repeat",
-        backgroundColor: "#F7F5F0",
+        backgroundColor: "#FBFAF6",
       }}
     >
-      <div className="mx-auto w-full max-w-3xl px-4 pt-5">
-        <header className="mb-4 flex items-center justify-between rounded-2xl border border-[#6B705C]/45 bg-white/70 p-3">
+      <div className="mx-auto w-full max-w-6xl px-4 pt-5">
+        <header className="mb-4 flex items-center justify-between">
+          <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
+            <BrandLogo className="h-full w-full" />
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            aria-label="Notificações"
+          >
+            <Bell className="h-6 w-6" />
+          </button>
+        </header>
+
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#6B705C]/40 bg-white/70 p-3">
           <button
             onClick={() => setLocation("/dashboard")}
             className="inline-flex items-center gap-1 text-[#6B705C]"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span className="text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-3xl" style={{ fontFamily: "var(--font-display)" }}>
               Chat
             </span>
           </button>
@@ -163,26 +194,38 @@ export default function Community() {
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className="inline-flex items-center gap-1 rounded-md border border-[#6B705C]/40 px-3 py-1 text-sm text-[#6B705C]"
+            disabled={loading}
+            className="inline-flex items-center gap-1 rounded-md border border-[#6B705C]/40 px-3 py-1 text-sm text-[#6B705C] disabled:opacity-50"
           >
             <Filter className="h-4 w-4" />
             Filtrar
           </button>
-        </header>
+        </div>
+
+        {refreshing && (
+          <div
+            className="mb-3 flex items-center gap-2 rounded-lg border border-[#6B705C]/25 bg-white/90 px-3 py-2 text-xs text-[#6B705C]"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner className="size-3.5 shrink-0" />
+            Atualizando mensagens...
+          </div>
+        )}
 
         {showFilters && (
-          <section className="mb-4 space-y-3 rounded-2xl border border-[#6B705C]/40 bg-white/70 p-3">
+          <section className="mb-4 space-y-3 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar por nome ou comentário"
-              className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25"
             />
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <select
                 value={timeFilter}
                 onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none"
+                className="h-10 rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none"
               >
                 <option value="all">Período: Todos</option>
                 <option value="today">Últimas 24h</option>
@@ -192,7 +235,7 @@ export default function Community() {
               <select
                 value={imageFilter}
                 onChange={(e) => setImageFilter(e.target.value as ImageFilter)}
-                className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none"
+                className="h-10 rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none"
               >
                 <option value="all">Imagem: Todos</option>
                 <option value="with_image">Com imagem</option>
@@ -202,49 +245,97 @@ export default function Community() {
           </section>
         )}
 
-        <section className="mb-5 rounded-2xl border border-[#6B705C]/45 bg-white/70 p-3">
-          <form onSubmit={handleSubmit} className="space-y-3">
+        <section
+          className="relative mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3"
+          aria-busy={submitting || loading}
+        >
+          <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
+            {submitting && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[2px]">
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-[#6B705C]/20 bg-white px-6 py-4 shadow-sm">
+                  <Spinner className="size-9 text-[#6B705C]" />
+                  <span className="text-xs font-medium tracking-wide text-[#6B705C]">Enviando comentário...</span>
+                </div>
+              </div>
+            )}
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Nome"
-              className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+              disabled={loading || submitting}
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
             />
             <input
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               placeholder="Imagem (URL opcional)"
-              className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+              disabled={loading || submitting}
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
             />
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Comentário"
-              className="min-h-22 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+              disabled={loading || submitting}
+              className="min-h-22 w-full rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
             />
             <button
               type="submit"
-              disabled={submitting}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-[#6B705C] px-4 text-sm text-white disabled:opacity-70"
+              disabled={submitting || loading}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#6B705C] px-4 text-sm tracking-wide text-white disabled:opacity-70 sm:w-auto"
+              style={{ fontFamily: "var(--font-display)" }}
             >
-              {submitting ? "Enviando..." : "Comentar"}
+              {submitting ? (
+                <>
+                  <Spinner className="size-4 text-white" />
+                  Enviando...
+                </>
+              ) : (
+                "Comentar"
+              )}
             </button>
           </form>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3" aria-busy={loading}>
           {loading && (
-            <p className="text-sm text-[#6B705C]">Carregando comentários...</p>
+            <div className="space-y-4">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
+                <Spinner className="size-11 text-[#6B705C]" />
+                <p className="text-sm font-medium text-[#6B705C]">Carregando mensagens...</p>
+                <p className="max-w-xs text-center text-xs text-[#6B705C]/70">
+                  Aguarde enquanto buscamos o histórico do chat.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((key) => (
+                  <div
+                    key={key}
+                    className="rounded-2xl border border-[#6B705C]/20 bg-white/70 p-4"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <Skeleton className="size-8 shrink-0 rounded-full bg-[#6B705C]/15" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-28 bg-[#6B705C]/15" />
+                        <Skeleton className="h-3 w-20 bg-[#6B705C]/10" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-14 w-full bg-[#6B705C]/10" />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {!loading && filteredComments.length === 0 && (
             <p className="text-sm text-[#6B705C]">Sem comentários para os filtros selecionados.</p>
           )}
 
-          {filteredComments.map((item) => (
+          {!loading &&
+            filteredComments.map((item) => (
             <article
               key={item.id}
-              className="rounded-2xl border border-[#6B705C]/35 bg-white/80 p-3"
+              className="rounded-2xl border border-[#6B705C]/30 bg-white/85 p-3"
             >
               <div className="mb-2 flex items-center gap-2">
                 <CircleUserRound className="h-8 w-8 text-[#6B705C]" />
@@ -272,14 +363,30 @@ export default function Community() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed right-5 bottom-24 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#6B705C]/50 bg-white text-[#6B705C]"
+          className="fixed right-5 bottom-24 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#6B705C]/40 bg-white text-[#6B705C]"
           aria-label="Novo comentário"
         >
           <MessageCirclePlus className="h-5 w-5" />
         </button>
       </div>
-
-      <BottomNav />
+      <nav className="fixed right-0 bottom-0 left-0 mx-auto flex h-20 w-full max-w-6xl items-center justify-center gap-16 rounded-t-[28px] bg-[#6B705C] text-white">
+        <button
+          type="button"
+          onClick={() => setLocation("/dashboard")}
+          className="opacity-100"
+          aria-label="Início"
+        >
+          <Home className="h-8 w-8" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocation("/community")}
+          className="opacity-95"
+          aria-label="Comunidade"
+        >
+          <MessageCircle className="h-8 w-8" />
+        </button>
+      </nav>
     </div>
   );
 }

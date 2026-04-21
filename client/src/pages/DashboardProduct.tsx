@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
+import { PageLoading } from "@/components/PageLoading";
 import ProductView from "@/components/ProductView";
 import { supabase } from "@/lib/supabase";
 
@@ -52,8 +53,8 @@ export default function DashboardProduct() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
-        <p className="text-sm text-[#6B705C]">Carregando conteúdo...</p>
+      <div className="min-h-screen bg-[#F7F5F0]">
+        <PageLoading label="Carregando conteúdo..." className="min-h-screen" />
       </div>
     );
   }
