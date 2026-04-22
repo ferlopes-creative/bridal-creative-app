@@ -1,491 +1,383 @@
-/**
- * Community Page — Bridal Creative
- * Design: Botanical Elegance — Organic Luxury
- * Feed estilo Instagram com postagens de fotos, curtidas e comentários
- * Paleta: #677354 (olive), #F7F5F0 (cream bg), #B8A88A (gold), #3A3A3A (text)
- * Tipografia: Cinzel (títulos) + Inter (corpo)
- */
-
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, ChevronLeft, CircleUserRound, Filter, MessageCirclePlus } from "lucide-react";
 import { useLocation } from "wouter";
-import BottomNav from "@/components/BottomNav";
+import BottomAppNav from "@/components/BottomAppNav";
+import BrandLogo from "@/components/BrandLogo";
+import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
-const FLORAL_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
+const FLORAL_BG =
+  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 
-interface Comment {
-  id: number;
-  user: string;
-  avatar: string;
-  text: string;
-  time: string;
-}
+type ChatComment = {
+  id: string;
+  name: string;
+  comment: string;
+  image_url: string | null;
+  created_at: string;
+};
 
-interface Post {
-  id: number;
-  user: string;
-  avatar: string;
-  image: string;
-  caption: string;
-  likes: number;
-  liked: boolean;
-  saved: boolean;
-  comments: Comment[];
-  time: string;
-}
+type TimeFilter = "all" | "today" | "week" | "month";
+type ImageFilter = "all" | "with_image" | "without_image";
 
-const INITIAL_POSTS: Post[] = [
-  {
-    id: 1,
-    user: "Ana & Pedro",
-    avatar: "",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/community-post-1-WvAWSASnMnZZCsXwsFXW2n.webp",
-    caption: "Nossa mesa dos sonhos ficou perfeita! Cada detalhe pensado com tanto carinho. Obrigada @bridalcreative por tornar tudo possível! \u2728\ud83c\udf3f",
-    likes: 47,
-    liked: false,
-    saved: false,
-    comments: [
-      { id: 1, user: "Maria Silva", avatar: "", text: "Que mesa linda! Parab\u00e9ns pelo bom gosto! \u2764\ufe0f", time: "2h" },
-      { id: 2, user: "Juliana Costa", avatar: "", text: "Amei a combina\u00e7\u00e3o das flores com a lou\u00e7a dourada!", time: "1h" },
-    ],
-    time: "3h",
-  },
-  {
-    id: 2,
-    user: "Camila Noiva",
-    avatar: "",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/community-post-2-Tu5kb5GgW7wt4tgRh8rF2z.webp",
-    caption: "Meu buqu\u00ea dos sonhos! Pe\u00f4nias brancas com rosas e eucalipto... n\u00e3o poderia ser mais perfeito \ud83d\udc90\ud83e\udd0d",
-    likes: 89,
-    liked: false,
-    saved: false,
-    comments: [
-      { id: 1, user: "Fernanda Lima", avatar: "", text: "Que buqu\u00ea maravilhoso! Quero um igual!", time: "5h" },
-      { id: 2, user: "Bruna Oliveira", avatar: "", text: "As pe\u00f4nias ficaram incr\u00edveis! Qual florista voc\u00ea usou?", time: "4h" },
-      { id: 3, user: "Tatiana Reis", avatar: "", text: "Simplesmente perfeito! \ud83c\udf3f\u2728", time: "3h" },
-    ],
-    time: "6h",
-  },
-  {
-    id: 3,
-    user: "Bridal Creative",
-    avatar: "",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/community-post-3-BQTeeMJZu6JwWcqbZbZ9wi.webp",
-    caption: "Nosso novo kit de convites com cal\u00edgrafia artesanal e lacre de cera. Cada detalhe conta a hist\u00f3ria do seu amor \u2702\ufe0f\ud83d\udc8c",
-    likes: 124,
-    liked: false,
-    saved: false,
-    comments: [
-      { id: 1, user: "Laura Mendes", avatar: "", text: "Que convite lindo! Quero saber mais sobre esse kit!", time: "8h" },
-      { id: 2, user: "Isabela Santos", avatar: "", text: "O lacre de cera \u00e9 tudo! Amei demais \ud83d\ude0d", time: "7h" },
-    ],
-    time: "12h",
-  },
-  {
-    id: 4,
-    user: "Rafaela & Thiago",
-    avatar: "",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/community-post-4-57fcz34RvEdhRSRmZYXC5x.webp",
-    caption: "Nosso altar ao ar livre ficou m\u00e1gico na golden hour! O arco de eucalipto e rosas brancas superou todas as expectativas \ud83c\udf05\ud83c\udf39",
-    likes: 203,
-    liked: false,
-    saved: false,
-    comments: [
-      { id: 1, user: "Carla Dias", avatar: "", text: "Parece sa\u00eddo de um filme! Que cerim\u00f4nia linda!", time: "1d" },
-      { id: 2, user: "Priscila Alves", avatar: "", text: "Esse arco \u00e9 o mais bonito que j\u00e1 vi! \ud83d\ude2d\u2764\ufe0f", time: "20h" },
-      { id: 3, user: "Amanda Rocha", avatar: "", text: "Golden hour perfeita! Parab\u00e9ns aos noivos!", time: "18h" },
-    ],
-    time: "1d",
-  },
-  {
-    id: 5,
-    user: "Bridal Creative",
-    avatar: "",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/community-post-5-Nb5CnkmoiFY9NxTfg7LV9e.webp",
-    caption: "Lembrancinhas artesanais que encantam! Ventarolas personalizadas, sais de banho e tags em cal\u00edgrafia. Cada mimo feito com amor \ud83c\udf3f\ud83d\udc9a",
-    likes: 76,
-    liked: false,
-    saved: false,
-    comments: [
-      { id: 1, user: "Beatriz Nunes", avatar: "", text: "Que lembrancinhas fofas! Adorei a ventarola!", time: "2d" },
-    ],
-    time: "2d",
-  },
-];
+const TABLE_NAME = "community_comments";
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-}
-
-function AvatarCircle({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
-  const sizeClasses = size === "sm" ? "w-8 h-8 text-[10px]" : "w-10 h-10 text-[11px]";
-  const isBrand = name === "Bridal Creative";
-  return (
-    <div
-      className={`${sizeClasses} rounded-full flex items-center justify-center font-semibold tracking-wide flex-shrink-0 ${
-        isBrand
-          ? "bg-[#677354] text-white ring-2 ring-[#B8A88A]"
-          : "bg-[#E8E3DA] text-[#677354]"
-      }`}
-      style={{ fontFamily: "var(--font-display)" }}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
-
-function PostCard({ post, onLike, onSave, onAddComment }: {
-  post: Post;
-  onLike: (id: number) => void;
-  onSave: (id: number) => void;
-  onAddComment: (id: number, text: string) => void;
-}) {
-  const [showComments, setShowComments] = useState(false);
+export default function Community() {
+  const [, setLocation] = useLocation();
+  const { hasUnread } = useNotificationBellBadge();
+  const [comments, setComments] = useState<ChatComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [commentText, setCommentText] = useState("");
-  const [showAllComments, setShowAllComments] = useState(false);
 
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (commentText.trim()) {
-      onAddComment(post.id, commentText.trim());
-      setCommentText("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [query, setQuery] = useState("");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [imageFilter, setImageFilter] = useState<ImageFilter>("all");
+
+  const fetchComments = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
+    if (silent) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao carregar comentários:", error);
+        return;
+      }
+
+      const normalized = (data || []).map((item: any) => ({
+        id: String(item.id),
+        name: item.name || "Sem nome",
+        comment: item.comment || item.text || "",
+        image_url: item.image_url || null,
+        created_at: item.created_at || new Date().toISOString(),
+      }));
+
+      setComments(normalized);
+    } finally {
+      if (silent) setRefreshing(false);
+      else setLoading(false);
     }
   };
 
-  const visibleComments = showAllComments ? post.comments : post.comments.slice(0, 2);
+  useEffect(() => {
+    fetchComments();
+
+    const channel = supabase
+      .channel("community-comments-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: TABLE_NAME },
+        () => fetchComments({ silent: true })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !commentText.trim()) return;
+
+    setSubmitting(true);
+    const payload = {
+      name: name.trim(),
+      comment: commentText.trim(),
+      image_url: imageUrl.trim() || null,
+    };
+
+    const { error } = await supabase.from(TABLE_NAME).insert(payload);
+    if (error) {
+      console.error("Erro ao criar comentário:", error);
+      if (error.code === "PGRST205") {
+        toast.error(
+          "Tabela community_comments não existe no Supabase. Rode o SQL em supabase/migrations no SQL Editor."
+        );
+      } else {
+        toast.error(error.message || "Não foi possível enviar o comentário.");
+      }
+      setSubmitting(false);
+      return;
+    }
+
+    setCommentText("");
+    setImageUrl("");
+    setSubmitting(false);
+  };
+
+  const filteredComments = useMemo(() => {
+    const now = Date.now();
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return comments.filter((item) => {
+      const created = new Date(item.created_at).getTime();
+      const ageMs = now - created;
+
+      const matchesQuery =
+        !normalizedQuery ||
+        item.name.toLowerCase().includes(normalizedQuery) ||
+        item.comment.toLowerCase().includes(normalizedQuery);
+
+      const matchesTime =
+        timeFilter === "all" ||
+        (timeFilter === "today" && ageMs <= 24 * 60 * 60 * 1000) ||
+        (timeFilter === "week" && ageMs <= 7 * 24 * 60 * 60 * 1000) ||
+        (timeFilter === "month" && ageMs <= 30 * 24 * 60 * 60 * 1000);
+
+      const hasImage = Boolean(item.image_url);
+      const matchesImage =
+        imageFilter === "all" ||
+        (imageFilter === "with_image" && hasImage) ||
+        (imageFilter === "without_image" && !hasImage);
+
+      return matchesQuery && matchesTime && matchesImage;
+    });
+  }, [comments, query, timeFilter, imageFilter]);
+
+  const formatTime = (iso: string) => {
+    const date = new Date(iso);
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
-    <motion.article
-      className="bg-white border-b border-[#E8E3DA]/60"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
-    >
-      {/* Post Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
-          <AvatarCircle name={post.user} />
-          <div>
-            <p
-              className="text-[13px] font-semibold text-[#3A3A3A] leading-tight"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              {post.user}
-            </p>
-            <p className="text-[11px] text-[#8A8A7A]" style={{ fontFamily: "var(--font-body)" }}>
-              {post.time}
-            </p>
+    <div className="relative min-h-screen w-full bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundSize: "360px auto",
+          backgroundRepeat: "repeat",
+        }}
+      />
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
+        <header className="mb-4 flex items-center justify-between">
+          <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
+            <BrandLogo className="h-full w-full" />
           </div>
-        </div>
-        <button className="p-1.5 rounded-full hover:bg-[#F7F5F0] transition-colors">
-          <MoreHorizontal className="w-5 h-5 text-[#8A8A7A]" />
-        </button>
-      </div>
-
-      {/* Post Image */}
-      <div className="relative w-full aspect-square bg-[#F0EDE6] overflow-hidden">
-        <img
-          src={post.image}
-          alt={`Post de ${post.user}`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onDoubleClick={() => !post.liked && onLike(post.id)}
-        />
-        {/* Double-tap heart animation placeholder */}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-1">
-        <div className="flex items-center gap-4">
           <button
-            onClick={() => onLike(post.id)}
-            className="group transition-transform active:scale-125"
-            aria-label={post.liked ? "Descurtir" : "Curtir"}
+            type="button"
+            onClick={() => setLocation("/notifications")}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            aria-label="Notificações"
           >
-            <Heart
-              className={`w-[26px] h-[26px] transition-colors duration-200 ${
-                post.liked
-                  ? "fill-red-500 text-red-500"
-                  : "text-[#3A3A3A] group-hover:text-[#677354]"
-              }`}
-              strokeWidth={1.6}
-            />
+            <Bell className="h-6 w-6" />
+            {hasUnread && (
+              <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
+            )}
           </button>
-          <button
-            onClick={() => setShowComments(!showComments)}
-            className="group"
-            aria-label="Comentar"
-          >
-            <MessageCircle
-              className="w-[25px] h-[25px] text-[#3A3A3A] group-hover:text-[#677354] transition-colors"
-              strokeWidth={1.6}
-            />
-          </button>
-          <button className="group" aria-label="Compartilhar">
-            <Send
-              className="w-[23px] h-[23px] text-[#3A3A3A] group-hover:text-[#677354] transition-colors"
-              strokeWidth={1.6}
-            />
-          </button>
-        </div>
-        <button
-          onClick={() => onSave(post.id)}
-          className="group transition-transform active:scale-110"
-          aria-label={post.saved ? "Remover dos salvos" : "Salvar"}
-        >
-          <Bookmark
-            className={`w-[25px] h-[25px] transition-colors duration-200 ${
-              post.saved
-                ? "fill-[#677354] text-[#677354]"
-                : "text-[#3A3A3A] group-hover:text-[#677354]"
-            }`}
-            strokeWidth={1.6}
-          />
-        </button>
-      </div>
+        </header>
 
-      {/* Likes */}
-      <div className="px-4 pt-1">
-        <p className="text-[13px] font-semibold text-[#3A3A3A]" style={{ fontFamily: "var(--font-body)" }}>
-          {post.likes.toLocaleString("pt-BR")} curtida{post.likes !== 1 ? "s" : ""}
-        </p>
-      </div>
-
-      {/* Caption */}
-      <div className="px-4 pt-1.5 pb-1">
-        <p className="text-[13px] text-[#3A3A3A] leading-[1.5]" style={{ fontFamily: "var(--font-body)" }}>
-          <span className="font-semibold mr-1.5">{post.user}</span>
-          {post.caption}
-        </p>
-      </div>
-
-      {/* Comments Section */}
-      <div className="px-4 pb-3">
-        {post.comments.length > 2 && !showAllComments && (
-          <button
-            onClick={() => setShowAllComments(true)}
-            className="text-[12px] text-[#8A8A7A] mt-1 mb-1"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
-            Ver todos os {post.comments.length} comentários
-          </button>
-        )}
-
-        <AnimatePresence>
-          {visibleComments.map((comment) => (
-            <motion.div
-              key={comment.id}
-              className="flex items-start gap-2.5 mt-2"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <AvatarCircle name={comment.user} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] text-[#3A3A3A] leading-[1.5]" style={{ fontFamily: "var(--font-body)" }}>
-                  <span className="font-semibold mr-1">{comment.user}</span>
-                  {comment.text}
-                </p>
-                <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-[10px] text-[#8A8A7A]">{comment.time}</span>
-                  <button className="text-[10px] text-[#8A8A7A] font-medium hover:text-[#677354]">
-                    Responder
-                  </button>
-                </div>
-              </div>
-              <button className="pt-1">
-                <Heart className="w-3 h-3 text-[#B5B5A8]" strokeWidth={1.5} />
-              </button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {/* Comment Input */}
-        <AnimatePresence>
-          {showComments && (
-            <motion.form
-              onSubmit={handleSubmitComment}
-              className="flex items-center gap-2 mt-3 pt-3 border-t border-[#E8E3DA]/50"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <AvatarCircle name="Você" size="sm" />
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Adicione um comentário..."
-                className="flex-1 text-[13px] bg-transparent border-none outline-none text-[#3A3A3A] placeholder:text-[#B5B5A8]"
-                style={{ fontFamily: "var(--font-body)" }}
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim()}
-                className="text-[13px] font-semibold text-[#677354] disabled:text-[#B5B5A8] transition-colors"
-                style={{ fontFamily: "var(--font-body)" }}
-              >
-                Publicar
-              </button>
-            </motion.form>
-          )}
-        </AnimatePresence>
-
-        {/* Inline comment input (always visible) */}
-        {!showComments && (
-          <button
-            onClick={() => setShowComments(true)}
-            className="text-[12px] text-[#8A8A7A] mt-1.5 block"
-            style={{ fontFamily: "var(--font-body)" }}
-          >
-            Adicione um comentário...
-          </button>
-        )}
-      </div>
-    </motion.article>
-  );
-}
-
-export default function Community() {
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
-  const [, setLocation] = useLocation();
-
-  const handleLike = (postId: number) => {
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
-    );
-  };
-
-  const handleSave = (postId: number) => {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, saved: !p.saved } : p))
-    );
-  };
-
-  const handleAddComment = (postId: number, text: string) => {
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId
-          ? {
-              ...p,
-              comments: [
-                ...p.comments,
-                {
-                  id: Date.now(),
-                  user: "Você",
-                  avatar: "",
-                  text,
-                  time: "agora",
-                },
-              ],
-            }
-          : p
-      )
-    );
-  };
-
-  return (
-  <div
-    className="min-h-screen pb-28 w-full relative"
-    style={{ backgroundColor: "#F7F5F0" }}
-  >
-    {/* Container responsivo central */}
-    <div className="w-full max-w-[620px] lg:max-w-[720px] mx-auto">
-
-      {/* Community Header */}
-      <header className="sticky top-0 z-50 bg-[#F7F5F0]/95 backdrop-blur-md border-b border-[#E8E3DA]/50">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#6B705C]/40 bg-white/70 p-3">
           <button
             onClick={() => setLocation("/dashboard")}
-            className="p-1 rounded-full hover:bg-[#E8E3DA]/50 transition-colors"
+            className="inline-flex items-center gap-1 text-[#6B705C]"
             aria-label="Voltar"
           >
-            <ChevronLeft className="w-6 h-6 text-[#677354]" strokeWidth={1.8} />
+            <ChevronLeft className="h-5 w-5" />
+            <span className="text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+              Chat
+            </span>
           </button>
 
-          <h1
-            className="text-[16px] tracking-[0.12em] text-[#3A3A3A]"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              fontVariant: "small-caps",
-            }}
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            disabled={loading}
+            className="inline-flex items-center gap-1 rounded-md border border-[#6B705C]/40 px-3 py-1 text-sm text-[#6B705C] disabled:opacity-50"
           >
-            Comunidade
-          </h1>
-
-          <div className="w-8" />
+            <Filter className="h-4 w-4" />
+            Filtrar
+          </button>
         </div>
-      </header>
 
-      {/* Stories */}
-      <div className="bg-white border-b border-[#E8E3DA]/50 py-4">
-        <div className="flex gap-4 overflow-x-auto px-4">
-          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#B8A88A] flex items-center justify-center bg-[#F7F5F0]">
-              <span className="text-[#677354] text-xl font-light">+</span>
-            </div>
-            <span className="text-[10px] text-[#8A8A7A]">
-              Sua história
-            </span>
+        {refreshing && (
+          <div
+            className="mb-3 flex items-center gap-2 rounded-lg border border-[#6B705C]/25 bg-white/90 px-3 py-2 text-xs text-[#6B705C]"
+            role="status"
+            aria-live="polite"
+          >
+            <Spinner className="size-3.5 shrink-0" />
+            Atualizando mensagens...
           </div>
+        )}
 
-          {INITIAL_POSTS.slice(0, 4).map((post) => (
-            <div key={`story-${post.id}`} className="flex flex-col items-center gap-1.5 flex-shrink-0">
-              <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-br from-[#677354] via-[#B8A88A] to-[#677354]">
-                <div className="w-full h-full rounded-full overflow-hidden border-2 border-white">
-                  <img
-                    src={post.image}
-                    alt={post.user}
-                    className="w-full h-full object-cover"
-                  />
+        {showFilters && (
+          <section className="mb-4 space-y-3 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nome ou comentário"
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+            />
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
+                className="h-10 rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none"
+              >
+                <option value="all">Período: Todos</option>
+                <option value="today">Últimas 24h</option>
+                <option value="week">Últimos 7 dias</option>
+                <option value="month">Últimos 30 dias</option>
+              </select>
+              <select
+                value={imageFilter}
+                onChange={(e) => setImageFilter(e.target.value as ImageFilter)}
+                className="h-10 rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none"
+              >
+                <option value="all">Imagem: Todos</option>
+                <option value="with_image">Com imagem</option>
+                <option value="without_image">Sem imagem</option>
+              </select>
+            </div>
+          </section>
+        )}
+
+        <section
+          className="relative mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3"
+          aria-busy={submitting || loading}
+        >
+          <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
+            {submitting && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[2px]">
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-[#6B705C]/20 bg-white px-6 py-4 shadow-sm">
+                  <Spinner className="size-9 text-[#6B705C]" />
+                  <span className="text-xs font-medium tracking-wide text-[#6B705C]">Enviando comentário...</span>
                 </div>
               </div>
-              <span className="text-[10px] text-[#3A3A3A] max-w-[64px] truncate text-center">
-                {post.user.split(" ")[0]}
-              </span>
+            )}
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome"
+              disabled={loading || submitting}
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
+            />
+            <input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="Imagem (URL opcional)"
+              disabled={loading || submitting}
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
+            />
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Comentário"
+              disabled={loading || submitting}
+              className="min-h-22 w-full rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
+            />
+            <button
+              type="submit"
+              disabled={submitting || loading}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#6B705C] px-4 text-sm tracking-wide text-white disabled:opacity-70 sm:w-auto"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {submitting ? (
+                <>
+                  <Spinner className="size-4 text-white" />
+                  Enviando...
+                </>
+              ) : (
+                "Comentar"
+              )}
+            </button>
+          </form>
+        </section>
+
+        <section className="space-y-3" aria-busy={loading}>
+          {loading && (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
+                <Spinner className="size-11 text-[#6B705C]" />
+                <p className="text-sm font-medium text-[#6B705C]">Carregando mensagens...</p>
+                <p className="max-w-xs text-center text-xs text-[#6B705C]/70">
+                  Aguarde enquanto buscamos o histórico do chat.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((key) => (
+                  <div
+                    key={key}
+                    className="rounded-2xl border border-[#6B705C]/20 bg-white/70 p-4"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <Skeleton className="size-8 shrink-0 rounded-full bg-[#6B705C]/15" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-28 bg-[#6B705C]/15" />
+                        <Skeleton className="h-3 w-20 bg-[#6B705C]/10" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-14 w-full bg-[#6B705C]/10" />
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {!loading && filteredComments.length === 0 && (
+            <p className="text-sm text-[#6B705C]">Sem comentários para os filtros selecionados.</p>
+          )}
+
+          {!loading &&
+            filteredComments.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-2xl border border-[#6B705C]/30 bg-white/85 p-3"
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <CircleUserRound className="h-8 w-8 text-[#6B705C]" />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">{item.name}</p>
+                  <p className="text-xs text-zinc-500">{formatTime(item.created_at)}</p>
+                </div>
+              </div>
+
+              {item.image_url && (
+                <div className="mb-2 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
+                  <img
+                    src={item.image_url}
+                    alt={`Imagem enviada por ${item.name}`}
+                    className="h-44 w-full object-cover"
+                  />
+                </div>
+              )}
+
+              <p className="text-sm text-zinc-700">{item.comment}</p>
+            </article>
           ))}
-        </div>
-      </div>
+        </section>
 
-      {/* Feed */}
-      <div className="mt-2">
-        {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onLike={handleLike}
-            onSave={handleSave}
-            onAddComment={handleAddComment}
-          />
-        ))}
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#6B705C]/35 bg-white text-[#6B705C] shadow-md md:right-6"
+          style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
+          aria-label="Subir ao formulário"
+        >
+          <MessageCirclePlus className="h-5 w-5" />
+        </button>
       </div>
-
-      {/* End */}
-      <div className="py-10 text-center">
-        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E8E3DA]/50 flex items-center justify-center">
-          <Heart className="w-5 h-5 text-[#B8A88A]" strokeWidth={1.5} />
-        </div>
-        <p className="text-[13px] text-[#8A8A7A]">
-          Você viu todas as postagens recentes
-        </p>
-      </div>
-
+      <BottomAppNav />
     </div>
-
-    {/* Bottom Navigation */}
-    <BottomNav />
-  </div>
-);
+  );
 }

@@ -1,0 +1,11 @@
+# Deploy rápido: netlify.com → Add site → Deploy manually (arrastar pasta dist/public)
+# Ou conectar o repositório Git com estes comandos:
+
+[build]
+  command = "npm install --legacy-peer-deps && npx vite build"
+  publish = "dist/public"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
