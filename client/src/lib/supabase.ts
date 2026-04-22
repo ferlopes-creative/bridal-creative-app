@@ -1,14 +1,33 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() ?? "";
+const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ?? "";
 
-console.log("VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
+/** Em produção sem env na Vercel, não podemos lançar erro no import — senão o React nem monta (página branca). */
+export const isSupabaseConfigured = Boolean(url && anonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env or .env.local"
+// URLs fictícias válidas só para montar o cliente; chamadas falham até configurar env.
+const PLACEHOLDER_URL = "https://placeholder.supabase.co";
+const PLACEHOLDER_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InBsYWNlaG9sZGVyIn0.invalid-placeholder";
+
+function createSafeClient(): SupabaseClient {
+  return createClient(
+    isSupabaseConfigured ? url : PLACEHOLDER_URL,
+    isSupabaseConfigured ? anonKey : PLACEHOLDER_ANON_KEY,
+    {
+      auth: {
+        persistSession: isSupabaseConfigured,
+        autoRefreshToken: isSupabaseConfigured,
+      },
+    }
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createSafeClient();
+
+if (import.meta.env.DEV && !isSupabaseConfigured) {
+  console.warn(
+    "[bridal-creative] Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env para usar o Supabase."
+  );
+}
