@@ -1,6 +1,8 @@
 # Dependencies
 **/node_modules
 .pnpm-store/
+# Vercel/CI: use npm + package-lock only; pnpm lock out of sync breaks deploys
+pnpm-lock.yaml
 
 # Build outputs
 dist/
