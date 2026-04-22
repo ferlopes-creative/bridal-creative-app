@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Home, Lock, MessageCircle, PlayCircle, X } from "lucide-react";
+import { Bell, Lock, PlayCircle, X } from "lucide-react";
 import { useLocation } from "wouter";
+import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
+import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { supabase } from "@/lib/supabase";
 
 const FLORAL_BG =
@@ -67,6 +69,7 @@ function ProductCard({
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const { hasUnread } = useNotificationBellBadge();
   const [products, setProducts] = useState<Product[]>([]);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -176,7 +179,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-28 -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
+    <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
       <div
         className={`fixed top-0 right-0 left-0 z-40 bg-white/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
@@ -188,10 +191,14 @@ export default function Dashboard() {
           </div>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            onClick={() => setLocation("/notifications")}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
             aria-label="Notificações"
           >
             <Bell className="h-5 w-5" />
+            {hasUnread && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
+            )}
           </button>
         </div>
       </div>
@@ -220,10 +227,14 @@ export default function Dashboard() {
               </div>
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                onClick={() => setLocation("/notifications")}
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
                 aria-label="Notificações"
               >
                 <Bell className="h-6 w-6" />
+                {hasUnread && (
+                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
+                )}
               </button>
             </header>
             <div className="flex flex-1 items-center text-white">
@@ -351,27 +362,10 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <nav className="fixed right-0 bottom-0 left-0 mx-auto flex h-20 w-full max-w-6xl items-center justify-center gap-16 rounded-t-[28px] bg-[#6B705C] text-white">
-        <button
-          type="button"
-          onClick={() => setLocation("/dashboard")}
-          className="opacity-100"
-          aria-label="Início"
-        >
-          <Home className="h-8 w-8" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setLocation("/community")}
-          className="opacity-95"
-          aria-label="Comunidade"
-        >
-          <MessageCircle className="h-8 w-8" />
-        </button>
-      </nav>
+      <BottomAppNav />
 
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-2xl rounded-3xl bg-[#F7F5F0] p-4 shadow-xl md:p-6">
             {(() => {
               const title = selectedProduct.name || "Produto";

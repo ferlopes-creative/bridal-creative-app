@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { LogOut, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { Bell, LogOut, Pencil, Plus, Save, Send, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import BrandLogo from "@/components/BrandLogo";
@@ -42,6 +42,15 @@ export default function AdminPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const NOTIF_TABLE = "app_notifications";
+  type AppNotif = { id: string; title: string; body: string; created_at: string };
+  const [notifications, setNotifications] = useState<AppNotif[]>([]);
+  const [notifLoading, setNotifLoading] = useState(true);
+  const [notifTitle, setNotifTitle] = useState("");
+  const [notifBody, setNotifBody] = useState("");
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [deletingNotifId, setDeletingNotifId] = useState<string | null>(null);
 
   const sortedProducts = useMemo(
     () =>
@@ -122,6 +131,83 @@ export default function AdminPage() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const fetchNotifications = async () => {
+    setNotifLoading(true);
+    const { data, error } = await supabase
+      .from(NOTIF_TABLE)
+      .select("id, title, body, created_at")
+      .order("created_at", { ascending: false });
+
+    if (!error && data) setNotifications(data as AppNotif[]);
+    setNotifLoading(false);
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const channel = supabase
+      .channel("admin-app-notifications")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: NOTIF_TABLE },
+        fetchNotifications
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handlePublishNotification = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!notifTitle.trim() || !notifBody.trim()) return;
+
+    setNotifSaving(true);
+    try {
+      const { error } = await supabase.from(NOTIF_TABLE).insert({
+        title: notifTitle.trim(),
+        body: notifBody.trim(),
+      });
+      if (error) throw error;
+      setNotifTitle("");
+      setNotifBody("");
+      toast.success("Notificação enviada aos usuários.");
+      await fetchNotifications();
+    } catch (err: unknown) {
+      console.error(err);
+      const e = err as { code?: string; message?: string; details?: string };
+      const code = e?.code || "";
+      const msg = (e?.message || "Erro desconhecido").trim();
+      if (code === "PGRST205" || msg.includes("schema cache")) {
+        toast.error(
+          "Tabela app_notifications ausente. No Supabase → SQL Editor, execute o arquivo supabase/migrations/20260421150000_app_notifications_grants_and_rls.sql"
+        );
+      } else {
+        toast.error(
+          `Não foi possível salvar: ${msg}${code ? ` [${code}]` : ""}. Se for "permission denied", execute a migração 20260421150000 no Supabase.`
+        );
+      }
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
+  const handleDeleteNotification = async (row: AppNotif) => {
+    if (!window.confirm(`Remover o aviso "${row.title}"?`)) return;
+    setDeletingNotifId(row.id);
+    try {
+      const { error } = await supabase.from(NOTIF_TABLE).delete().eq("id", row.id);
+      if (error) throw error;
+      toast.success("Notificação removida.");
+      await fetchNotifications();
+    } catch (err: unknown) {
+      console.error(err);
+      const e = err as { code?: string; message?: string };
+      toast.error(e?.message || "Não foi possível excluir.");
+    } finally {
+      setDeletingNotifId(null);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -292,6 +378,92 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+
+        <section className="mb-8 rounded-2xl border border-[#6B705C]/35 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <Bell className="h-6 w-6 text-[#6B705C]" />
+            <h2 className="font-serif text-2xl text-[#6B705C]">Notificações do app</h2>
+          </div>
+          <p className="mb-4 text-sm text-zinc-600">
+            Os avisos aparecem na página aberta pelo ícone de sino no app (dashboard e comunidade).
+          </p>
+
+          <form onSubmit={handlePublishNotification} className="mb-6 space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm text-zinc-700">Título</label>
+              <input
+                value={notifTitle}
+                onChange={(e) => setNotifTitle(e.target.value)}
+                placeholder="Ex.: Novidade na Bridal Creative"
+                className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                disabled={notifSaving}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm text-zinc-700">Mensagem</label>
+              <textarea
+                value={notifBody}
+                onChange={(e) => setNotifBody(e.target.value)}
+                placeholder="Texto que o usuário verá na lista de notificações."
+                rows={4}
+                className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                disabled={notifSaving}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={notifSaving || !notifTitle.trim() || !notifBody.trim()}
+              className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+              style={{ backgroundColor: "#6B705C" }}
+            >
+              {notifSaving ? (
+                <>
+                  <Spinner className="size-4 text-white" />
+                  Publicando...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Publicar aviso
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="border-t border-zinc-200 pt-4">
+            <p className="mb-3 text-sm font-medium text-zinc-700">Histórico</p>
+            {notifLoading ? (
+              <p className="text-sm text-zinc-500">Carregando...</p>
+            ) : notifications.length === 0 ? (
+              <p className="text-sm text-zinc-500">Nenhuma notificação enviada ainda.</p>
+            ) : (
+              <ul className="max-h-60 space-y-2 overflow-y-auto">
+                {notifications.map((n) => (
+                  <li
+                    key={n.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-zinc-100 bg-[#F7F5F0] px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-900">{n.title}</p>
+                      <p className="line-clamp-2 text-xs text-zinc-600">{n.body}</p>
+                      <p className="mt-1 text-[10px] text-zinc-400">
+                        {new Date(n.created_at).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNotification(n)}
+                      disabled={deletingNotifId === n.id}
+                      className="shrink-0 rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {deletingNotifId === n.id ? "..." : "Excluir"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
 
         {loading ? (
           <div className="space-y-4" aria-busy="true" aria-live="polite">

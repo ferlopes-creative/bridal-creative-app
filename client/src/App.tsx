@@ -10,6 +10,7 @@ import DashboardProduct from "./pages/DashboardProduct";
 import Community from "./pages/Community";
 import AdminPage from "./pages/Admin";
 import AdminNew from "./pages/AdminNew";
+import Notifications from "./pages/Notifications";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/dashboard/product/:id" component={DashboardProduct} />
+      <Route path="/notifications" component={Notifications} />
       <Route path="/community" component={Community} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/admin/new" component={AdminNew} />

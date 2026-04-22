@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, ChevronLeft, CircleUserRound, Filter, Home, MessageCircle, MessageCirclePlus } from "lucide-react";
+import { Bell, ChevronLeft, CircleUserRound, Filter, MessageCirclePlus } from "lucide-react";
 import { useLocation } from "wouter";
+import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +27,7 @@ const TABLE_NAME = "community_comments";
 
 export default function Community() {
   const [, setLocation] = useLocation();
+  const { hasUnread } = useNotificationBellBadge();
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,26 +159,30 @@ export default function Community() {
   };
 
   return (
-    <div
-      className="relative min-h-screen w-full pb-28 -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24"
-      style={{
-        backgroundImage: `url(${FLORAL_BG})`,
-        backgroundSize: "360px auto",
-        backgroundRepeat: "repeat",
-        backgroundColor: "#FBFAF6",
-      }}
-    >
-      <div className="mx-auto w-full max-w-6xl px-4 pt-5">
+    <div className="relative min-h-screen w-full bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundSize: "360px auto",
+          backgroundRepeat: "repeat",
+        }}
+      />
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
           <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
             <BrandLogo className="h-full w-full" />
           </div>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            onClick={() => setLocation("/notifications")}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
             aria-label="Notificações"
           >
             <Bell className="h-6 w-6" />
+            {hasUnread && (
+              <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
+            )}
           </button>
         </header>
 
@@ -363,30 +370,14 @@ export default function Community() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed right-5 bottom-24 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#6B705C]/40 bg-white text-[#6B705C]"
-          aria-label="Novo comentário"
+          className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#6B705C]/35 bg-white text-[#6B705C] shadow-md md:right-6"
+          style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
+          aria-label="Subir ao formulário"
         >
           <MessageCirclePlus className="h-5 w-5" />
         </button>
       </div>
-      <nav className="fixed right-0 bottom-0 left-0 mx-auto flex h-20 w-full max-w-6xl items-center justify-center gap-16 rounded-t-[28px] bg-[#6B705C] text-white">
-        <button
-          type="button"
-          onClick={() => setLocation("/dashboard")}
-          className="opacity-100"
-          aria-label="Início"
-        >
-          <Home className="h-8 w-8" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setLocation("/community")}
-          className="opacity-95"
-          aria-label="Comunidade"
-        >
-          <MessageCircle className="h-8 w-8" />
-        </button>
-      </nav>
+      <BottomAppNav />
     </div>
   );
 }
