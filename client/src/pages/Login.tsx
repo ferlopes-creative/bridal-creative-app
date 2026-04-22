@@ -3,7 +3,7 @@ import { Mail } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
 import { useLocation } from "wouter";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
@@ -19,6 +19,13 @@ export default function Login() {
     e.preventDefault();
 
     if (!email) return;
+
+    if (!isSupabaseConfigured) {
+      alert(
+        "Supabase não está configurado neste deploy. Na Vercel, defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e faça redeploy."
+      );
+      return;
+    }
 
     setLoading(true);
     try {
@@ -103,6 +110,14 @@ export default function Login() {
           </header>
 
           <div className="mx-auto max-w-[400px] rounded-xl border border-[#e9e9e6] bg-transparent p-10">
+            {!isSupabaseConfigured && (
+              <p
+                className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] leading-snug text-amber-900"
+                role="alert"
+              >
+                Ambiente sem Supabase (variáveis VITE_* em falta). Configure na Vercel e publique de novo.
+              </p>
+            )}
             <h2
               className="mb-9 text-center text-[24px] font-medium uppercase tracking-widest text-[#6B7459]"
               style={{
