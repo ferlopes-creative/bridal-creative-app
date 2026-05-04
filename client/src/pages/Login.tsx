@@ -2,18 +2,20 @@ import { useState } from "react";
 import { Mail } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
+import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const FLORAL_BG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
-
 export default function Login() {
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const serifFont = "'Cormorant Garamond', 'Cinzel', 'Times New Roman', serif";
   const sansFont = "'Montserrat', 'Lato', 'Arial', sans-serif";
+
+  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const logoUrl = settings.logo_url;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,16 +85,16 @@ export default function Login() {
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.05]"
-        style={{ backgroundImage: `url(${FLORAL_BG})`, backgroundSize: "420px auto", backgroundRepeat: "repeat" }}
+        style={{ backgroundImage: `url(${pageBgUrl})`, backgroundSize: "420px auto", backgroundRepeat: "repeat" }}
       />
 
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[460px] items-center justify-center">
         <section className="w-full">
           <header className="mb-12 flex flex-col items-center text-center">
-            <BrandLogo className="mx-auto mb-8 h-[100px] w-auto max-w-[160px]" />
+            <BrandLogo src={logoUrl} className="mx-auto mb-8 h-[100px] w-auto max-w-[160px]" />
 
             <h1
-              className="text-[42px] leading-none text-[#6B7459] md:text-[52px]"
+              className="text-[34px] leading-none text-[#6B7459] md:text-[42px]"
               style={{
                 fontFamily: serifFont,
                 fontWeight: 500,

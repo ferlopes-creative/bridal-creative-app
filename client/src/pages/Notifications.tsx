@@ -6,9 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
 import { setLastNotificationViewedAt } from "@/lib/notificationViewed";
 import { supabase } from "@/lib/supabase";
-
-const FLORAL_BG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
+import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
 
 const TABLE = "app_notifications";
 
@@ -21,6 +19,9 @@ type Row = {
 
 export default function Notifications() {
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
+  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const logoUrl = settings.logo_url;
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,11 +62,11 @@ export default function Notifications() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
-          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",
           backgroundRepeat: "repeat",
         }}
@@ -73,7 +74,7 @@ export default function Notifications() {
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
           <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
-            <BrandLogo className="h-full w-full" />
+            <BrandLogo src={logoUrl} className="h-full w-full" />
           </div>
           <span className="rounded-full border border-[#6B705C]/20 bg-[#6B705C]/10 p-2 text-[#6B705C]" aria-hidden>
             <Bell className="h-6 w-6" />

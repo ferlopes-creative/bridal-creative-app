@@ -11,6 +11,7 @@ import Community from "./pages/Community";
 import AdminPage from "./pages/Admin";
 import AdminNew from "./pages/AdminNew";
 import Notifications from "./pages/Notifications";
+import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
 function Router() {
   return (
@@ -32,14 +33,14 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <div className="min-h-screen w-full bg-background">
-            <div className="w-full mx-auto px-4 md:px-8 lg:px-16 xl:px-24">
+        <SiteSettingsProvider>
+          <TooltipProvider>
+            <div className="min-h-screen w-full bg-background">
               <Router />
+              <Toaster />
             </div>
-            <Toaster />
-          </div>
-        </TooltipProvider>
+          </TooltipProvider>
+        </SiteSettingsProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
