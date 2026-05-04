@@ -13,16 +13,28 @@ export default async function handler(req: any, res: any) {
   try {
     const body = req.body;
 
-    // 📦 Dados da compra vindos da Cakto
     const email = body.customer?.email || body.customer_email;
-    const productId = body.product?.id || body.product_id;
+    const rawProductId = body.product?.id ?? body.product_id;
     const status = body.status || body.event;
 
-    if (!email || !productId) {
+    if (!email || rawProductId == null || rawProductId === "") {
       return res.status(400).json({ error: "Missing data" });
     }
 
-    // 🔎 Buscar usuário pelo email
+    const pid = String(rawProductId);
+
+    const { data: matchRows, error: matchError } = await supabase
+      .from("products")
+      .select("id")
+      .or(`id.eq.${pid},external_sales_id.eq.${pid}`)
+      .limit(1);
+
+    if (matchError) {
+      console.error("cakto-webhook product resolve:", matchError);
+    }
+
+    const productId = matchRows?.[0]?.id ?? pid;
+
     const { data: users } = await supabase.auth.admin.listUsers();
 
     const user = users?.users.find((u: any) => u.email === email);
@@ -31,7 +43,6 @@ export default async function handler(req: any, res: any) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // 📥 Inserir ou atualizar compra
     const { error } = await supabase.from("purchases").upsert({
       user_id: user.id,
       product_id: productId,

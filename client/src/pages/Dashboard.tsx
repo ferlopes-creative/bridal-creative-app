@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Lock, PlayCircle, X } from "lucide-react";
+import { Bell, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
+import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import type { KitBonusRow } from "@/lib/kitBonus";
+import { canAccessProduct } from "@/lib/productAccess";
 import { supabase } from "@/lib/supabase";
 
-const FLORAL_BG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 type Product = {
   id: string;
   name?: string | null;
@@ -21,14 +22,16 @@ type Product = {
   link_compra?: string | null;
 };
 
+const DEFAULT_HEADLINE = "Nosso propósito é tornar seu sonho uma realidade!";
+
 function ProductCard({
   product,
   locked = false,
-  onClick,
+  onNavigate,
 }: {
   product: Product;
   locked?: boolean;
-  onClick: () => void;
+  onNavigate: () => void;
 }) {
   const productTitle = product.name || "Produto";
   const imageSrc =
@@ -39,14 +42,14 @@ function ProductCard({
 
   return (
     <article
-      onClick={onClick}
-      className="w-[164px] cursor-pointer overflow-hidden rounded-[22px] bg-[#5F684F] p-3 shadow-sm transition-transform hover:scale-[1.01]"
+      onClick={onNavigate}
+      className="w-full max-w-[200px] cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-3 shadow-sm transition-transform hover:scale-[1.01] sm:max-w-none"
     >
       <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
         <img
           src={imageSrc}
           alt={productTitle}
-          className={`h-[146px] w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
+          className={`aspect-square w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
         />
         {locked && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -58,7 +61,7 @@ function ProductCard({
       </div>
 
       <h3
-        className="mt-3 line-clamp-2 text-center text-[14px] leading-[1.15] text-white"
+        className="mt-3 line-clamp-2 text-center text-[13px] leading-[1.15] text-white md:text-[14px]"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
       >
         {productTitle}
@@ -69,15 +72,21 @@ function ProductCard({
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
   const [products, setProducts] = useState<Product[]>([]);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
+  const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
 
-  const getType = (product: Product) => (product.type || "PRO").toUpperCase();
+  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const logoUrl = settings.logo_url;
+  const heroImageUrl = settings.hero_image_url;
+  const heroHeadline = (settings.hero_headline || "").trim() || DEFAULT_HEADLINE;
+
   const hasAccess = (product: Product) => purchasedIds.has(product.id);
+  const access = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -100,6 +109,16 @@ export default function Dashboard() {
         }
       } else {
         setPurchasedIds(new Set());
+      }
+
+      const { data: kbData, error: kbError } = await supabase
+        .from("kit_bonus_products")
+        .select("kit_product_id, bonus_product_id");
+
+      if (!kbError && kbData) {
+        setKitBonusRows(kbData as KitBonusRow[]);
+      } else {
+        setKitBonusRows([]);
       }
 
       const { data, error } = await supabase
@@ -140,6 +159,8 @@ export default function Dashboard() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const getType = (product: Product) => (product.type || "PRO").toUpperCase();
+
   const nonBonusProducts = useMemo(
     () => products.filter((product) => getType(product) !== "BON"),
     [products]
@@ -156,10 +177,10 @@ export default function Dashboard() {
     () => nonBonusProducts.filter((product) => !hasAccess(product)),
     [nonBonusProducts, purchasedIds]
   );
-  const otherProducts = useMemo(
-    () => nonBonusProducts,
-    [nonBonusProducts]
-  );
+  const otherProducts = useMemo(() => nonBonusProducts, [nonBonusProducts]);
+
+  const sectionTitleClass =
+    "mb-4 text-2xl uppercase tracking-wide text-[#6B705C] md:text-3xl";
 
   if (loading) {
     return (
@@ -167,7 +188,7 @@ export default function Dashboard() {
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{
-            backgroundImage: `url(${FLORAL_BG})`,
+            backgroundImage: `url(${pageBgUrl})`,
             backgroundSize: "360px auto",
             backgroundRepeat: "repeat",
             backgroundColor: "#FBFAF6",
@@ -179,7 +200,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 md:-mx-8 lg:-mx-16 xl:-mx-24">
+    <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
         className={`fixed top-0 right-0 left-0 z-40 bg-white/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
@@ -187,7 +208,7 @@ export default function Dashboard() {
       >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
           <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-0.5">
-            <BrandLogo className="h-full w-full" />
+            <BrandLogo src={logoUrl} className="h-full w-full" />
           </div>
           <button
             type="button"
@@ -204,68 +225,73 @@ export default function Dashboard() {
       </div>
 
       <div
-        className="absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
-          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",
           backgroundRepeat: "repeat",
           backgroundColor: "#FBFAF6",
         }}
       />
-      <section className="relative min-h-[270px] overflow-hidden">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, #C7CDBE 0%, #9FA792 34%, #6B705C 100%)",
-            }}
-          />
-          <div className="relative z-10 flex min-h-[270px] w-full flex-col px-4 pt-6 pb-6">
-            <header className="mb-4 flex items-center justify-between">
-              <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1">
-                <BrandLogo className="h-full w-full brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)]" />
-              </div>
-              <button
-                type="button"
-                onClick={() => setLocation("/notifications")}
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
-                aria-label="Notificações"
-              >
-                <Bell className="h-6 w-6" />
-                {hasUnread && (
-                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
-                )}
-              </button>
-            </header>
-            <div className="flex flex-1 items-center text-white">
+      <section className="relative min-h-[240px] overflow-hidden md:min-h-[260px]">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: heroImageUrl
+              ? undefined
+              : "linear-gradient(180deg, #C7CDBE 0%, #9FA792 34%, #6B705C 100%)",
+            ...(heroImageUrl
+              ? {
+                  backgroundImage: `linear-gradient(180deg, rgba(107,112,92,0.55) 0%, rgba(107,112,92,0.75) 100%), url(${heroImageUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
+              : {}),
+          }}
+        />
+        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-6 pb-6 md:min-h-[260px]">
+          <header className="mb-4 flex items-center justify-between">
+            <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1 md:h-14 md:w-14">
+              <BrandLogo
+                src={logoUrl}
+                className="h-full w-full brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setLocation("/notifications")}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+              aria-label="Notificações"
+            >
+              <Bell className="h-6 w-6" />
+              {hasUnread && (
+                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
+              )}
+            </button>
+          </header>
+          <div className="flex flex-1 items-center text-white">
             <h2
-              className="max-w-[72%] text-[34px] leading-[1.12] md:max-w-[62%] md:text-[40px]"
+              className="max-w-[95%] text-[26px] leading-[1.15] sm:max-w-[85%] md:max-w-[70%] md:text-[32px] lg:text-[34px]"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Nosso propósito é tornar seu sonho uma realidade!
+              {heroHeadline}
             </h2>
-            </div>
           </div>
+        </div>
       </section>
 
-      <div className="relative w-full px-4 pt-8">
-
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8">
         <section>
-          <h2
-            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
+          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             SEUS PRODUTOS
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {purchasedProducts.map((product) => (
               <ProductCard
                 key={`owned-${product.id}`}
                 product={product}
                 locked={false}
-                onClick={() => {
-                  setSelectedProduct(product);
-                }}
+                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
           </div>
@@ -275,21 +301,16 @@ export default function Dashboard() {
         </section>
 
         <section className="mt-8">
-          <h2
-            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
+          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             PENSADOS PARA VOCÊ
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {suggestedProducts.map((product) => (
               <ProductCard
                 key={`suggested-${product.id}`}
                 product={product}
                 locked={true}
-                onClick={() => {
-                  setSelectedProduct(product);
-                }}
+                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
           </div>
@@ -299,21 +320,16 @@ export default function Dashboard() {
         </section>
 
         <section className="mt-8">
-          <h2
-            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
+          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             BÔNUS
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {bonusProducts.map((product) => (
               <ProductCard
                 key={`bonus-${product.id}`}
                 product={product}
-                locked={false}
-                onClick={() => {
-                  setSelectedProduct(product);
-                }}
+                locked={!access(product)}
+                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
           </div>
@@ -322,15 +338,15 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="mt-9 -mx-4 bg-[#6B705C] px-5 py-6 text-center text-white md:-mx-8 lg:-mx-16 xl:-mx-24">
-          <p className="text-3xl leading-tight" style={{ fontFamily: "var(--font-display)" }}>
+        <section className="mt-9 rounded-2xl bg-[#6B705C] px-5 py-6 text-center text-white">
+          <p className="text-xl leading-tight md:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
             Quer algo mais personalizado?
           </p>
           <a
             href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-block text-3xl underline underline-offset-4"
+            className="mt-2 inline-block text-xl underline underline-offset-4 md:text-2xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Chame nossa equipe.
@@ -338,21 +354,16 @@ export default function Dashboard() {
         </section>
 
         <section className="mt-10">
-          <h2
-            className="mb-4 text-4xl uppercase tracking-wide text-[#6B705C]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
+          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
           </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {otherProducts.map((product) => (
               <ProductCard
                 key={`other-${product.id}`}
                 product={product}
-                locked={!hasAccess(product)}
-                onClick={() => {
-                  setSelectedProduct(product);
-                }}
+                locked={!access(product)}
+                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
           </div>
@@ -363,102 +374,6 @@ export default function Dashboard() {
       </div>
 
       <BottomAppNav />
-
-      {selectedProduct && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-[#F7F5F0] p-4 shadow-xl md:p-6">
-            {(() => {
-              const title = selectedProduct.name || "Produto";
-              const imageSrc =
-                selectedProduct.image_url ||
-                selectedProduct.image ||
-                selectedProduct.thumbnail_url ||
-                "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
-              const isBonus = getType(selectedProduct) === "BON";
-              const unlocked = hasAccess(selectedProduct) || isBonus;
-
-              return (
-                <>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-2xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
-                {title}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setSelectedProduct(null)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="overflow-hidden rounded-2xl border border-[#6B705C]/25 bg-white">
-                <img src={imageSrc} alt={title} className="h-[180px] w-full object-cover md:h-[240px]" />
-              </div>
-
-              <div>
-                <h4 className="text-xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
-                  {title}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-600">
-                  {selectedProduct.description || "Sem descrição disponível."}
-                </p>
-              </div>
-
-              <div className="overflow-hidden rounded-2xl border border-[#6B705C]/25 bg-white p-4">
-                {selectedProduct.video_url ? (
-                  <video
-                    src={selectedProduct.video_url}
-                    controls
-                    preload="metadata"
-                    className="mx-auto aspect-video w-full rounded-xl bg-[#e8eadf]"
-                  />
-                ) : (
-                  <div className="flex h-[170px] items-center justify-center rounded-xl bg-[#eef1e9] text-[#6B705C]">
-                    <div className="flex flex-col items-center gap-2">
-                      <PlayCircle className="h-8 w-8" />
-                      <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
-                        Vídeo demonstrativo indisponível
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end">
-                {unlocked ? (
-                  <a
-                    href={selectedProduct.link_compra || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#6B705C] px-5 text-sm tracking-wide text-[#6B705C]"
-                    onClick={(e) => {
-                      if (!selectedProduct.link_compra) e.preventDefault();
-                    }}
-                  >
-                    LINK
-                  </a>
-                ) : (
-                  <a
-                    href={selectedProduct.link_compra || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-[#6B705C] px-5 text-sm tracking-wide text-white"
-                    onClick={(e) => {
-                      if (!selectedProduct.link_compra) e.preventDefault();
-                    }}
-                  >
-                    QUERO TER ACESSO AGORA
-                  </a>
-                )}
-              </div>
-            </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { ExternalLink, PlayCircle } from "lucide-react";
+import { ExternalLink, Lock, PlayCircle } from "lucide-react";
+import DOMPurify from "isomorphic-dompurify";
 
 type ProductViewData = {
   id?: string;
@@ -6,6 +7,7 @@ type ProductViewData = {
   title?: string | null;
   description?: string | null;
   descricao?: string | null;
+  type?: string | null;
   image_url?: string | null;
   image?: string | null;
   thumbnail_url?: string | null;
@@ -16,11 +18,19 @@ type ProductViewData = {
 
 interface ProductViewProps {
   product: ProductViewData;
+  /** Se false, vídeo e link de entrega ficam bloqueados (exceto CTA de compra). */
+  canAccess: boolean;
 }
 
-export default function ProductView({ product }: ProductViewProps) {
+const PURIFY = {
+  ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3"],
+  ALLOWED_ATTR: ["href", "target", "rel", "class"],
+};
+
+export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
-  const description = product.description || product.descricao || "Sem descrição disponível.";
+  const rawDescription = (product.description || product.descricao || "").trim();
+  const safeHtml = DOMPurify.sanitize(rawDescription || "Sem descrição disponível.", PURIFY);
   const imageSrc =
     product.image_url ||
     product.image ||
@@ -30,60 +40,88 @@ export default function ProductView({ product }: ProductViewProps) {
   const hasVideo = Boolean(product.video_url);
 
   return (
-    <section className="mx-auto w-full max-w-3xl rounded-[28px] border border-[#6B705C]/60 bg-[#F7F5F0] p-4 shadow-sm md:p-6">
-      <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/40 bg-white">
+    <section className="mx-auto w-full max-w-3xl space-y-6">
+      <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/40 bg-white shadow-sm">
         <img
           src={imageSrc}
-          alt={title || "Imagem do produto"}
-          className="h-[220px] w-full object-cover md:h-[280px]"
+          alt={`Capa ilustrativa — ${title}`}
+          className="h-[200px] w-full object-cover md:h-[260px]"
         />
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="rounded-[28px] border border-[#6B705C]/45 bg-[#F7F5F0] p-5 shadow-sm md:p-7">
         <h1
-          className="text-3xl leading-none text-[#6B705C] md:text-4xl"
+          className="text-2xl leading-tight text-[#6B705C] md:text-3xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
-        <p className="max-w-2xl text-sm leading-6 text-[#3A3A3A] md:text-base">
-          {description}
-        </p>
+        <div
+          className="product-html mt-4 text-sm leading-relaxed text-[#3A3A3A] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-[#6B705C] [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-[#6B705C] [&_h3]:text-base [&_h3]:text-[#6B705C] [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          style={{ fontFamily: "var(--font-body)" }}
+          dangerouslySetInnerHTML={{ __html: safeHtml }}
+        />
       </div>
 
       {hasVideo && (
-        <div className="mt-5 overflow-hidden rounded-[22px] border border-[#6B705C]/45 bg-white p-4">
-          <div className="mb-2 flex items-center justify-center gap-2 text-[#6B705C]">
+        <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/45 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-center gap-2 text-[#6B705C]">
             <PlayCircle className="h-5 w-5" />
             <span className="text-sm tracking-wide">VÍDEO</span>
           </div>
-          <video
-            src={product.video_url || undefined}
-            controls
-            preload="metadata"
-            className="mx-auto aspect-video w-full max-w-2xl rounded-xl bg-[#e8eadf]"
-          />
+          {canAccess ? (
+            <video
+              src={product.video_url || undefined}
+              controls
+              preload="metadata"
+              className="mx-auto aspect-video w-full max-w-2xl rounded-xl bg-[#e8eadf]"
+            />
+          ) : (
+            <div className="flex h-[200px] items-center justify-center rounded-xl bg-[#eef1e9] text-[#6B705C]">
+              <div className="flex flex-col items-center gap-2 px-4 text-center">
+                <Lock className="h-8 w-8" />
+                <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
+                  Vídeo liberado após a compra
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="mt-6 flex justify-end">
-        <a
-          href={purchaseLink || "#"}
-          target="_blank"
-          rel="noreferrer"
-          className={`inline-flex items-center gap-2 rounded-xl border px-5 py-2 text-sm tracking-[0.12em] transition-colors ${
-            purchaseLink
-              ? "border-[#6B705C] bg-white text-[#6B705C] hover:bg-[#6B705C] hover:text-white"
-              : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
-          }`}
-          aria-disabled={!purchaseLink}
-          onClick={(e) => {
-            if (!purchaseLink) e.preventDefault();
-          }}
-        >
-          LINK
-          <ExternalLink className="h-4 w-4" />
-        </a>
+      <div className="flex flex-col items-stretch justify-end gap-3 sm:flex-row sm:justify-end">
+        {canAccess ? (
+          <a
+            href={purchaseLink || "#"}
+            target="_blank"
+            rel="noreferrer"
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm tracking-[0.12em] transition-colors ${
+              purchaseLink
+                ? "border-[#6B705C] bg-white text-[#6B705C] hover:bg-[#6B705C] hover:text-white"
+                : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
+            }`}
+            aria-disabled={!purchaseLink}
+            onClick={(e) => {
+              if (!purchaseLink) e.preventDefault();
+            }}
+          >
+            ACESSO / LINK
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        ) : (
+          <a
+            href={purchaseLink || "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#6B705C] bg-[#6B705C] px-5 py-2.5 text-sm tracking-[0.12em] text-white transition-colors hover:opacity-95"
+            onClick={(e) => {
+              if (!purchaseLink) e.preventDefault();
+            }}
+          >
+            QUERO TER ACESSO AGORA
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
       </div>
     </section>
   );

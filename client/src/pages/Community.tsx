@@ -8,9 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-
-const FLORAL_BG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
+import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
 
 type ChatComment = {
   id: string;
@@ -27,7 +25,10 @@ const TABLE_NAME = "community_comments";
 
 export default function Community() {
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
+  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const logoUrl = settings.logo_url;
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -159,11 +160,11 @@ export default function Community() {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))] -mx-4 overflow-x-hidden md:-mx-8 lg:-mx-16 xl:-mx-24">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.08]"
         style={{
-          backgroundImage: `url(${FLORAL_BG})`,
+          backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",
           backgroundRepeat: "repeat",
         }}
@@ -171,7 +172,7 @@ export default function Community() {
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
           <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
-            <BrandLogo className="h-full w-full" />
+            <BrandLogo src={logoUrl} className="h-full w-full" />
           </div>
           <button
             type="button"

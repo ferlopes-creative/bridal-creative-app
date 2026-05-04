@@ -60,9 +60,14 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -88,6 +93,52 @@
     height: 1px;
     background: #B8A88A;
     margin: 0 auto;
+  }
+
+  /**
+   * TipTap / ProseMirror: Tailwind preflight remove marcadores de lista e achata headings.
+   * Escopo restrito ao admin para não afetar o restante do app.
+   */
+  .tiptap-admin-scope .ProseMirror h1 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.35rem;
+    letter-spacing: 0.06em;
+  }
+
+  .tiptap-admin-scope .ProseMirror h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0.65rem 0 0.3rem;
+    letter-spacing: 0.06em;
+  }
+
+  .tiptap-admin-scope .ProseMirror h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0.5rem 0 0.25rem;
+    letter-spacing: 0.05em;
+  }
+
+  .tiptap-admin-scope .ProseMirror ul {
+    list-style-type: disc;
+    padding-left: 1.35rem;
+    margin: 0.45rem 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror ol {
+    list-style-type: decimal;
+    padding-left: 1.35rem;
+    margin: 0.45rem 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror li {
+    display: list-item;
+    margin: 0.15rem 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror li p {
+    margin: 0;
   }
 }
 
