@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, ImageIcon, LogOut, Pencil, Plus, Save, Send, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -98,6 +98,10 @@ export default function AdminPage() {
   const [heroFile, setHeroFile] = useState<File | null>(null);
   const [siteSaving, setSiteSaving] = useState(false);
   const [siteLoading, setSiteLoading] = useState(true);
+
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const heroFileInputRef = useRef<HTMLInputElement>(null);
 
   const [kitProductId, setKitProductId] = useState("");
   const [kitBonusIds, setKitBonusIds] = useState<Record<string, boolean>>({});
@@ -604,6 +608,28 @@ export default function AdminPage() {
     }
   };
 
+  const clearSiteLogo = () => {
+    setSiteLogoUrl(null);
+    setLogoFile(null);
+    if (logoFileInputRef.current) logoFileInputRef.current.value = "";
+  };
+
+  const clearSiteBackground = () => {
+    setSiteBgUrl(null);
+    setBgFile(null);
+    if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+  };
+
+  const clearSiteHeroImage = () => {
+    setSiteHeroUrl(null);
+    setHeroFile(null);
+    if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+  };
+
+  const clearSiteHeroHeadline = () => {
+    setSiteHeroHeadline("");
+  };
+
   const handleSaveKitBonuses = async () => {
     if (!kitProductId) {
       toast.error("Selecione o produto kit.");
@@ -676,26 +702,42 @@ export default function AdminPage() {
             <h2 className="font-serif text-xl text-[#6B705C] md:text-2xl">Aparência do app</h2>
           </div>
           <p className="mb-4 text-sm text-zinc-600">
-            Logo, textura de fundo e banner do topo (login e dashboard). Envie arquivos do seu computador.
+            Logo, textura de fundo e banner do topo (login e dashboard). Envie arquivos do seu computador. Para voltar ao
+            padrão do app, use Remover e salve.
           </p>
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
             <form onSubmit={handleSaveSiteBranding} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-sm text-zinc-700">Frase do hero (dashboard)</label>
-                <input
-                  value={siteHeroHeadline}
-                  onChange={(e) => setSiteHeroHeadline(e.target.value)}
-                  placeholder="Nosso propósito é tornar seu sonho uma realidade!"
-                  className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  disabled={siteSaving}
-                />
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <label className="text-sm text-zinc-700">Frase do hero (dashboard)</label>
+                    <input
+                      value={siteHeroHeadline}
+                      onChange={(e) => setSiteHeroHeadline(e.target.value)}
+                      placeholder="Nosso propósito é tornar seu sonho uma realidade!"
+                      className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      disabled={siteSaving}
+                    />
+                  </div>
+                  {siteHeroHeadline.trim() !== "" && (
+                    <button
+                      type="button"
+                      onClick={clearSiteHeroHeadline}
+                      disabled={siteSaving}
+                      className="h-10 shrink-0 rounded-md border border-zinc-300 px-3 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      Limpar frase
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1">
                   <label className="text-sm text-zinc-700">Logo</label>
                   <input
+                    ref={logoFileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
@@ -707,26 +749,71 @@ export default function AdminPage() {
                       Atual: {siteLogoUrl.slice(0, 48)}…
                     </p>
                   )}
+                  {(siteLogoUrl || logoFile) && (
+                    <button
+                      type="button"
+                      onClick={clearSiteLogo}
+                      disabled={siteSaving}
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remover logo
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm text-zinc-700">Textura / fundo da página</label>
                   <input
+                    ref={bgFileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={(e) => setBgFile(e.target.files?.[0] ?? null)}
                     className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
                     disabled={siteSaving}
                   />
+                  {siteBgUrl && (
+                    <p className="truncate text-[10px] text-zinc-400" title={siteBgUrl}>
+                      Atual: {siteBgUrl.slice(0, 48)}…
+                    </p>
+                  )}
+                  {(siteBgUrl || bgFile) && (
+                    <button
+                      type="button"
+                      onClick={clearSiteBackground}
+                      disabled={siteSaving}
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remover fundo
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm text-zinc-700">Imagem do banner (hero)</label>
                   <input
+                    ref={heroFileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={(e) => setHeroFile(e.target.files?.[0] ?? null)}
                     className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
                     disabled={siteSaving}
                   />
+                  {siteHeroUrl && (
+                    <p className="truncate text-[10px] text-zinc-400" title={siteHeroUrl}>
+                      Atual: {siteHeroUrl.slice(0, 48)}…
+                    </p>
+                  )}
+                  {(siteHeroUrl || heroFile) && (
+                    <button
+                      type="button"
+                      onClick={clearSiteHeroImage}
+                      disabled={siteSaving}
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remover banner
+                    </button>
+                  )}
                 </div>
               </div>
               <button
