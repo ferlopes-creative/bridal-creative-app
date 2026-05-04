@@ -153,7 +153,7 @@ export default function DashboardProduct() {
           <BrandLogo src={logoUrl} className="max-h-11 max-w-11 object-contain" />
         </div>
       </div>
-      <div className="relative">
+      <div className="relative w-full min-w-0">
         <ProductView product={product} canAccess={canAccess} />
       </div>
     </div>

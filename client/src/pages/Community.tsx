@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bell, ChevronLeft, CircleUserRound, Filter, MessageCirclePlus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, ChevronLeft, CircleUserRound, Filter, ImagePlus, MessageCirclePlus, X } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
@@ -9,6 +9,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
+import { safeStorageObjectName } from "@/lib/safeStorageKey";
+
+const IMAGE_BUCKET = import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || "product-images";
 
 type ChatComment = {
   id: string;
@@ -34,8 +37,10 @@ export default function Community() {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [commentText, setCommentText] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState("");
@@ -90,15 +95,76 @@ export default function Community() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
+
+  const clearChosenImage = () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImagePreviewUrl(null);
+    setImageFile(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const onImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem (JPG, PNG, WebP…).");
+      e.target.value = "";
+      return;
+    }
+    const maxBytes = 8 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error("Imagem muito grande. Use até 8 MB.");
+      e.target.value = "";
+      return;
+    }
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    setImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+  };
+
+  const uploadCommunityImage = async (file: File): Promise<string> => {
+    const fileName = safeStorageObjectName(file);
+    const filePath = `images/community/${fileName}`;
+    const { data, error: uploadError } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .upload(filePath, file, { upsert: false, contentType: file.type || undefined });
+
+    if (uploadError) throw uploadError;
+    if (!data?.path) throw new Error("Upload sem path.");
+
+    const { data: publicData } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(data.path);
+    return publicData.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !commentText.trim()) return;
 
     setSubmitting(true);
+    let image_url: string | null = null;
+
+    if (imageFile) {
+      try {
+        image_url = await uploadCommunityImage(imageFile);
+      } catch (err) {
+        console.error("Upload imagem chat:", err);
+        toast.error(
+          "Não foi possível enviar a imagem. Confira o Storage no Supabase e as permissões do bucket."
+        );
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const payload = {
       name: name.trim(),
       comment: commentText.trim(),
-      image_url: imageUrl.trim() || null,
+      image_url,
     };
 
     const { error } = await supabase.from(TABLE_NAME).insert(payload);
@@ -116,8 +182,9 @@ export default function Community() {
     }
 
     setCommentText("");
-    setImageUrl("");
+    clearChosenImage();
     setSubmitting(false);
+    toast.success("Comentário enviado.");
   };
 
   const filteredComments = useMemo(() => {
@@ -273,13 +340,49 @@ export default function Community() {
               disabled={loading || submitting}
               className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
             />
-            <input
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Imagem (URL opcional)"
-              disabled={loading || submitting}
-              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
-            />
+            <div className="space-y-2">
+              <input
+                id="community-chat-image"
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={onImageFileChange}
+                disabled={loading || submitting}
+              />
+              {!imagePreviewUrl ? (
+                <button
+                  type="button"
+                  disabled={loading || submitting}
+                  onClick={() => imageInputRef.current?.click()}
+                  aria-controls="community-chat-image"
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-dashed border-[#b8baa8] bg-white px-3 text-sm text-[#6B705C] transition-colors hover:border-[#6B705C]/50 hover:bg-[#6B705C]/5 disabled:bg-zinc-50"
+                >
+                  <ImagePlus className="h-4 w-4 shrink-0 opacity-90" strokeWidth={1.5} />
+                  Adicionar foto (opcional)
+                </button>
+              ) : (
+                <div className="relative overflow-hidden rounded-md border border-[#d7d9d2] bg-zinc-50">
+                  <img
+                    src={imagePreviewUrl}
+                    alt=""
+                    className="max-h-40 w-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={clearChosenImage}
+                    disabled={loading || submitting}
+                    className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#6B705C] shadow-sm ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
+                    aria-label="Remover imagem"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                  <p className="border-t border-[#e8e8e3] bg-white px-3 py-2 text-[11px] text-zinc-500">
+                    Foto será enviada ao publicar o comentário.
+                  </p>
+                </div>
+              )}
+            </div>
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}

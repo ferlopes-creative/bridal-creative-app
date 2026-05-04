@@ -140,6 +140,24 @@
   .tiptap-admin-scope .ProseMirror li p {
     margin: 0;
   }
+
+  /** Descrição rica na página do produto: quebra linhas longas (URLs, texto sem espaços) em mobile e desktop. */
+  .product-html {
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .product-html p,
+  .product-html li,
+  .product-html span,
+  .product-html h1,
+  .product-html h2,
+  .product-html h3 {
+    overflow-wrap: anywhere;
+    max-width: 100%;
+  }
 }
 
 /* Scrollbar */
