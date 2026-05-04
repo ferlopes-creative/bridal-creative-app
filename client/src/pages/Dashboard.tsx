@@ -3,6 +3,7 @@ import { Bell, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
@@ -184,6 +185,9 @@ export default function Dashboard() {
   const sectionTitleClass =
     "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-[#6B705C] md:text-base";
 
+  /** Largura de cada cartão no carrossel horizontal (telefone / breakpoint antes de md). */
+  const mobileCardWrap = "min-w-[142px] w-[40vw] max-w-[168px] shrink-0 snap-start";
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
@@ -267,7 +271,20 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             SEUS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={purchasedProducts.map((p) => p.id).join()}>
+              {purchasedProducts.map((product) => (
+                <div key={`owned-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={false}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {purchasedProducts.map((product) => (
               <ProductCard
                 key={`owned-${product.id}`}
@@ -286,7 +303,20 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             PENSADOS PARA VOCÊ
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={suggestedProducts.map((p) => p.id).join()}>
+              {suggestedProducts.map((product) => (
+                <div key={`sug-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={true}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {suggestedProducts.map((product) => (
               <ProductCard
                 key={`suggested-${product.id}`}
@@ -305,7 +335,20 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             BÔNUS
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={bonusProducts.map((p) => p.id).join()}>
+              {bonusProducts.map((product) => (
+                <div key={`bon-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={false}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {bonusProducts.map((product) => (
               <ProductCard
                 key={`bonus-${product.id}`}
@@ -339,7 +382,20 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={otherProducts.map((p) => p.id).join()}>
+              {otherProducts.map((product) => (
+                <div key={`oth-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={!access(product)}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {otherProducts.map((product) => (
               <ProductCard
                 key={`other-${product.id}`}
