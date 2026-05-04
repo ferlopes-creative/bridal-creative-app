@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 export type SiteSettingsRow = {
   logo_url: string | null;
   page_background_image_url: string | null;
+  page_background_login_url: string | null;
+  page_background_app_url: string | null;
   hero_image_url: string | null;
   hero_banner_urls: string[];
 };
@@ -28,32 +30,25 @@ function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): string[] 
   return urls;
 }
 
-/** Erro do PostgREST quando a coluna `hero_banner_urls` / cache de schema ainda não existe. */
-export function isHeroBannerUrlsSchemaError(message: string | undefined): boolean {
-  const m = (message || "").toLowerCase();
-  return m.includes("hero_banner_urls") || m.includes("schema cache");
+function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
+  const raw = data.hero_banner_urls;
+  const legacyHero = (data.hero_image_url as string | null | undefined)?.trim() || null;
+  const hero_banner_urls = parseHeroBannerUrls(raw, legacyHero);
+  return {
+    logo_url: (data.logo_url as string | null | undefined) ?? null,
+    page_background_image_url: (data.page_background_image_url as string | null | undefined) ?? null,
+    page_background_login_url: (data.page_background_login_url as string | null | undefined) ?? null,
+    page_background_app_url: (data.page_background_app_url as string | null | undefined) ?? null,
+    hero_image_url: legacyHero,
+    hero_banner_urls,
+  };
 }
 
 /**
- * Lê `site_settings` (id=1). Se a coluna `hero_banner_urls` ainda não existir no projeto Supabase,
- * repete o SELECT só com as colunas antigas e usa `hero_image_url` como lista de um item.
+ * Lê `site_settings` (id=1). Usa `select('*')` para incluir colunas novas após migrações sem depender de tipos do PostgREST.
  */
 export async function fetchSiteSettingsRow(): Promise<SiteSettingsRow | null> {
-  let { data, error } = await supabase
-    .from("site_settings")
-    .select("logo_url, page_background_image_url, hero_image_url, hero_banner_urls")
-    .eq("id", 1)
-    .maybeSingle();
-
-  if (error && isHeroBannerUrlsSchemaError(error.message)) {
-    const second = await supabase
-      .from("site_settings")
-      .select("logo_url, page_background_image_url, hero_image_url")
-      .eq("id", 1)
-      .maybeSingle();
-    data = second.data as typeof data;
-    error = second.error;
-  }
+  const { data, error } = await supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
 
   if (error) {
     console.warn("site_settings:", error.message);
@@ -62,15 +57,16 @@ export async function fetchSiteSettingsRow(): Promise<SiteSettingsRow | null> {
   if (!data) {
     return null;
   }
+  return rowFromData(data as unknown as Record<string, unknown>);
+}
 
-  const raw = (data as { hero_banner_urls?: unknown }).hero_banner_urls;
-  const legacyHero = data.hero_image_url?.trim() || null;
-  const hero_banner_urls = parseHeroBannerUrls(raw, legacyHero);
+/** Erro do PostgREST quando a coluna `hero_banner_urls` / cache de schema ainda não existe. */
+export function isHeroBannerUrlsSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("hero_banner_urls") || m.includes("schema cache");
+}
 
-  return {
-    logo_url: data.logo_url ?? null,
-    page_background_image_url: data.page_background_image_url ?? null,
-    hero_image_url: legacyHero,
-    hero_banner_urls,
-  };
+export function isPageBackgroundSplitError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("page_background_login") || m.includes("page_background_app");
 }

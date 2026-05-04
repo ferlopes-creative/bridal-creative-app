@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 
 type ChatComment = {
   id: string;
@@ -27,7 +27,7 @@ export default function Community() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ export default function Community() {
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{
           backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",

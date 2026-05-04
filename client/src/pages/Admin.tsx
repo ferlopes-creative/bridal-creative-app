@@ -7,7 +7,11 @@ import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
-import { fetchSiteSettingsRow, isHeroBannerUrlsSchemaError } from "@/lib/siteSettingsRemote";
+import {
+  fetchSiteSettingsRow,
+  isHeroBannerUrlsSchemaError,
+  isPageBackgroundSplitError,
+} from "@/lib/siteSettingsRemote";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 import { supabase } from "@/lib/supabase";
 
@@ -93,16 +97,19 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
-  const [siteBgUrl, setSiteBgUrl] = useState<string | null>(null);
+  const [siteLoginBgUrl, setSiteLoginBgUrl] = useState<string | null>(null);
+  const [siteAppBgUrl, setSiteAppBgUrl] = useState<string | null>(null);
   const [siteHeroUrls, setSiteHeroUrls] = useState<string[]>([]);
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [bgFile, setBgFile] = useState<File | null>(null);
+  const [bgLoginFile, setBgLoginFile] = useState<File | null>(null);
+  const [bgAppFile, setBgAppFile] = useState<File | null>(null);
   const [siteSaving, setSiteSaving] = useState(false);
   const [siteLoading, setSiteLoading] = useState(true);
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
-  const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
+  const bgAppFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
 
   const [kitProductId, setKitProductId] = useState("");
@@ -307,8 +314,10 @@ export default function AdminPage() {
       setSiteLoading(true);
       const row = await fetchSiteSettingsRow();
       if (row) {
+        const legacy = row.page_background_image_url;
         setSiteLogoUrl(row.logo_url);
-        setSiteBgUrl(row.page_background_image_url);
+        setSiteLoginBgUrl(row.page_background_login_url ?? legacy);
+        setSiteAppBgUrl(row.page_background_app_url ?? legacy);
         setSiteHeroUrls(row.hero_banner_urls);
         setHeroPendingFiles([]);
       }
@@ -573,12 +582,16 @@ export default function AdminPage() {
     setSiteSaving(true);
     try {
       let logoUrl = siteLogoUrl;
-      let bgUrl = siteBgUrl;
+      let loginBgUrl = siteLoginBgUrl?.trim() || null;
+      let appBgUrl = siteAppBgUrl?.trim() || null;
       if (logoFile) {
         logoUrl = await uploadFileToStorage(logoFile, IMAGE_BUCKET, "images", "site");
       }
-      if (bgFile) {
-        bgUrl = await uploadFileToStorage(bgFile, IMAGE_BUCKET, "images", "site");
+      if (bgLoginFile) {
+        loginBgUrl = await uploadFileToStorage(bgLoginFile, IMAGE_BUCKET, "images", "site");
+      }
+      if (bgAppFile) {
+        appBgUrl = await uploadFileToStorage(bgAppFile, IMAGE_BUCKET, "images", "site");
       }
 
       const uploadedHeroUrls: string[] = [];
@@ -587,11 +600,15 @@ export default function AdminPage() {
       }
       const bannerUrls = [...siteHeroUrls, ...uploadedHeroUrls];
 
+      const legacyBgMirror = appBgUrl ?? loginBgUrl ?? null;
+
       const baseRow = {
         id: 1 as const,
         hero_headline: null as string | null,
         logo_url: logoUrl ?? null,
-        page_background_image_url: bgUrl ?? null,
+        page_background_image_url: legacyBgMirror,
+        page_background_login_url: loginBgUrl,
+        page_background_app_url: appBgUrl,
         hero_image_url: bannerUrls[0] ?? null,
         updated_at: new Date().toISOString(),
       };
@@ -604,12 +621,28 @@ export default function AdminPage() {
         const retry = await supabase.from("site_settings").upsert(baseRow);
         error = retry.error;
       }
+      if (error && isPageBackgroundSplitError(error.message)) {
+        const { page_background_login_url, page_background_app_url, ...rest } = baseRow;
+        const legacyOnly = { ...rest, page_background_image_url: legacyBgMirror };
+        const r2 = await supabase.from("site_settings").upsert({
+          ...legacyOnly,
+          hero_banner_urls: bannerUrls,
+        });
+        error = r2.error;
+        if (error && isHeroBannerUrlsSchemaError(error.message)) {
+          const r3 = await supabase.from("site_settings").upsert(legacyOnly);
+          error = r3.error;
+        }
+      }
       if (error) throw error;
       setSiteHeroUrls(bannerUrls);
       setHeroPendingFiles([]);
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
       setLogoFile(null);
-      setBgFile(null);
+      setBgLoginFile(null);
+      setBgAppFile(null);
+      if (bgLoginFileInputRef.current) bgLoginFileInputRef.current.value = "";
+      if (bgAppFileInputRef.current) bgAppFileInputRef.current.value = "";
       await refreshSiteSettings();
       toast.success("Aparência atualizada.");
     } catch (err) {
@@ -626,10 +659,16 @@ export default function AdminPage() {
     if (logoFileInputRef.current) logoFileInputRef.current.value = "";
   };
 
-  const clearSiteBackground = () => {
-    setSiteBgUrl(null);
-    setBgFile(null);
-    if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+  const clearSiteLoginBackground = () => {
+    setSiteLoginBgUrl(null);
+    setBgLoginFile(null);
+    if (bgLoginFileInputRef.current) bgLoginFileInputRef.current.value = "";
+  };
+
+  const clearSiteAppBackground = () => {
+    setSiteAppBgUrl(null);
+    setBgAppFile(null);
+    if (bgAppFileInputRef.current) bgAppFileInputRef.current.value = "";
   };
 
   const removeHeroUrlAt = (index: number) => {
@@ -718,8 +757,8 @@ export default function AdminPage() {
             <h2 className="font-serif text-xl text-[#6B705C] md:text-2xl">Aparência do app</h2>
           </div>
           <p className="mb-4 text-sm text-zinc-600">
-            Logo, textura de fundo e banners do topo (login e dashboard). Você pode enviar várias imagens para o carrossel.
-            Para voltar ao padrão do app, remova os banners e salve.
+            Logo, texturas de fundo (login separado das páginas internas) e banners do topo do dashboard. Várias imagens no carrossel.
+            Remova os arquivos e salve para voltar ao padrão.
           </p>
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
@@ -754,29 +793,58 @@ export default function AdminPage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-sm text-zinc-700">Textura / fundo da página</label>
+                  <label className="text-sm text-zinc-700">Fundo — página de login</label>
                   <input
-                    ref={bgFileInputRef}
+                    ref={bgLoginFileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setBgFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => setBgLoginFile(e.target.files?.[0] ?? null)}
                     className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
                     disabled={siteSaving}
                   />
-                  {siteBgUrl && (
-                    <p className="truncate text-[10px] text-zinc-400" title={siteBgUrl}>
-                      Atual: {siteBgUrl.slice(0, 48)}…
+                  {siteLoginBgUrl && (
+                    <p className="truncate text-[10px] text-zinc-400" title={siteLoginBgUrl}>
+                      Atual: {siteLoginBgUrl.slice(0, 48)}…
                     </p>
                   )}
-                  {(siteBgUrl || bgFile) && (
+                  {(siteLoginBgUrl || bgLoginFile) && (
                     <button
                       type="button"
-                      onClick={clearSiteBackground}
+                      onClick={clearSiteLoginBackground}
                       disabled={siteSaving}
                       className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Remover fundo
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-sm text-zinc-700">
+                    Fundo — app (dashboard, chat, produto e notificações)
+                  </label>
+                  <input
+                    ref={bgAppFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setBgAppFile(e.target.files?.[0] ?? null)}
+                    className="w-full max-w-xl text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                    disabled={siteSaving}
+                  />
+                  {siteAppBgUrl && (
+                    <p className="truncate text-[10px] text-zinc-400" title={siteAppBgUrl}>
+                      Atual: {siteAppBgUrl.slice(0, 48)}…
+                    </p>
+                  )}
+                  {(siteAppBgUrl || bgAppFile) && (
+                    <button
+                      type="button"
+                      onClick={clearSiteAppBackground}
+                      disabled={siteSaving}
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remover
                     </button>
                   )}
                 </div>

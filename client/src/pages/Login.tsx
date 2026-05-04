@@ -1,23 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
-import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveLoginPageBackground } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { settings } = useSiteSettings();
+  const { settings, refresh: refreshSiteSettings } = useSiteSettings();
+
+  useEffect(() => {
+    void refreshSiteSettings();
+  }, [refreshSiteSettings]);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const serifFont = "'Cormorant Garamond', 'Cinzel', 'Times New Roman', serif";
   const sansFont = "'Montserrat', 'Lato', 'Arial', sans-serif";
 
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveLoginPageBackground(settings);
   const logoUrl = settings.logo_url;
-  const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,20 +83,11 @@ export default function Login() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#F9F9F7" }}>
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{ backgroundImage: `url(${pageBgUrl})`, backgroundSize: "420px auto", backgroundRepeat: "repeat" }}
       />
 
-      {heroBannerUrls.length > 0 ? (
-        <div className="relative z-[1] w-full bg-[#6B705C]">
-          <SiteBannerCarousel
-            urls={heroBannerUrls}
-            slideMinClass="min-h-[220px] md:min-h-[260px]"
-          />
-        </div>
-      ) : null}
-
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[460px] items-center justify-center px-4 py-10 md:py-14">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[460px] items-center justify-center px-4 py-10 md:py-14">
         <section className="w-full">
           <header className="mb-12 flex flex-col items-center text-center">
             <BrandLogo src={logoUrl} className="mx-auto mb-8 h-[100px] w-auto max-w-[160px]" />

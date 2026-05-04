@@ -6,7 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
 import { setLastNotificationViewedAt } from "@/lib/notificationViewed";
 import { supabase } from "@/lib/supabase";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 
 const TABLE = "app_notifications";
 
@@ -20,7 +20,7 @@ type Row = {
 export default function Notifications() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +64,7 @@ export default function Notifications() {
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{
           backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",

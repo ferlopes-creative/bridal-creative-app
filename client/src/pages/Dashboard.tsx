@@ -6,7 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import { supabase } from "@/lib/supabase";
@@ -79,7 +79,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
 
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
   const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
 
@@ -188,7 +188,7 @@ export default function Dashboard() {
     return (
       <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          className="pointer-events-none absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage: `url(${pageBgUrl})`,
             backgroundSize: "360px auto",
@@ -227,7 +227,7 @@ export default function Dashboard() {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{
           backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",

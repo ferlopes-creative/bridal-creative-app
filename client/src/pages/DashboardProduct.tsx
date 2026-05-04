@@ -4,7 +4,7 @@ import { useLocation, useRoute } from "wouter";
 import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
 import ProductView from "@/components/ProductView";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import { supabase } from "@/lib/supabase";
@@ -33,7 +33,7 @@ export default function DashboardProduct() {
   const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function DashboardProduct() {
     return (
       <div className="relative min-h-screen bg-[#F7F5F0]">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          className="pointer-events-none absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage: `url(${pageBgUrl})`,
             backgroundSize: "360px auto",
@@ -132,7 +132,7 @@ export default function DashboardProduct() {
   return (
     <div className="relative min-h-screen bg-[#F7F5F0] px-4 py-6">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{
           backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",
