@@ -27,10 +27,25 @@ const PURIFY = {
   ALLOWED_ATTR: ["href", "target", "rel", "class"],
 };
 
+/** Plain text / legacy descriptions without tags → wrap in <p> so wrapping CSS applies consistently */
+function escapePlainForHtml(text: string) {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function sanitizeProductDescription(raw: string, fallback: string) {
+  const trimmed = raw.trim();
+  const source = trimmed || fallback;
+  const looksLikeHtml = /<[a-z][\s\S]*>/i.test(source);
+  const payload = looksLikeHtml ? source : `<p>${escapePlainForHtml(source)}</p>`;
+  return DOMPurify.sanitize(payload, PURIFY);
+}
+
 export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
-  const rawDescription = (product.description || product.descricao || "").trim();
-  const safeHtml = DOMPurify.sanitize(rawDescription || "Sem descrição disponível.", PURIFY);
+  const safeHtml = sanitizeProductDescription(
+    product.description || product.descricao || "",
+    "Sem descrição disponível.",
+  );
   const imageSrc =
     product.image_url ||
     product.image ||
@@ -40,7 +55,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   const hasVideo = Boolean(product.video_url);
 
   return (
-    <section className="mx-auto w-full max-w-3xl space-y-6">
+    <section className="mx-auto w-full min-w-0 max-w-3xl space-y-6">
       <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/40 bg-white shadow-sm">
         <img
           src={imageSrc}
@@ -49,15 +64,15 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         />
       </div>
 
-      <div className="rounded-[28px] border border-[#6B705C]/45 bg-[#F7F5F0] p-5 shadow-sm md:p-7">
+      <div className="w-full min-w-0 rounded-[28px] border border-[#6B705C]/45 bg-[#F7F5F0] p-5 shadow-sm md:p-7">
         <h1
-          className="text-2xl leading-tight text-[#6B705C] md:text-3xl"
+          className="break-words text-2xl leading-tight text-[#6B705C] md:text-3xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
         <div
-          className="product-html mt-4 text-sm leading-relaxed text-[#3A3A3A] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-[#6B705C] [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-[#6B705C] [&_h3]:text-base [&_h3]:text-[#6B705C] [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          className="product-html mt-4 w-full min-w-0 max-w-full text-sm leading-relaxed text-[#3A3A3A] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-[#6B705C] [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-[#6B705C] [&_h3]:text-base [&_h3]:text-[#6B705C] [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />

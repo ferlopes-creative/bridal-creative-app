@@ -140,6 +140,24 @@
   .tiptap-admin-scope .ProseMirror li p {
     margin: 0;
   }
+
+  /** Descrição rica na página do produto: quebra linhas longas (URLs, texto sem espaços) em mobile e desktop. */
+  .product-html {
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .product-html p,
+  .product-html li,
+  .product-html span,
+  .product-html h1,
+  .product-html h2,
+  .product-html h3 {
+    overflow-wrap: anywhere;
+    max-width: 100%;
+  }
 }
 
 /* Scrollbar */
@@ -149,4 +167,29 @@
 ::-webkit-scrollbar-thumb {
   background: #B8A88A;
   border-radius: 2px;
+}
+
+/**
+ * Descrição do produto: fora de @layer para vencer utilities do Tailwind em filhos
+ * e garantir quebra de strings longas sem espaços (mobile + desktop).
+ */
+.product-html {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.product-html * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.product-html a {
+  word-break: break-all;
 }

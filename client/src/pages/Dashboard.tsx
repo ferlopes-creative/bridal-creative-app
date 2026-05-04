@@ -3,9 +3,11 @@ import { Bell, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
+import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import { supabase } from "@/lib/supabase";
@@ -22,15 +24,14 @@ type Product = {
   link_compra?: string | null;
 };
 
-const DEFAULT_HEADLINE = "Nosso propósito é tornar seu sonho uma realidade!";
-
 function ProductCard({
   product,
-  locked = false,
+  showLockedOverlay = false,
   onNavigate,
 }: {
   product: Product;
-  locked?: boolean;
+  /** Produto normal não adquirido: overlay verde na imagem + cadeado (nunca para tipo BÔNUS). */
+  showLockedOverlay?: boolean;
   onNavigate: () => void;
 }) {
   const productTitle = product.name || "Produto";
@@ -43,25 +44,24 @@ function ProductCard({
   return (
     <article
       onClick={onNavigate}
-      className="w-full max-w-[200px] cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-3 shadow-sm transition-transform hover:scale-[1.01] sm:max-w-none"
+      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
     >
       <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
-        <img
-          src={imageSrc}
-          alt={productTitle}
-          className={`aspect-square w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
-        />
-        {locked && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="rounded-xl bg-white/90 p-3">
-              <Lock className="h-8 w-8 text-[#6B705C]" />
+        <img src={imageSrc} alt={productTitle} className="aspect-[3/4] w-full object-cover" />
+        {showLockedOverlay ? (
+          <>
+            <div className="absolute inset-0 bg-[#6B705C]/55" aria-hidden />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-lg bg-white/95 p-2 shadow-sm sm:rounded-xl sm:p-3">
+                <Lock className="h-6 w-6 text-[#6B705C] sm:h-8 sm:w-8" />
+              </div>
             </div>
-          </div>
-        )}
+          </>
+        ) : null}
       </div>
 
       <h3
-        className="mt-3 line-clamp-2 text-center text-[13px] leading-[1.15] text-white md:text-[14px]"
+        className="mt-2 line-clamp-2 text-center text-[11px] font-bold leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
       >
         {productTitle}
@@ -72,7 +72,7 @@ function ProductCard({
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { settings } = useSiteSettings();
+  const { settings, refresh: refreshSiteSettings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
   const [products, setProducts] = useState<Product[]>([]);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
@@ -80,10 +80,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
 
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
-  const heroImageUrl = settings.hero_image_url;
-  const heroHeadline = (settings.hero_headline || "").trim() || DEFAULT_HEADLINE;
+  const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
+
+  useEffect(() => {
+    void refreshSiteSettings();
+  }, [refreshSiteSettings]);
 
   const hasAccess = (product: Product) => purchasedIds.has(product.id);
   const access = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
@@ -180,13 +183,16 @@ export default function Dashboard() {
   const otherProducts = useMemo(() => nonBonusProducts, [nonBonusProducts]);
 
   const sectionTitleClass =
-    "mb-4 text-2xl uppercase tracking-wide text-[#6B705C] md:text-3xl";
+    "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-[#6B705C] md:text-base";
+
+  /** Largura de cada cartão no carrossel horizontal (telefone / breakpoint antes de md). */
+  const mobileCardWrap = "min-w-[142px] w-[40vw] max-w-[168px] shrink-0 snap-start";
 
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          className="pointer-events-none absolute inset-0 opacity-[0.14]"
           style={{
             backgroundImage: `url(${pageBgUrl})`,
             backgroundSize: "360px auto",
@@ -207,8 +213,8 @@ export default function Dashboard() {
         }`}
       >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-          <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-0.5">
-            <BrandLogo src={logoUrl} className="h-full w-full" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+            <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
           </div>
           <button
             type="button"
@@ -225,7 +231,7 @@ export default function Dashboard() {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{
           backgroundImage: `url(${pageBgUrl})`,
           backgroundSize: "360px auto",
@@ -234,27 +240,15 @@ export default function Dashboard() {
         }}
       />
       <section className="relative min-h-[240px] overflow-hidden md:min-h-[260px]">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: heroImageUrl
-              ? undefined
-              : "linear-gradient(180deg, #C7CDBE 0%, #9FA792 34%, #6B705C 100%)",
-            ...(heroImageUrl
-              ? {
-                  backgroundImage: `linear-gradient(180deg, rgba(107,112,92,0.55) 0%, rgba(107,112,92,0.75) 100%), url(${heroImageUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : {}),
-          }}
-        />
-        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-6 pb-6 md:min-h-[260px]">
-          <header className="mb-4 flex items-center justify-between">
-            <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1 md:h-14 md:w-14">
+        <div className="absolute inset-0 bg-[#6B705C]">
+          <SiteBannerCarousel urls={heroBannerUrls} />
+        </div>
+        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[260px]">
+          <header className="flex items-center justify-between">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
               <BrandLogo
                 src={logoUrl}
-                className="h-full w-full brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
+                className="max-h-12 max-w-12 object-contain brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)] md:max-h-14 md:max-w-[4.5rem]"
               />
             </div>
             <button
@@ -269,28 +263,33 @@ export default function Dashboard() {
               )}
             </button>
           </header>
-          <div className="flex flex-1 items-center text-white">
-            <h2
-              className="max-w-[95%] text-[26px] leading-[1.15] sm:max-w-[85%] md:max-w-[70%] md:text-[32px] lg:text-[34px]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {heroHeadline}
-            </h2>
-          </div>
         </div>
       </section>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-6 md:pt-8">
         <section>
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             SEUS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={purchasedProducts.map((p) => p.id).join()}>
+              {purchasedProducts.map((product) => (
+                <div key={`owned-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={false}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {purchasedProducts.map((product) => (
               <ProductCard
                 key={`owned-${product.id}`}
                 product={product}
-                locked={false}
+                showLockedOverlay={false}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -304,12 +303,25 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             PENSADOS PARA VOCÊ
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={suggestedProducts.map((p) => p.id).join()}>
+              {suggestedProducts.map((product) => (
+                <div key={`sug-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={true}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {suggestedProducts.map((product) => (
               <ProductCard
                 key={`suggested-${product.id}`}
                 product={product}
-                locked={true}
+                showLockedOverlay={true}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -323,12 +335,25 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             BÔNUS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={bonusProducts.map((p) => p.id).join()}>
+              {bonusProducts.map((product) => (
+                <div key={`bon-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={false}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {bonusProducts.map((product) => (
               <ProductCard
                 key={`bonus-${product.id}`}
                 product={product}
-                locked={!access(product)}
+                showLockedOverlay={false}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -357,12 +382,25 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="md:hidden">
+            <HorizontalScrollRow contentKey={otherProducts.map((p) => p.id).join()}>
+              {otherProducts.map((product) => (
+                <div key={`oth-m-${product.id}`} className={mobileCardWrap}>
+                  <ProductCard
+                    product={product}
+                    showLockedOverlay={!access(product)}
+                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollRow>
+          </div>
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
             {otherProducts.map((product) => (
               <ProductCard
                 key={`other-${product.id}`}
                 product={product}
-                locked={!access(product)}
+                showLockedOverlay={!access(product)}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}

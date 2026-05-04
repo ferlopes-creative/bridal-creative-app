@@ -13,8 +13,8 @@ export default function Header() {
     <header className="sticky top-0 z-50 w-full bg-[#F7F5F0]/90 backdrop-blur-md border-b border-[#E8E3DA]/40">
       <div className="flex items-center justify-between px-4 py-2.5">
         <div className="flex items-center">
-          <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#677354]/20 bg-[#F7F5F0] p-0.5">
-            <BrandLogo className="h-full w-full" />
+          <div className="flex h-10 w-10 items-center justify-center">
+            <BrandLogo className="max-h-10 max-w-10 object-contain" />
           </div>
         </div>
 

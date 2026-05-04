@@ -1,20 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
-import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveLoginPageBackground } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { settings } = useSiteSettings();
+  const { settings, refresh: refreshSiteSettings } = useSiteSettings();
+
+  useEffect(() => {
+    void refreshSiteSettings();
+  }, [refreshSiteSettings]);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const serifFont = "'Cormorant Garamond', 'Cinzel', 'Times New Roman', serif";
   const sansFont = "'Montserrat', 'Lato', 'Arial', sans-serif";
 
-  const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
+  const pageBgUrl = resolveLoginPageBackground(settings);
   const logoUrl = settings.logo_url;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,51 +81,46 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="relative min-h-screen w-full overflow-hidden px-4 py-10 md:py-14"
-      style={{
-        backgroundColor: "#F9F9F7",
-      }}
-    >
+    <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#F9F9F7" }}>
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        className="pointer-events-none absolute inset-0 opacity-[0.14]"
         style={{ backgroundImage: `url(${pageBgUrl})`, backgroundSize: "420px auto", backgroundRepeat: "repeat" }}
       />
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[460px] items-center justify-center">
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[420px] items-center justify-center px-4 py-8 md:py-12">
         <section className="w-full">
-          <header className="mb-12 flex flex-col items-center text-center">
-            <BrandLogo src={logoUrl} className="mx-auto mb-8 h-[100px] w-auto max-w-[160px]" />
+          <header className="mb-8 flex flex-col items-center text-center md:mb-10">
+            <BrandLogo src={logoUrl} className="mx-auto mb-5 h-[76px] w-auto max-w-[132px] md:h-[88px] md:max-w-[148px]" />
 
             <h1
-              className="text-[34px] leading-none text-[#6B7459] md:text-[42px]"
+              className="text-[26px] leading-none text-[#6B7459] md:text-[32px]"
               style={{
                 fontFamily: serifFont,
                 fontWeight: 500,
-                letterSpacing: "0.15em",
+                letterSpacing: "0.12em",
               }}
             >
               BRIDAL CREATIVE
             </h1>
             <p
-              className="mt-3 text-[11px] text-[#7B776D]"
-              style={{ letterSpacing: "0.15em", fontFamily: sansFont, fontWeight: 300 }}
+              className="mt-2 text-[9px] text-[#7B776D] md:text-[10px]"
+              style={{ letterSpacing: "0.12em", fontFamily: sansFont, fontWeight: 300 }}
             >
               O SEU CASAMENTO COMEÇA AQUI.
             </p>
           </header>
 
-          <div className="mx-auto max-w-[400px] rounded-xl border border-[#e9e9e6] bg-transparent p-10">
+          <div className="mx-auto max-w-[400px] rounded-xl border border-[#e9e9e6] bg-transparent p-6 md:p-8">
             {!isSupabaseConfigured && (
               <p
-                className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-[11px] leading-snug text-amber-900"
+                className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-center text-[10px] leading-snug text-amber-900"
                 role="alert"
               >
                 Ambiente sem Supabase (variáveis VITE_* em falta). Configure na Vercel e publique de novo.
               </p>
             )}
             <h2
-              className="mb-9 text-center text-[24px] font-medium uppercase tracking-widest text-[#6B7459]"
+              className="mb-6 text-center text-[17px] font-medium uppercase tracking-[0.18em] text-[#6B7459] md:text-[19px]"
               style={{
                 fontFamily: serifFont,
               }}
@@ -129,11 +128,11 @@ export default function Login() {
               FAÇA SEU CADASTRO
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="mx-auto max-w-[320px]">
                 <label
                   htmlFor="email"
-                  className="mb-2 block text-[13px] font-light uppercase tracking-widest text-[#6B7459]"
+                  className="mb-1.5 block text-[11px] font-light uppercase tracking-[0.18em] text-[#6B7459]"
                   style={{
                     fontFamily: sansFont,
                   }}
@@ -141,14 +140,14 @@ export default function Login() {
                   EMAIL
                 </label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#6B7459]" />
+                  <Mail className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[#6B7459]" />
                   <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="USE O E-MAIL INFORMADO NO MOMENTO DA COMPRA."
-                    className="h-9 w-full rounded-md border border-[#ddddda] bg-transparent pr-3 pl-9 text-xs text-[#3F3F39] placeholder:text-[9px] placeholder:font-light placeholder:tracking-widest placeholder:text-[#b5b2aa] outline-none transition focus:border-[#6B7459]"
+                    className="h-8 w-full rounded-md border border-[#ddddda] bg-transparent pr-2.5 pl-8 text-[11px] text-[#3F3F39] placeholder:text-[8px] placeholder:font-light placeholder:tracking-[0.14em] placeholder:text-[#b5b2aa] outline-none transition focus:border-[#6B7459]"
                     style={{ fontFamily: sansFont }}
                     required
                   />
@@ -156,8 +155,8 @@ export default function Login() {
               </div>
 
               <p
-                className="text-center text-[12px] uppercase tracking-widest text-[#7B776D]"
-                style={{ fontFamily: sansFont, letterSpacing: "0.08em" }}
+                className="text-center text-[10px] uppercase tracking-[0.12em] text-[#7B776D] md:text-[11px]"
+                style={{ fontFamily: sansFont, letterSpacing: "0.06em" }}
               >
                 JÁ TEM UMA CONTA?{" "}
                 <a href="/" className="underline decoration-1 underline-offset-2">
@@ -170,16 +169,16 @@ export default function Login() {
                   type="submit"
                   disabled={loading}
                   aria-busy={loading}
-                  className="inline-flex h-10 min-w-[200px] items-center justify-center gap-2 rounded-lg px-8 text-[22px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70"
+                  className="inline-flex h-9 min-w-[168px] items-center justify-center gap-2 rounded-lg px-6 text-[15px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-70 md:h-10 md:text-[16px]"
                   style={{
                     backgroundColor: "#6B7459",
                     fontFamily: serifFont,
-                    letterSpacing: "0.15em",
+                    letterSpacing: "0.12em",
                   }}
                 >
                   {loading ? (
                     <>
-                      <Spinner className="size-5 shrink-0 text-white" />
+                      <Spinner className="size-4 shrink-0 text-white" />
                       ENVIANDO...
                     </>
                   ) : (
@@ -195,7 +194,7 @@ export default function Login() {
                 localStorage.setItem("dev_bypass_auth", "true");
                 setLocation("/dashboard");
               }}
-              className="mt-6 mx-auto block text-[10px] uppercase tracking-widest text-[#a5a198] hover:text-[#6B7459]"
+              className="mt-5 mx-auto block text-[9px] uppercase tracking-[0.14em] text-[#a5a198] hover:text-[#6B7459]"
               style={{ fontFamily: sansFont }}
             >
               Login de Desenvolvedor
