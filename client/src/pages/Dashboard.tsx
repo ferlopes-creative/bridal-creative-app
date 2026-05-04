@@ -42,25 +42,25 @@ function ProductCard({
   return (
     <article
       onClick={onNavigate}
-      className="w-full max-w-[200px] cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-3 shadow-sm transition-transform hover:scale-[1.01] sm:max-w-none"
+      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
     >
       <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
         <img
           src={imageSrc}
           alt={productTitle}
-          className={`aspect-square w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
+          className={`aspect-[3/4] w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
         />
         {locked && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="rounded-xl bg-white/90 p-3">
-              <Lock className="h-8 w-8 text-[#6B705C]" />
+            <div className="rounded-lg bg-white/90 p-2 sm:rounded-xl sm:p-3">
+              <Lock className="h-6 w-6 text-[#6B705C] sm:h-8 sm:w-8" />
             </div>
           </div>
         )}
       </div>
 
       <h3
-        className="mt-3 line-clamp-2 text-center text-[13px] leading-[1.15] text-white md:text-[14px]"
+        className="mt-2 line-clamp-2 text-center text-[11px] leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
       >
         {productTitle}
@@ -182,7 +182,7 @@ export default function Dashboard() {
   const otherProducts = useMemo(() => nonBonusProducts, [nonBonusProducts]);
 
   const sectionTitleClass =
-    "mb-4 text-2xl uppercase tracking-wide text-[#6B705C] md:text-3xl";
+    "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-[#6B705C] md:text-base";
 
   if (loading) {
     return (
@@ -262,12 +262,12 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-6 md:pt-8">
         <section>
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             SEUS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {purchasedProducts.map((product) => (
               <ProductCard
                 key={`owned-${product.id}`}
@@ -286,7 +286,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             PENSADOS PARA VOCÊ
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {suggestedProducts.map((product) => (
               <ProductCard
                 key={`suggested-${product.id}`}
@@ -305,7 +305,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             BÔNUS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {bonusProducts.map((product) => (
               <ProductCard
                 key={`bonus-${product.id}`}
@@ -339,7 +339,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {otherProducts.map((product) => (
               <ProductCard
                 key={`other-${product.id}`}
