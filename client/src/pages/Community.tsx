@@ -446,12 +446,14 @@ export default function Community() {
             filteredComments.map((item) => (
             <article
               key={item.id}
-              className="rounded-2xl border border-[#6B705C]/30 bg-white/85 p-3"
+              className="w-full min-w-0 max-w-full overflow-x-hidden rounded-2xl border border-[#6B705C]/30 bg-white/85 p-3"
             >
-              <div className="mb-2 flex items-center gap-2">
-                <CircleUserRound className="h-8 w-8 text-[#6B705C]" />
-                <div>
-                  <p className="text-sm font-semibold text-zinc-900">{item.name}</p>
+              <div className="mb-2 flex min-w-0 items-center gap-2">
+                <CircleUserRound className="h-8 w-8 shrink-0 text-[#6B705C]" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold break-words text-zinc-900 [overflow-wrap:anywhere] [word-break:break-word]">
+                    {item.name}
+                  </p>
                   <p className="text-xs text-zinc-500">{formatTime(item.created_at)}</p>
                 </div>
               </div>
@@ -466,7 +468,9 @@ export default function Community() {
                 </div>
               )}
 
-              <p className="text-sm text-zinc-700">{item.comment}</p>
+              <p className="min-w-0 max-w-full whitespace-pre-wrap break-words text-sm text-zinc-700 [overflow-wrap:anywhere] [word-break:break-word]">
+                {item.comment}
+              </p>
             </article>
           ))}
         </section>
