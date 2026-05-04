@@ -149,8 +149,8 @@ export default function DashboardProduct() {
           <ChevronLeft className="h-4 w-4" />
           Voltar
         </button>
-        <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-white/90 p-0.5">
-          <BrandLogo src={logoUrl} className="h-full w-full" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center">
+          <BrandLogo src={logoUrl} className="max-h-11 max-w-11 object-contain" />
         </div>
       </div>
       <div className="relative">

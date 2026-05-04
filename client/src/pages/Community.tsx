@@ -171,8 +171,8 @@ export default function Community() {
       />
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
-          <div className="inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-1">
-            <BrandLogo src={logoUrl} className="h-full w-full" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center">
+            <BrandLogo src={logoUrl} className="max-h-14 max-w-14 object-contain" />
           </div>
           <button
             type="button"

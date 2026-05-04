@@ -722,8 +722,8 @@ export default function AdminPage() {
       <section className="mx-auto w-full max-w-6xl rounded-[28px] border border-zinc-700/80 bg-[#F7F5F0] p-4 md:p-6">
         <div className="mb-5 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-white/80 p-1">
-              <BrandLogo className="h-full w-full" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center">
+              <BrandLogo className="max-h-12 max-w-12 object-contain" />
             </div>
             <div className="min-w-0">
               <p className="text-sm text-zinc-700">/admin</p>

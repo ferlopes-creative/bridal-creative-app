@@ -209,8 +209,8 @@ export default function Dashboard() {
         }`}
       >
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-          <div className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#6B705C]/25 bg-[#FBFAF6]/90 p-0.5">
-            <BrandLogo src={logoUrl} className="h-full w-full" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+            <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
           </div>
           <button
             type="button"
@@ -241,10 +241,10 @@ export default function Dashboard() {
         </div>
         <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[260px]">
           <header className="flex items-center justify-between">
-            <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1 md:h-14 md:w-14">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
               <BrandLogo
                 src={logoUrl}
-                className="h-full w-full brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
+                className="max-h-12 max-w-12 object-contain brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)] md:max-h-14 md:max-w-[4.5rem]"
               />
             </div>
             <button
