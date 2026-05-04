@@ -6,6 +6,8 @@ import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
+import { fetchSiteSettingsRow, isHeroBannerUrlsSchemaError } from "@/lib/siteSettingsRemote";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 import { supabase } from "@/lib/supabase";
 
@@ -68,6 +70,7 @@ function looksLikeStorageError(err: unknown): boolean {
 
 export default function AdminPage() {
   const [, setLocation] = useLocation();
+  const { refresh: refreshSiteSettings } = useSiteSettings();
 
   const IMAGE_BUCKET = import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || "product-images";
   const VIDEO_BUCKET = import.meta.env.VITE_SUPABASE_VIDEO_BUCKET || "product-videos";
@@ -89,13 +92,12 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [siteHeroHeadline, setSiteHeroHeadline] = useState("");
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteBgUrl, setSiteBgUrl] = useState<string | null>(null);
-  const [siteHeroUrl, setSiteHeroUrl] = useState<string | null>(null);
+  const [siteHeroUrls, setSiteHeroUrls] = useState<string[]>([]);
+  const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bgFile, setBgFile] = useState<File | null>(null);
-  const [heroFile, setHeroFile] = useState<File | null>(null);
   const [siteSaving, setSiteSaving] = useState(false);
   const [siteLoading, setSiteLoading] = useState(true);
 
@@ -303,16 +305,12 @@ export default function AdminPage() {
   useEffect(() => {
     const loadSite = async () => {
       setSiteLoading(true);
-      const { data, error } = await supabase
-        .from("site_settings")
-        .select("hero_headline, logo_url, page_background_image_url, hero_image_url")
-        .eq("id", 1)
-        .maybeSingle();
-      if (!error && data) {
-        setSiteHeroHeadline(data.hero_headline ?? "");
-        setSiteLogoUrl(data.logo_url ?? null);
-        setSiteBgUrl(data.page_background_image_url ?? null);
-        setSiteHeroUrl(data.hero_image_url ?? null);
+      const row = await fetchSiteSettingsRow();
+      if (row) {
+        setSiteLogoUrl(row.logo_url);
+        setSiteBgUrl(row.page_background_image_url);
+        setSiteHeroUrls(row.hero_banner_urls);
+        setHeroPendingFiles([]);
       }
       setSiteLoading(false);
     };
@@ -576,29 +574,43 @@ export default function AdminPage() {
     try {
       let logoUrl = siteLogoUrl;
       let bgUrl = siteBgUrl;
-      let heroImgUrl = siteHeroUrl;
       if (logoFile) {
         logoUrl = await uploadFileToStorage(logoFile, IMAGE_BUCKET, "images", "site");
       }
       if (bgFile) {
         bgUrl = await uploadFileToStorage(bgFile, IMAGE_BUCKET, "images", "site");
       }
-      if (heroFile) {
-        heroImgUrl = await uploadFileToStorage(heroFile, IMAGE_BUCKET, "images", "site");
-      }
 
-      const { error } = await supabase.from("site_settings").upsert({
-        id: 1,
-        hero_headline: siteHeroHeadline.trim() || null,
+      const uploadedHeroUrls: string[] = [];
+      for (const file of heroPendingFiles) {
+        uploadedHeroUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images", "site"));
+      }
+      const bannerUrls = [...siteHeroUrls, ...uploadedHeroUrls];
+
+      const baseRow = {
+        id: 1 as const,
+        hero_headline: null as string | null,
         logo_url: logoUrl ?? null,
         page_background_image_url: bgUrl ?? null,
-        hero_image_url: heroImgUrl ?? null,
+        hero_image_url: bannerUrls[0] ?? null,
         updated_at: new Date().toISOString(),
+      };
+
+      let { error } = await supabase.from("site_settings").upsert({
+        ...baseRow,
+        hero_banner_urls: bannerUrls,
       });
+      if (error && isHeroBannerUrlsSchemaError(error.message)) {
+        const retry = await supabase.from("site_settings").upsert(baseRow);
+        error = retry.error;
+      }
       if (error) throw error;
+      setSiteHeroUrls(bannerUrls);
+      setHeroPendingFiles([]);
+      if (heroFileInputRef.current) heroFileInputRef.current.value = "";
       setLogoFile(null);
       setBgFile(null);
-      setHeroFile(null);
+      await refreshSiteSettings();
       toast.success("Aparência atualizada.");
     } catch (err) {
       console.error(err);
@@ -620,14 +632,18 @@ export default function AdminPage() {
     if (bgFileInputRef.current) bgFileInputRef.current.value = "";
   };
 
-  const clearSiteHeroImage = () => {
-    setSiteHeroUrl(null);
-    setHeroFile(null);
-    if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+  const removeHeroUrlAt = (index: number) => {
+    setSiteHeroUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const clearSiteHeroHeadline = () => {
-    setSiteHeroHeadline("");
+  const removeHeroPendingAt = (index: number) => {
+    setHeroPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllHeroBanners = () => {
+    setSiteHeroUrls([]);
+    setHeroPendingFiles([]);
+    if (heroFileInputRef.current) heroFileInputRef.current.value = "";
   };
 
   const handleSaveKitBonuses = async () => {
@@ -702,38 +718,14 @@ export default function AdminPage() {
             <h2 className="font-serif text-xl text-[#6B705C] md:text-2xl">Aparência do app</h2>
           </div>
           <p className="mb-4 text-sm text-zinc-600">
-            Logo, textura de fundo e banner do topo (login e dashboard). Envie arquivos do seu computador. Para voltar ao
-            padrão do app, use Remover e salve.
+            Logo, textura de fundo e banners do topo (login e dashboard). Você pode enviar várias imagens para o carrossel.
+            Para voltar ao padrão do app, remova os banners e salve.
           </p>
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
             <form onSubmit={handleSaveSiteBranding} className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <label className="text-sm text-zinc-700">Frase do hero (dashboard)</label>
-                    <input
-                      value={siteHeroHeadline}
-                      onChange={(e) => setSiteHeroHeadline(e.target.value)}
-                      placeholder="Nosso propósito é tornar seu sonho uma realidade!"
-                      className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                      disabled={siteSaving}
-                    />
-                  </div>
-                  {siteHeroHeadline.trim() !== "" && (
-                    <button
-                      type="button"
-                      onClick={clearSiteHeroHeadline}
-                      disabled={siteSaving}
-                      className="h-10 shrink-0 rounded-md border border-zinc-300 px-3 text-xs text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-                    >
-                      Limpar frase
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm text-zinc-700">Logo</label>
                   <input
@@ -788,33 +780,82 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-sm text-zinc-700">Imagem do banner (hero)</label>
-                  <input
-                    ref={heroFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setHeroFile(e.target.files?.[0] ?? null)}
-                    className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                    disabled={siteSaving}
-                  />
-                  {siteHeroUrl && (
-                    <p className="truncate text-[10px] text-zinc-400" title={siteHeroUrl}>
-                      Atual: {siteHeroUrl.slice(0, 48)}…
-                    </p>
-                  )}
-                  {(siteHeroUrl || heroFile) && (
+              </div>
+              <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-medium text-zinc-700">Banners do topo (carrossel)</label>
+                  {(siteHeroUrls.length > 0 || heroPendingFiles.length > 0) && (
                     <button
                       type="button"
-                      onClick={clearSiteHeroImage}
+                      onClick={clearAllHeroBanners}
                       disabled={siteSaving}
-                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                      className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Remover banner
+                      Limpar todos
                     </button>
                   )}
                 </div>
+                <p className="text-xs text-zinc-500">
+                  Adicione uma ou mais imagens; no app elas passam em sequência automaticamente.
+                </p>
+                <input
+                  ref={heroFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const next = Array.from(e.target.files ?? []);
+                    if (next.length) setHeroPendingFiles((p) => [...p, ...next]);
+                    e.target.value = "";
+                  }}
+                  className="w-full max-w-md text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                  disabled={siteSaving}
+                />
+                {siteHeroUrls.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    {siteHeroUrls.map((url, i) => (
+                      <li
+                        key={`${url}-${i}`}
+                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                          {url.slice(0, 72)}
+                          {url.length > 72 ? "…" : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeHeroUrlAt(i)}
+                          disabled={siteSaving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {heroPendingFiles.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    <li className="text-zinc-500">A enviar ao salvar:</li>
+                    {heroPendingFiles.map((file, i) => (
+                      <li
+                        key={`${file.name}-${i}`}
+                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeHeroPendingAt(i)}
+                          disabled={siteSaving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <button
                 type="submit"

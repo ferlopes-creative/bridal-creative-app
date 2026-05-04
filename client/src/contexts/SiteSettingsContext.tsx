@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
+import { fetchSiteSettingsRow } from "@/lib/siteSettingsRemote";
 
 export const DEFAULT_FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
@@ -7,15 +7,16 @@ export const DEFAULT_FLORAL_BG =
 export type SiteSettings = {
   logo_url: string | null;
   page_background_image_url: string | null;
+  /** @deprecated use hero_banner_urls; mantido para compat. */
   hero_image_url: string | null;
-  hero_headline: string | null;
+  hero_banner_urls: string[];
 };
 
 const defaultSettings: SiteSettings = {
   logo_url: null,
   page_background_image_url: null,
   hero_image_url: null,
-  hero_headline: null,
+  hero_banner_urls: [],
 };
 
 const SiteSettingsContext = createContext<{
@@ -33,20 +34,13 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("site_settings")
-      .select("logo_url, page_background_image_url, hero_image_url, hero_headline")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (error) {
-      console.warn("site_settings:", error.message);
-    } else if (data) {
+    const row = await fetchSiteSettingsRow();
+    if (row) {
       setSettings({
-        logo_url: data.logo_url ?? null,
-        page_background_image_url: data.page_background_image_url ?? null,
-        hero_image_url: data.hero_image_url ?? null,
-        hero_headline: data.hero_headline ?? null,
+        logo_url: row.logo_url,
+        page_background_image_url: row.page_background_image_url,
+        hero_image_url: row.hero_image_url,
+        hero_banner_urls: row.hero_banner_urls,
       });
     }
     setLoading(false);

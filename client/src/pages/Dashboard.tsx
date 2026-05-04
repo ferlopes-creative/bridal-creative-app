@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
 import { PageLoading } from "@/components/PageLoading";
+import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { useSiteSettings, DEFAULT_FLORAL_BG } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
@@ -21,8 +22,6 @@ type Product = {
   video_url?: string | null;
   link_compra?: string | null;
 };
-
-const DEFAULT_HEADLINE = "Nosso propósito é tornar seu sonho uma realidade!";
 
 function ProductCard({
   product,
@@ -72,7 +71,7 @@ function ProductCard({
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
-  const { settings } = useSiteSettings();
+  const { settings, refresh: refreshSiteSettings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
   const [products, setProducts] = useState<Product[]>([]);
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
@@ -82,8 +81,11 @@ export default function Dashboard() {
 
   const pageBgUrl = settings.page_background_image_url || DEFAULT_FLORAL_BG;
   const logoUrl = settings.logo_url;
-  const heroImageUrl = settings.hero_image_url;
-  const heroHeadline = (settings.hero_headline || "").trim() || DEFAULT_HEADLINE;
+  const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
+
+  useEffect(() => {
+    void refreshSiteSettings();
+  }, [refreshSiteSettings]);
 
   const hasAccess = (product: Product) => purchasedIds.has(product.id);
   const access = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
@@ -234,23 +236,11 @@ export default function Dashboard() {
         }}
       />
       <section className="relative min-h-[240px] overflow-hidden md:min-h-[260px]">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: heroImageUrl
-              ? undefined
-              : "linear-gradient(180deg, #C7CDBE 0%, #9FA792 34%, #6B705C 100%)",
-            ...(heroImageUrl
-              ? {
-                  backgroundImage: `linear-gradient(180deg, rgba(107,112,92,0.55) 0%, rgba(107,112,92,0.75) 100%), url(${heroImageUrl})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }
-              : {}),
-          }}
-        />
-        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-6 pb-6 md:min-h-[260px]">
-          <header className="mb-4 flex items-center justify-between">
+        <div className="absolute inset-0 bg-[#6B705C]">
+          <SiteBannerCarousel urls={heroBannerUrls} />
+        </div>
+        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[260px]">
+          <header className="flex items-center justify-between">
             <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/40 bg-white/10 p-1 md:h-14 md:w-14">
               <BrandLogo
                 src={logoUrl}
@@ -269,14 +259,6 @@ export default function Dashboard() {
               )}
             </button>
           </header>
-          <div className="flex flex-1 items-center text-white">
-            <h2
-              className="max-w-[95%] text-[26px] leading-[1.15] sm:max-w-[85%] md:max-w-[70%] md:text-[32px] lg:text-[34px]"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {heroHeadline}
-            </h2>
-          </div>
         </div>
       </section>
 
