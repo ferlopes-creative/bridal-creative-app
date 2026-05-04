@@ -25,11 +25,12 @@ type Product = {
 
 function ProductCard({
   product,
-  locked = false,
+  showLockedOverlay = false,
   onNavigate,
 }: {
   product: Product;
-  locked?: boolean;
+  /** Produto normal não adquirido: overlay verde na imagem + cadeado (nunca para tipo BÔNUS). */
+  showLockedOverlay?: boolean;
   onNavigate: () => void;
 }) {
   const productTitle = product.name || "Produto";
@@ -45,22 +46,21 @@ function ProductCard({
       className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
     >
       <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
-        <img
-          src={imageSrc}
-          alt={productTitle}
-          className={`aspect-[3/4] w-full object-cover ${locked ? "opacity-45 grayscale-[0.2]" : ""}`}
-        />
-        {locked && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="rounded-lg bg-white/90 p-2 sm:rounded-xl sm:p-3">
-              <Lock className="h-6 w-6 text-[#6B705C] sm:h-8 sm:w-8" />
+        <img src={imageSrc} alt={productTitle} className="aspect-[3/4] w-full object-cover" />
+        {showLockedOverlay ? (
+          <>
+            <div className="absolute inset-0 bg-[#6B705C]/55" aria-hidden />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-lg bg-white/95 p-2 shadow-sm sm:rounded-xl sm:p-3">
+                <Lock className="h-6 w-6 text-[#6B705C] sm:h-8 sm:w-8" />
+              </div>
             </div>
-          </div>
-        )}
+          </>
+        ) : null}
       </div>
 
       <h3
-        className="mt-2 line-clamp-2 text-center text-[11px] leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
+        className="mt-2 line-clamp-2 text-center text-[11px] font-bold leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
       >
         {productTitle}
@@ -272,7 +272,7 @@ export default function Dashboard() {
               <ProductCard
                 key={`owned-${product.id}`}
                 product={product}
-                locked={false}
+                showLockedOverlay={false}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -291,7 +291,7 @@ export default function Dashboard() {
               <ProductCard
                 key={`suggested-${product.id}`}
                 product={product}
-                locked={true}
+                showLockedOverlay={true}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -310,7 +310,7 @@ export default function Dashboard() {
               <ProductCard
                 key={`bonus-${product.id}`}
                 product={product}
-                locked={!access(product)}
+                showLockedOverlay={false}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
@@ -344,7 +344,7 @@ export default function Dashboard() {
               <ProductCard
                 key={`other-${product.id}`}
                 product={product}
-                locked={!access(product)}
+                showLockedOverlay={!access(product)}
                 onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
               />
             ))}
