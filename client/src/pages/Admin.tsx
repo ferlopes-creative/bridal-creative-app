@@ -1,5 +1,17 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, ImageIcon, LogOut, Pencil, Plus, Save, Send, Trash2, X } from "lucide-react";
+import {
+  Bell,
+  LayoutGrid,
+  LogOut,
+  Package,
+  Palette,
+  Pencil,
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
@@ -717,24 +729,31 @@ export default function AdminPage() {
     }
   };
 
+  const sectionShell =
+    "rounded-2xl border border-[#6B705C]/20 bg-white p-4 shadow-[0_1px_3px_rgba(80,88,60,0.06)] md:p-6";
+  const sectionTitleRow = "mb-1 flex flex-wrap items-center gap-2";
+  const sectionH2 =
+    "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
+  const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
+
   return (
-    <div className="min-h-screen w-full bg-[#F7F5F0] px-3 py-6 md:px-6">
-      <section className="mx-auto w-full max-w-6xl rounded-[28px] border border-zinc-700/80 bg-[#F7F5F0] p-4 md:p-6">
-        <div className="mb-5 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-h-screen w-full bg-[#ebe8df] px-3 py-5 pb-14 md:px-5 md:py-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 md:gap-8">
+        <header className="flex min-w-0 flex-col gap-4 rounded-2xl border border-[#6B705C]/15 bg-white/90 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between md:p-5">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center">
-              <BrandLogo className="max-h-12 max-w-12 object-contain" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f5f3ee] md:h-12 md:w-12">
+              <BrandLogo className="max-h-10 max-w-10 object-contain md:max-h-11 md:max-w-11" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-zinc-700">/admin</p>
-              <h1 className="font-serif text-2xl text-[#6B705C] md:text-3xl">BC produtos</h1>
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Administração</p>
+              <h1 className="truncate font-serif text-xl text-[#6B705C] md:text-2xl">Bridal Creative</h1>
             </div>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex h-10 items-center gap-1 rounded-md border border-[#6B705C]/50 px-3 text-xs text-[#6B705C] hover:bg-[#6B705C]/10"
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-[#6B705C]/40 px-4 text-xs font-medium text-[#6B705C] transition-colors hover:bg-[#6B705C]/8 sm:w-auto"
             >
               <LogOut className="h-3.5 w-3.5" />
               Sair
@@ -742,29 +761,31 @@ export default function AdminPage() {
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex h-10 max-w-full items-center gap-2 rounded-xl px-3 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90 sm:h-11 sm:px-4"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90 sm:w-auto"
               style={{ backgroundColor: "#6B705C" }}
             >
               <Plus className="h-4 w-4 shrink-0" />
-              <span className="truncate sm:inline">Novo produto</span>
+              Novo produto
             </button>
           </div>
-        </div>
+        </header>
 
-        <section className="mb-8 rounded-2xl border border-[#6B705C]/35 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <ImageIcon className="h-6 w-6 text-[#6B705C]" />
-            <h2 className="font-serif text-xl text-[#6B705C] md:text-2xl">Aparência do app</h2>
+        <section className={sectionShell}>
+          <div className={sectionTitleRow}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+              <Palette className="h-4 w-4 text-[#6B705C]" aria-hidden />
+            </span>
+            <h2 className={sectionH2}>Aparência do app</h2>
           </div>
-          <p className="mb-4 text-sm text-zinc-600">
-            Logo, texturas de fundo (login separado das páginas internas) e banners do topo do dashboard. Várias imagens no carrossel.
+          <p className={sectionDesc}>
+            Logo, texturas de fundo (login e áreas internas) e banners do topo. No carrossel pode usar várias imagens.
             Remova os arquivos e salve para voltar ao padrão.
           </p>
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
-            <form onSubmit={handleSaveSiteBranding} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+            <form onSubmit={handleSaveSiteBranding} className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-1">
                   <label className="text-sm text-zinc-700">Logo</label>
                   <input
@@ -819,7 +840,7 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-                <div className="space-y-1 md:col-span-2">
+                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                   <label className="text-sm text-zinc-700">
                     Fundo — app (dashboard, chat, produto e notificações)
                   </label>
@@ -849,9 +870,9 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
-              <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4">
+              <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-sm font-medium text-zinc-700">Banners do topo (carrossel)</label>
+                  <label className="text-sm font-medium text-zinc-800">Banners do topo (carrossel)</label>
                   {(siteHeroUrls.length > 0 || heroPendingFiles.length > 0) && (
                     <button
                       type="button"
@@ -944,9 +965,14 @@ export default function AdminPage() {
           )}
         </section>
 
-        <section className="mb-8 rounded-2xl border border-[#6B705C]/35 bg-white p-5 shadow-sm">
-          <h2 className="font-serif text-xl text-[#6B705C] md:text-2xl">Bônus por kit</h2>
-          <p className="mb-4 mt-1 text-sm text-zinc-600">
+        <section className={sectionShell}>
+          <div className={sectionTitleRow}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+              <Package className="h-4 w-4 text-[#6B705C]" aria-hidden />
+            </span>
+            <h2 className={sectionH2}>Bônus por kit</h2>
+          </div>
+          <p className={sectionDesc}>
             Escolha o produto principal (kit). Os bônus marcados liberam automaticamente quando a cliente comprar esse kit.
           </p>
           <div className="mb-4 space-y-2">
@@ -971,9 +997,9 @@ export default function AdminPage() {
           {bonusOnlyProducts.length === 0 ? (
             <p className="text-sm text-zinc-500">Cadastre produtos tipo BON para aparecerem aqui.</p>
           ) : (
-            <ul className="mb-4 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-zinc-100 p-3">
+            <ul className="mb-4 grid max-h-[min(16rem,50vh)] gap-2 overflow-y-auto rounded-xl border border-zinc-100 bg-[#fafaf8] p-3 sm:grid-cols-2">
               {bonusOnlyProducts.map((p) => (
-                <li key={p.id} className="flex items-center gap-2">
+                <li key={p.id} className="flex items-center gap-2 rounded-lg border border-transparent bg-white px-2 py-1.5 shadow-sm">
                   <input
                     type="checkbox"
                     id={`bonus-${p.id}`}
@@ -1008,16 +1034,18 @@ export default function AdminPage() {
           </button>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-[#6B705C]/35 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Bell className="h-6 w-6 text-[#6B705C]" />
-            <h2 className="font-serif text-2xl text-[#6B705C]">Notificações do app</h2>
+        <section className={sectionShell}>
+          <div className={sectionTitleRow}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+              <Bell className="h-4 w-4 text-[#6B705C]" aria-hidden />
+            </span>
+            <h2 className={sectionH2}>Notificações do app</h2>
           </div>
-          <p className="mb-4 text-sm text-zinc-600">
-            Os avisos aparecem na página aberta pelo ícone de sino no app (dashboard e comunidade).
+          <p className={sectionDesc}>
+            Os avisos aparecem na lista aberta pelo ícone de sino (dashboard e comunidade).
           </p>
 
-          <form onSubmit={handlePublishNotification} className="mb-6 space-y-3">
+          <form onSubmit={handlePublishNotification} className="mb-6 space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
             <div className="space-y-1">
               <label className="text-sm text-zinc-700">Título</label>
               <input
@@ -1059,18 +1087,18 @@ export default function AdminPage() {
             </button>
           </form>
 
-          <div className="border-t border-zinc-200 pt-4">
-            <p className="mb-3 text-sm font-medium text-zinc-700">Histórico</p>
+          <div className="border-t border-zinc-200/90 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">Histórico</p>
             {notifLoading ? (
               <p className="text-sm text-zinc-500">Carregando...</p>
             ) : notifications.length === 0 ? (
               <p className="text-sm text-zinc-500">Nenhuma notificação enviada ainda.</p>
             ) : (
-              <ul className="max-h-60 space-y-2 overflow-y-auto">
+              <ul className="max-h-60 space-y-2 overflow-y-auto md:max-h-72">
                 {notifications.map((n) => (
                   <li
                     key={n.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-zinc-100 bg-[#F7F5F0] px-3 py-2"
+                    className="flex flex-col gap-2 rounded-xl border border-zinc-100 bg-white px-3 py-3 shadow-sm sm:flex-row sm:items-start sm:justify-between sm:gap-3"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-zinc-900">{n.title}</p>
@@ -1083,7 +1111,7 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => handleDeleteNotification(n)}
                       disabled={deletingNotifId === n.id}
-                      className="shrink-0 rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      className="shrink-0 self-start rounded-md border border-red-200/90 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 sm:self-auto"
                     >
                       {deletingNotifId === n.id ? "..." : "Excluir"}
                     </button>
@@ -1094,33 +1122,65 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {loading ? (
-          <div className="space-y-4" aria-busy="true" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm text-[#6B705C]">
-              <Spinner className="size-5 shrink-0" />
-              Carregando catálogo de produtos...
+        <section className={sectionShell}>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className={sectionTitleRow}>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                  <LayoutGrid className="h-4 w-4 text-[#6B705C]" aria-hidden />
+                </span>
+                <h2 className={sectionH2}>Catálogo de produtos</h2>
+              </div>
+              <p className="mt-2 max-w-2xl text-sm text-zinc-600">
+                Edite ou exclua itens pelos botões em cada cartão. Use &quot;Novo produto&quot; no topo para criar.
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={`sk-${i}`}
-                  className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
-                >
-                  <Skeleton className="h-28 w-full rounded-none bg-zinc-200/90" />
-                  <div className="space-y-2 p-3">
-                    <Skeleton className="h-4 w-4/5 bg-zinc-200/80" />
-                    <div className="flex gap-2">
-                      <Skeleton className="h-8 flex-1 bg-zinc-200/70" />
-                      <Skeleton className="h-8 flex-1 bg-zinc-200/70" />
+            {!loading && (
+              <span className="inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
+                {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
+              </span>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="space-y-4" aria-busy="true" aria-live="polite">
+              <div className="flex items-center gap-2 text-sm text-[#6B705C]">
+                <Spinner className="size-5 shrink-0" />
+                Carregando catálogo…
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={`sk-${i}`}
+                    className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-sm"
+                  >
+                    <Skeleton className="aspect-[3/4] w-full rounded-none bg-zinc-200/90" />
+                    <div className="space-y-2 p-3">
+                      <Skeleton className="h-4 w-4/5 bg-zinc-200/80" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-9 flex-1 rounded-lg bg-zinc-200/70" />
+                        <Skeleton className="h-9 flex-1 rounded-lg bg-zinc-200/70" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {sortedProducts.map((product) => {
+          ) : sortedProducts.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center">
+              <p className="text-sm text-zinc-600">Nenhum produto no catálogo.</p>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#6B705C] px-4 py-2.5 text-sm font-medium text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Criar primeiro produto
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {sortedProducts.map((product) => {
               const imageSrc =
                 product.image_url ||
                 product.image ||
@@ -1129,22 +1189,22 @@ export default function AdminPage() {
               return (
                 <article
                   key={product.id}
-                  className="overflow-hidden rounded-2xl border border-zinc-300 bg-white shadow-sm"
+                  className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200/95 bg-white shadow-sm ring-1 ring-black/[0.03] transition-shadow hover:shadow-md"
                 >
                   <img
                     src={imageSrc}
                     alt={product.name || "Produto"}
-                    className="h-28 w-full object-cover"
+                    className="aspect-[3/4] w-full object-cover"
                   />
-                  <div className="space-y-2 p-3">
-                    <p className="line-clamp-2 text-sm font-medium text-zinc-900">
+                  <div className="flex flex-1 flex-col gap-2 p-3">
+                    <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-zinc-900">
                       {product.name || product.title || "Sem nome"}
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mt-auto flex flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={() => openEditModal(product)}
-                        className="inline-flex h-8 items-center gap-1 rounded-md border border-[#6B705C]/50 px-2.5 text-xs text-[#6B705C] hover:bg-[#6B705C]/10"
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-[#6B705C]/45 px-2 text-xs font-medium text-[#6B705C] hover:bg-[#6B705C]/10"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                         Editar
@@ -1153,7 +1213,7 @@ export default function AdminPage() {
                         type="button"
                         onClick={() => handleDeleteProduct(product)}
                         disabled={deletingId === product.id}
-                        className="inline-flex h-8 items-center gap-1 rounded-md border border-red-300/80 px-2.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                        className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-red-200 px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                       >
                         {deletingId === product.id ? (
                           <Spinner className="size-3.5 text-red-700" />
@@ -1167,9 +1227,10 @@ export default function AdminPage() {
                 </article>
               );
             })}
-          </div>
-        )}
-      </section>
+            </div>
+          )}
+        </section>
+      </div>
 
       {isModalOpen && (
         <div
@@ -1179,7 +1240,7 @@ export default function AdminPage() {
           role="presentation"
         >
           <section
-            className={`relative mx-auto w-full max-w-3xl rounded-3xl border border-zinc-200 bg-white p-5 shadow-xl transition-all duration-200 md:p-7 ${
+            className={`relative mx-auto w-full max-w-3xl rounded-2xl border border-zinc-200/95 bg-white p-4 shadow-xl transition-all duration-200 sm:rounded-3xl sm:p-6 md:p-8 ${
               isModalVisible ? "translate-y-0 scale-100" : "translate-y-2 scale-[0.98]"
             }`}
             role="dialog"
@@ -1195,8 +1256,11 @@ export default function AdminPage() {
               <X className="h-4 w-4" />
             </button>
 
-            <header className="mb-5 pr-10">
-              <h2 id="admin-product-modal-title" className="font-serif text-3xl text-[#6B705C]">
+            <header className="mb-4 pr-10 sm:mb-5">
+              <h2
+                id="admin-product-modal-title"
+                className="font-serif text-xl leading-tight text-[#6B705C] sm:text-2xl md:text-3xl"
+              >
                 {editingProductId ? "Editar conteúdo" : "Cadastrar conteúdo"}
               </h2>
               <p className="mt-1 text-sm text-zinc-600">

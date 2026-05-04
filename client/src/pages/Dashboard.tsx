@@ -208,7 +208,7 @@ export default function Dashboard() {
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
-        className={`fixed top-0 right-0 left-0 z-40 bg-white/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
+        className={`fixed top-0 right-0 left-0 z-40 bg-[#FBFAF6]/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
         }`}
       >
@@ -224,7 +224,7 @@ export default function Dashboard() {
           >
             <Bell className="h-5 w-5" />
             {hasUnread && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
             )}
           </button>
         </div>
