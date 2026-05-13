@@ -10,6 +10,8 @@
     "preview": "vite preview --host",
     "build:web": "vite build",
     "check": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

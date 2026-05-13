@@ -7,6 +7,7 @@ import {
   CircleUserRound,
   Filter,
   ImagePlus,
+  Lock,
   MessageCirclePlus,
   MessageSquareText,
   Reply,
@@ -22,6 +23,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
+import { hasCommunityAccess } from "@/lib/communityAccess";
 
 const IMAGE_BUCKET = import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || "product-images";
 const DISPLAY_NAME_STORAGE_KEY = "bridal_community_display_name";
@@ -323,6 +325,8 @@ export default function Community() {
   const logoUrl = settings.logo_url;
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [canOpenCommunity, setCanOpenCommunity] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState("");
@@ -339,6 +343,42 @@ export default function Community() {
   const [query, setQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [imageFilter, setImageFilter] = useState<ImageFilter>("all");
+
+  useEffect(() => {
+    const loadCommunityAccess = async () => {
+      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
+      const { data: userData } = await supabase.auth.getUser();
+
+      if (!userData.user && !isDevBypass) {
+        setLocation("/");
+        return;
+      }
+
+      if (!userData.user) {
+        setCanOpenCommunity(false);
+        setAccessLoading(false);
+        setLoading(false);
+        return;
+      }
+
+      const { data: purchasesData, error } = await supabase
+        .from("purchases")
+        .select("product_id, status")
+        .eq("user_id", userData.user.id)
+        .eq("status", "active");
+
+      if (error || !purchasesData) {
+        setCanOpenCommunity(false);
+      } else {
+        const purchasedIds = new Set(purchasesData.map((item) => String(item.product_id)));
+        setCanOpenCommunity(hasCommunityAccess(purchasedIds));
+      }
+
+      setAccessLoading(false);
+    };
+
+    void loadCommunityAccess();
+  }, [setLocation]);
 
   useEffect(() => {
     try {
@@ -382,6 +422,11 @@ export default function Community() {
   }, []);
 
   useEffect(() => {
+    if (accessLoading || !canOpenCommunity) {
+      setLoading(false);
+      return;
+    }
+
     fetchComments();
 
     const channel = supabase
@@ -396,7 +441,7 @@ export default function Community() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchComments]);
+  }, [accessLoading, canOpenCommunity, fetchComments]);
 
   useEffect(() => {
     return () => {
@@ -707,10 +752,28 @@ export default function Community() {
           </section>
         )}
 
-        <section
-          className="relative mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3"
-          aria-busy={submitting || loading}
-        >
+        {!accessLoading && !canOpenCommunity && (
+          <section className="mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/90 p-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-[#6B705C]/12 p-2">
+                <Lock className="h-5 w-5 text-[#6B705C]" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-[#4c4f46]">Chat bloqueado no momento</h2>
+                <p className="mt-1 text-sm text-[#6B705C]">
+                  A comunidade de noivas fica disponivel apos a primeira compra. Assim que voce virar cliente,
+                  o chat sera liberado automaticamente.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {canOpenCommunity && (
+          <section
+            className="relative mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3"
+            aria-busy={submitting || loading}
+          >
           <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
             {submitting && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[2px]">
@@ -796,9 +859,16 @@ export default function Community() {
               )}
             </button>
           </form>
-        </section>
+          </section>
+        )}
 
-        <section className="space-y-3" aria-busy={loading}>
+        <section className="space-y-3" aria-busy={loading || accessLoading}>
+          {accessLoading && (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
+              <Spinner className="size-11 text-[#6B705C]" />
+              <p className="text-sm font-medium text-[#6B705C]">Verificando acesso ao chat...</p>
+            </div>
+          )}
           {loading && (
             <div className="space-y-4">
               <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
@@ -825,11 +895,13 @@ export default function Community() {
             </div>
           )}
 
-          {!loading && filteredRoots.length === 0 && (
+          {!accessLoading && canOpenCommunity && !loading && filteredRoots.length === 0 && (
             <p className="text-sm text-[#6B705C]">Sem comentários para os filtros selecionados.</p>
           )}
 
-          {!loading &&
+          {!accessLoading &&
+            canOpenCommunity &&
+            !loading &&
             filteredRoots.map((root) => (
               <CommentNode
                 key={root.id}
@@ -848,15 +920,17 @@ export default function Community() {
             ))}
         </section>
 
-        <button
-          type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#6B705C]/35 bg-white text-[#6B705C] shadow-md md:right-6"
-          style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
-          aria-label="Subir ao formulário"
-        >
-          <MessageCirclePlus className="h-5 w-5" />
-        </button>
+        {canOpenCommunity && (
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#6B705C]/35 bg-white text-[#6B705C] shadow-md md:right-6"
+            style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
+            aria-label="Subir ao formulário"
+          >
+            <MessageCirclePlus className="h-5 w-5" />
+          </button>
+        )}
       </div>
       <BottomAppNav />
     </div>
