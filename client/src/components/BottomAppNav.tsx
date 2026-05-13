@@ -1,8 +1,12 @@
-import { Home, MessageCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Home, Lock, MessageCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { hasCommunityAccess } from "@/lib/communityAccess";
+import { supabase } from "@/lib/supabase";
 
 export default function BottomAppNav() {
   const [location, setLocation] = useLocation();
+  const [canOpenCommunity, setCanOpenCommunity] = useState(false);
   const onDashboard =
     location === "/dashboard" || location.startsWith("/dashboard/");
   const onCommunity = location.startsWith("/community");
@@ -15,6 +19,32 @@ export default function BottomAppNav() {
     "relative flex flex-1 max-w-[140px] flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
   const active = "bg-white/12 text-white shadow-inner";
   const inactive = "text-white/80 hover:bg-white/8 hover:text-white";
+
+  useEffect(() => {
+    const loadCommunityAccess = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        setCanOpenCommunity(false);
+        return;
+      }
+
+      const { data: purchasesData, error } = await supabase
+        .from("purchases")
+        .select("product_id, status")
+        .eq("user_id", data.user.id)
+        .eq("status", "active");
+
+      if (error || !purchasesData) {
+        setCanOpenCommunity(false);
+        return;
+      }
+
+      const purchasedIds = new Set(purchasesData.map((item) => String(item.product_id)));
+      setCanOpenCommunity(hasCommunityAccess(purchasedIds));
+    };
+
+    void loadCommunityAccess();
+  }, []);
 
   return (
     <nav
@@ -40,13 +70,20 @@ export default function BottomAppNav() {
           onClick={() => setLocation("/community")}
           className={`${baseBtn} ${onCommunity ? active : inactive}`}
           aria-current={onCommunity ? "page" : undefined}
-          aria-label="Comunidade"
+          aria-label={canOpenCommunity ? "Comunidade" : "Comunidade bloqueada"}
         >
-          <MessageCircle
-            className={`${iconClass} ${onCommunity ? "opacity-100" : "opacity-90"}`}
-            strokeWidth={onCommunity ? strokeActive : strokeInactive}
-          />
-          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Chat</span>
+          <div className="relative">
+            <MessageCircle
+              className={`${iconClass} ${onCommunity ? "opacity-100" : "opacity-90"}`}
+              strokeWidth={onCommunity ? strokeActive : strokeInactive}
+            />
+            {!canOpenCommunity ? (
+              <Lock className="absolute -right-2.5 -bottom-1 h-3.5 w-3.5 rounded-full bg-[#6B705C] p-[1px] text-white" />
+            ) : null}
+          </div>
+          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">
+            {canOpenCommunity ? "Chat" : "Chat bloqueado"}
+          </span>
         </button>
       </div>
     </nav>
