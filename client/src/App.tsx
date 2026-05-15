@@ -1,29 +1,64 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import GuestOnly from "./components/GuestOnly";
+import RequireAuth from "./components/RequireAuth";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DashboardProduct from "./pages/DashboardProduct";
 import Community from "./pages/Community";
 import AdminPage from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
 import AdminNew from "./pages/AdminNew";
+import RequireAdminAuth from "./components/RequireAdminAuth";
 import Notifications from "./pages/Notifications";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Login} />
-      <Route path="/login" component={Login} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/dashboard/product/:id" component={DashboardProduct} />
-      <Route path="/notifications" component={Notifications} />
-      <Route path="/community" component={Community} />
-      <Route path="/admin" component={AdminPage} />
-      <Route path="/admin/new" component={AdminNew} />
+      <Route path="/">
+        <Redirect to="/login" />
+      </Route>
+      <Route path="/login">
+        <GuestOnly>
+          <Login />
+        </GuestOnly>
+      </Route>
+      <Route path="/dashboard">
+        <RequireAuth>
+          <Dashboard />
+        </RequireAuth>
+      </Route>
+      <Route path="/dashboard/product/:id">
+        <RequireAuth>
+          <DashboardProduct />
+        </RequireAuth>
+      </Route>
+      <Route path="/notifications">
+        <RequireAuth>
+          <Notifications />
+        </RequireAuth>
+      </Route>
+      <Route path="/community">
+        <RequireAuth>
+          <Community />
+        </RequireAuth>
+      </Route>
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin">
+        <RequireAdminAuth>
+          <AdminPage />
+        </RequireAdminAuth>
+      </Route>
+      <Route path="/admin/new">
+        <RequireAdminAuth>
+          <AdminNew />
+        </RequireAdminAuth>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -27,13 +27,6 @@ export default function Notifications() {
 
   useEffect(() => {
     const load = async () => {
-      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user && !isDevBypass) {
-        setLocation("/");
-        return;
-      }
-
       const { data, error } = await supabase
         .from(TABLE)
         .select("id, title, body, created_at")

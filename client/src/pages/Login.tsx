@@ -4,7 +4,9 @@ import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
 import { useSiteSettings, resolveLoginPageBackground } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { markWelcomePopupPending } from "@/lib/welcomePopup";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -35,46 +37,16 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const bypassEmails = (import.meta.env.VITE_DEV_BYPASS_EMAILS || "")
-        .split(",")
-        .map((item: string) => item.trim().toLowerCase())
-        .filter(Boolean);
-      const shouldBypass = bypassEmails.includes(email.trim().toLowerCase());
-
-      if (shouldBypass) {
-        localStorage.setItem("dev_bypass_auth", "true");
-        setLocation("/dashboard");
-        return;
+      const { isNewUser } = await loginOrRegisterWithEmail(email);
+      if (isNewUser) {
+        markWelcomePopupPending();
       }
-
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      if (!error) {
-        setLocation("/dashboard");
-        return;
-      }
-
-      const message = (error.message || "").toLowerCase();
-      const userNotFound =
-        message.includes("user not found") ||
-        message.includes("invalid login credentials") ||
-        message.includes("not registered");
-
-      if (userNotFound) {
-        const tempPassword = `${Math.random().toString(36).slice(2)}A!9`;
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password: tempPassword,
-        });
-
-        if (signUpError) throw signUpError;
-        setLocation("/dashboard");
-        return;
-      }
-
-      throw error;
+      setLocation("/dashboard");
     } catch (error) {
-      console.error("Erro ao enviar magic link:", error);
-      alert("Não foi possível enviar o link de acesso.");
+      console.error("Erro ao acessar:", error);
+      const message =
+        error instanceof Error ? error.message : "Não foi possível acessar com este e-mail.";
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -125,7 +97,7 @@ export default function Login() {
                 fontFamily: serifFont,
               }}
             >
-              FAÇA SEU CADASTRO
+              ACESSE SUA CONTA
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -154,16 +126,6 @@ export default function Login() {
                 </div>
               </div>
 
-              <p
-                className="text-center text-[10px] uppercase tracking-[0.12em] text-[#7B776D] md:text-[11px]"
-                style={{ fontFamily: sansFont, letterSpacing: "0.06em" }}
-              >
-                JÁ TEM UMA CONTA?{" "}
-                <a href="/" className="underline decoration-1 underline-offset-2">
-                  FAÇA LOGIN
-                </a>
-              </p>
-
               <div className="flex w-full justify-center">
                 <button
                   type="submit"
@@ -179,26 +141,14 @@ export default function Login() {
                   {loading ? (
                     <>
                       <Spinner className="size-4 shrink-0 text-white" />
-                      ENVIANDO...
+                      ACESSANDO...
                     </>
                   ) : (
-                    "ENTRAR"
+                    "ACESSAR"
                   )}
                 </button>
               </div>
             </form>
-
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem("dev_bypass_auth", "true");
-                setLocation("/dashboard");
-              }}
-              className="mt-5 mx-auto block text-[9px] uppercase tracking-[0.14em] text-[#a5a198] hover:text-[#6B7459]"
-              style={{ fontFamily: sansFont }}
-            >
-              Login de Desenvolvedor
-            </button>
           </div>
         </section>
       </div>

@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
+  ChevronDown,
   LayoutGrid,
   LogOut,
+  type LucideIcon,
   Package,
   Palette,
   Pencil,
@@ -81,6 +83,68 @@ function looksLikeStorageError(err: unknown): boolean {
     m.includes("storage api") ||
     (m.includes("upload") && (m.includes("policy") || m.includes("denied") || m.includes("jwt"))) ||
     m.includes("new row violates row-level security policy") && m.includes("objects")
+  );
+}
+
+const sectionShell =
+  "rounded-2xl border border-[#6B705C]/20 bg-white p-4 shadow-[0_1px_3px_rgba(80,88,60,0.06)] md:p-6";
+const sectionH2 =
+  "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
+const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
+
+type AdminSectionProps = {
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  headerExtra?: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+};
+
+function AdminSection({
+  id,
+  icon: Icon,
+  title,
+  description,
+  headerExtra,
+  children,
+  defaultOpen = false,
+}: AdminSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section className={sectionShell}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="-mx-1 flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left transition-colors hover:bg-[#6B705C]/5"
+        aria-expanded={open}
+        aria-controls={`${id}-content`}
+        id={`${id}-heading`}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+          <Icon className="h-4 w-4 text-[#6B705C]" aria-hidden />
+        </span>
+        <h2 className={`${sectionH2} min-w-0 flex-1`}>{title}</h2>
+        {headerExtra}
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-[#6B705C] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        <div
+          id={`${id}-content`}
+          role="region"
+          aria-labelledby={`${id}-heading`}
+          className="mt-4 border-t border-[#6B705C]/10 pt-4"
+        >
+          {description ? <p className={sectionDesc}>{description}</p> : null}
+          {children}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -428,7 +492,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setLocation("/");
+    setLocation("/admin/login");
   };
 
   const handleDeleteProduct = async (product: Product) => {
@@ -729,13 +793,6 @@ export default function AdminPage() {
     }
   };
 
-  const sectionShell =
-    "rounded-2xl border border-[#6B705C]/20 bg-white p-4 shadow-[0_1px_3px_rgba(80,88,60,0.06)] md:p-6";
-  const sectionTitleRow = "mb-1 flex flex-wrap items-center gap-2";
-  const sectionH2 =
-    "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
-  const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
-
   return (
     <div className="min-h-screen w-full bg-[#ebe8df] px-3 py-5 pb-14 md:px-5 md:py-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 md:gap-8">
@@ -770,17 +827,12 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <section className={sectionShell}>
-          <div className={sectionTitleRow}>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
-              <Palette className="h-4 w-4 text-[#6B705C]" aria-hidden />
-            </span>
-            <h2 className={sectionH2}>Aparência do app</h2>
-          </div>
-          <p className={sectionDesc}>
-            Logo, texturas de fundo (login e áreas internas) e banners do topo. No carrossel pode usar várias imagens.
-            Remova os arquivos e salve para voltar ao padrão.
-          </p>
+        <AdminSection
+          id="appearance"
+          icon={Palette}
+          title="Aparência do app"
+          description="Logo, texturas de fundo (login e áreas internas) e banners do topo. No carrossel pode usar várias imagens. Remova os arquivos e salve para voltar ao padrão."
+        >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
@@ -963,18 +1015,14 @@ export default function AdminPage() {
               </button>
             </form>
           )}
-        </section>
+        </AdminSection>
 
-        <section className={sectionShell}>
-          <div className={sectionTitleRow}>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
-              <Package className="h-4 w-4 text-[#6B705C]" aria-hidden />
-            </span>
-            <h2 className={sectionH2}>Bônus por kit</h2>
-          </div>
-          <p className={sectionDesc}>
-            Escolha o produto principal (kit). Os bônus marcados liberam automaticamente quando a cliente comprar esse kit.
-          </p>
+        <AdminSection
+          id="kit-bonus"
+          icon={Package}
+          title="Bônus por kit"
+          description="Escolha o produto principal (kit). Os bônus marcados liberam automaticamente quando a cliente comprar esse kit."
+        >
           <div className="mb-4 space-y-2">
             <label className="text-sm text-zinc-700">Produto kit</label>
             {kitCandidates.length === 0 ? (
@@ -1032,19 +1080,14 @@ export default function AdminPage() {
               "Salvar bônus deste kit"
             )}
           </button>
-        </section>
+        </AdminSection>
 
-        <section className={sectionShell}>
-          <div className={sectionTitleRow}>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
-              <Bell className="h-4 w-4 text-[#6B705C]" aria-hidden />
-            </span>
-            <h2 className={sectionH2}>Notificações do app</h2>
-          </div>
-          <p className={sectionDesc}>
-            Os avisos aparecem na lista aberta pelo ícone de sino (dashboard e comunidade).
-          </p>
-
+        <AdminSection
+          id="notifications"
+          icon={Bell}
+          title="Notificações do app"
+          description="Os avisos aparecem na lista aberta pelo ícone de sino (dashboard e comunidade)."
+        >
           <form onSubmit={handlePublishNotification} className="mb-6 space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
             <div className="space-y-1">
               <label className="text-sm text-zinc-700">Título</label>
@@ -1120,28 +1163,21 @@ export default function AdminPage() {
               </ul>
             )}
           </div>
-        </section>
+        </AdminSection>
 
-        <section className={sectionShell}>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className={sectionTitleRow}>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
-                  <LayoutGrid className="h-4 w-4 text-[#6B705C]" aria-hidden />
-                </span>
-                <h2 className={sectionH2}>Catálogo de produtos</h2>
-              </div>
-              <p className="mt-2 max-w-2xl text-sm text-zinc-600">
-                Edite ou exclua itens pelos botões em cada cartão. Use &quot;Novo produto&quot; no topo para criar.
-              </p>
-            </div>
-            {!loading && (
-              <span className="inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
+        <AdminSection
+          id="catalog"
+          icon={LayoutGrid}
+          title="Catálogo de produtos"
+          description='Edite ou exclua itens pelos botões em cada cartão. Use "Novo produto" no topo para criar.'
+          headerExtra={
+            !loading ? (
+              <span className="mr-1 inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
                 {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
               </span>
-            )}
-          </div>
-
+            ) : null
+          }
+        >
           {loading ? (
             <div className="space-y-4" aria-busy="true" aria-live="polite">
               <div className="flex items-center gap-2 text-sm text-[#6B705C]">
@@ -1229,7 +1265,7 @@ export default function AdminPage() {
             })}
             </div>
           )}
-        </section>
+        </AdminSection>
       </div>
 
       {isModalOpen && (
