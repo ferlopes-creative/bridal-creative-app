@@ -26,17 +26,17 @@ type Product = {
   link_compra?: string | null;
 };
 
+const cardWrap = "min-w-[142px] w-[40vw] max-w-[168px] shrink-0 snap-start";
+
 function ProductCard({
   product,
   showLockedOverlay = false,
   onNavigate,
 }: {
   product: Product;
-  /** Produto normal não adquirido: overlay verde na imagem + cadeado (nunca para tipo BÔNUS). */
   showLockedOverlay?: boolean;
   onNavigate: () => void;
 }) {
-  const productTitle = product.name || "Produto";
   const imageSrc =
     product.image_url ||
     product.image ||
@@ -49,7 +49,11 @@ function ProductCard({
       className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
     >
       <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
-        <img src={imageSrc} alt={productTitle} className="aspect-[3/4] w-full object-cover" />
+        <img
+          src={imageSrc}
+          alt={product.name || "Produto"}
+          className="aspect-[3/4] w-full object-cover"
+        />
         {showLockedOverlay ? (
           <>
             <div className="absolute inset-0 bg-[#6B705C]/55" aria-hidden />
@@ -66,9 +70,52 @@ function ProductCard({
         className="mt-2 line-clamp-2 text-center text-[11px] font-bold leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
       >
-        {productTitle}
+        {product.name || "Produto"}
       </h3>
     </article>
+  );
+}
+
+function ProductList({
+  products,
+  keyPrefix,
+  showLocked,
+  onOpen,
+}: {
+  products: Product[];
+  keyPrefix: string;
+  showLocked: boolean | ((product: Product) => boolean);
+  onOpen: (id: string) => void;
+}) {
+  const locked = (product: Product) =>
+    typeof showLocked === "function" ? showLocked(product) : showLocked;
+
+  return (
+    <>
+      <div className="md:hidden">
+        <HorizontalScrollRow contentKey={products.map((p) => p.id).join()}>
+          {products.map((product) => (
+            <div key={`${keyPrefix}-m-${product.id}`} className={cardWrap}>
+              <ProductCard
+                product={product}
+                showLockedOverlay={locked(product)}
+                onNavigate={() => onOpen(product.id)}
+              />
+            </div>
+          ))}
+        </HorizontalScrollRow>
+      </div>
+      <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
+        {products.map((product) => (
+          <ProductCard
+            key={`${keyPrefix}-${product.id}`}
+            product={product}
+            showLockedOverlay={locked(product)}
+            onNavigate={() => onOpen(product.id)}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -88,39 +135,34 @@ export default function Dashboard() {
   const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
 
   useEffect(() => {
-    void refreshSiteSettings();
+    refreshSiteSettings();
   }, [refreshSiteSettings]);
 
-  const hasAccess = (product: Product) => purchasedIds.has(product.id);
-  const access = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
+  const openProduct = (id: string) => setLocation(`/dashboard/product/${id}`);
 
   useEffect(() => {
     const loadProducts = async () => {
       const { data: userData } = await supabase.auth.getUser();
 
       if (userData.user) {
-        const { data: purchasesData, error: purchasesError } = await supabase
+        const { data: purchasesData } = await supabase
           .from("purchases")
           .select("product_id, status")
           .eq("user_id", userData.user.id)
           .eq("status", "active");
 
-        if (!purchasesError && purchasesData) {
+        if (purchasesData) {
           setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
         }
       } else {
         setPurchasedIds(new Set());
       }
 
-      const { data: kbData, error: kbError } = await supabase
+      const { data: kbData } = await supabase
         .from("kit_bonus_products")
         .select("kit_product_id, bonus_product_id");
 
-      if (!kbError && kbData) {
-        setKitBonusRows(kbData as KitBonusRow[]);
-      } else {
-        setKitBonusRows([]);
-      }
+      setKitBonusRows(kbData ? (kbData as KitBonusRow[]) : []);
 
       const { data, error } = await supabase
         .from("products")
@@ -129,20 +171,20 @@ export default function Dashboard() {
 
       if (error) {
         console.error("Erro ao carregar dashboard/products:", error);
-        console.log("Erro detalhado dashboard/products:", JSON.stringify(error, null, 2));
       } else if (data) {
-        const normalized = data.map((item: any) => ({
-          id: item.id,
-          name: item.name ?? item.title ?? "Produto",
-          description: item.description ?? item.descricao ?? null,
-          type: (item.type ?? item.tipo ?? "PRO") as "PRO" | "BON" | string,
-          image_url: item.image_url ?? item.image ?? null,
-          image: item.image ?? null,
-          thumbnail_url: item.thumbnail_url ?? null,
-          video_url: item.video_url ?? item.video ?? null,
-          link_compra: item.link_compra ?? item.link ?? null,
-        }));
-        setProducts(normalized);
+        setProducts(
+          data.map((item: any) => ({
+            id: item.id,
+            name: item.name ?? item.title ?? "Produto",
+            description: item.description ?? item.descricao ?? null,
+            type: (item.type ?? item.tipo ?? "PRO") as "PRO" | "BON" | string,
+            image_url: item.image_url ?? item.image ?? null,
+            image: item.image ?? null,
+            thumbnail_url: item.thumbnail_url ?? null,
+            video_url: item.video_url ?? item.video ?? null,
+            link_compra: item.link_compra ?? item.link ?? null,
+          }))
+        );
       }
       setLoading(false);
     };
@@ -177,20 +219,18 @@ export default function Dashboard() {
     [products]
   );
   const purchasedProducts = useMemo(
-    () => nonBonusProducts.filter((product) => hasAccess(product)),
+    () => nonBonusProducts.filter((product) => purchasedIds.has(product.id)),
     [nonBonusProducts, purchasedIds]
   );
   const suggestedProducts = useMemo(
-    () => nonBonusProducts.filter((product) => !hasAccess(product)),
+    () => nonBonusProducts.filter((product) => !purchasedIds.has(product.id)),
     [nonBonusProducts, purchasedIds]
   );
-  const otherProducts = useMemo(() => nonBonusProducts, [nonBonusProducts]);
+
+  const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
 
   const sectionTitleClass =
     "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-[#6B705C] md:text-base";
-
-  /** Largura de cada cartão no carrossel horizontal (telefone / breakpoint antes de md). */
-  const mobileCardWrap = "min-w-[142px] w-[40vw] max-w-[168px] shrink-0 snap-start";
 
   if (loading) {
     return (
@@ -275,29 +315,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             SEUS PRODUTOS
           </h2>
-          <div className="md:hidden">
-            <HorizontalScrollRow contentKey={purchasedProducts.map((p) => p.id).join()}>
-              {purchasedProducts.map((product) => (
-                <div key={`owned-m-${product.id}`} className={mobileCardWrap}>
-                  <ProductCard
-                    product={product}
-                    showLockedOverlay={false}
-                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-                  />
-                </div>
-              ))}
-            </HorizontalScrollRow>
-          </div>
-          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
-            {purchasedProducts.map((product) => (
-              <ProductCard
-                key={`owned-${product.id}`}
-                product={product}
-                showLockedOverlay={false}
-                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-              />
-            ))}
-          </div>
+          <ProductList products={purchasedProducts} keyPrefix="owned" showLocked={false} onOpen={openProduct} />
           {purchasedProducts.length === 0 && (
             <p className="text-sm text-[#6B705C]/75">Nenhum produto liberado no momento.</p>
           )}
@@ -307,29 +325,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             PENSADOS PARA VOCÊ
           </h2>
-          <div className="md:hidden">
-            <HorizontalScrollRow contentKey={suggestedProducts.map((p) => p.id).join()}>
-              {suggestedProducts.map((product) => (
-                <div key={`sug-m-${product.id}`} className={mobileCardWrap}>
-                  <ProductCard
-                    product={product}
-                    showLockedOverlay={true}
-                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-                  />
-                </div>
-              ))}
-            </HorizontalScrollRow>
-          </div>
-          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
-            {suggestedProducts.map((product) => (
-              <ProductCard
-                key={`suggested-${product.id}`}
-                product={product}
-                showLockedOverlay={true}
-                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-              />
-            ))}
-          </div>
+          <ProductList products={suggestedProducts} keyPrefix="suggested" showLocked onOpen={openProduct} />
           {suggestedProducts.length === 0 && (
             <p className="text-sm text-[#6B705C]/75">Sem sugestões bloqueadas para agora.</p>
           )}
@@ -339,29 +335,7 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             BÔNUS
           </h2>
-          <div className="md:hidden">
-            <HorizontalScrollRow contentKey={bonusProducts.map((p) => p.id).join()}>
-              {bonusProducts.map((product) => (
-                <div key={`bon-m-${product.id}`} className={mobileCardWrap}>
-                  <ProductCard
-                    product={product}
-                    showLockedOverlay={false}
-                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-                  />
-                </div>
-              ))}
-            </HorizontalScrollRow>
-          </div>
-          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
-            {bonusProducts.map((product) => (
-              <ProductCard
-                key={`bonus-${product.id}`}
-                product={product}
-                showLockedOverlay={false}
-                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-              />
-            ))}
-          </div>
+          <ProductList products={bonusProducts} keyPrefix="bonus" showLocked={false} onOpen={openProduct} />
           {bonusProducts.length === 0 && (
             <p className="text-sm text-[#6B705C]/75">Nenhum bônus cadastrado.</p>
           )}
@@ -371,30 +345,13 @@ export default function Dashboard() {
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
           </h2>
-          <div className="md:hidden">
-            <HorizontalScrollRow contentKey={otherProducts.map((p) => p.id).join()}>
-              {otherProducts.map((product) => (
-                <div key={`oth-m-${product.id}`} className={mobileCardWrap}>
-                  <ProductCard
-                    product={product}
-                    showLockedOverlay={!access(product)}
-                    onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-                  />
-                </div>
-              ))}
-            </HorizontalScrollRow>
-          </div>
-          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
-            {otherProducts.map((product) => (
-              <ProductCard
-                key={`other-${product.id}`}
-                product={product}
-                showLockedOverlay={!access(product)}
-                onNavigate={() => setLocation(`/dashboard/product/${product.id}`)}
-              />
-            ))}
-          </div>
-          {otherProducts.length === 0 && (
+          <ProductList
+            products={nonBonusProducts}
+            keyPrefix="other"
+            showLocked={(product) => !canAccess(product)}
+            onOpen={openProduct}
+          />
+          {nonBonusProducts.length === 0 && (
             <p className="text-sm text-[#6B705C]/75">Nenhum outro produto disponível.</p>
           )}
         </section>

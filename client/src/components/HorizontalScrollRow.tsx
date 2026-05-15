@@ -4,19 +4,13 @@ type Metrics = { show: boolean; thumbW: number; thumbLeft: number };
 
 const initialMetrics: Metrics = { show: false, thumbW: 100, thumbLeft: 0 };
 
-/**
- * Lista horizontal com scroll nativo e barra de progresso (track + thumb)
- * para indicar que há mais conteúdo ao deslizar — alinhado ao tema olive do dashboard.
- */
 export function HorizontalScrollRow({
   children,
   contentKey,
   className,
-  /** Largura máxima da barra (centrada). */
   indicatorMaxWidthClass = "max-w-[min(11rem,88vw)]",
 }: {
   children: React.ReactNode;
-  /** Dispara nova medição quando a lista muda (ex.: ids ou length). */
   contentKey?: string | number;
   className?: string;
   indicatorMaxWidthClass?: string;
