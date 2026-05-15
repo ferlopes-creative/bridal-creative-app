@@ -1,7 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+cd "$(dirname "$0")"
+export NODE_ENV=production
+
 git pull origin main
+echo "Commit: $(git rev-parse --short HEAD)"
 npm install
 npm run build
 
@@ -13,5 +17,6 @@ if [ "$size" -lt 5000 ]; then
   exit 1
 fi
 
-pm2 restart bridal-app
+pm2 restart bridal-app --update-env
 echo "Deploy finalizado com sucesso! (dist/index.js: ${size} bytes)"
+echo "Teste: curl -s http://127.0.0.1:\${PORT:-3000}/api/health"

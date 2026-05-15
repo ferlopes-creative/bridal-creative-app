@@ -2,7 +2,10 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import { loadEnvFromFile } from "./load-env.js";
 import caktoWebhookHandler from "../api/cakto-webhook.js";
+
+loadEnvFromFile();
 import { processAdminLogin } from "../api/admin-login-serve.js";
 import { processAuthEmailLogin } from "../api/auth-email-login-serve.js";
 
@@ -30,7 +33,11 @@ async function startServer() {
   });
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, api: true });
+    res.json({
+      ok: true,
+      api: true,
+      supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    });
   });
 
   // Serve static files from dist/public in production
