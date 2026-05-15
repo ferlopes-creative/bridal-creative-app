@@ -367,21 +367,6 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="mt-9 rounded-2xl bg-[#6B705C] px-5 py-6 text-center text-white">
-          <p className="text-xl leading-tight md:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
-            Quer algo mais personalizado?
-          </p>
-          <a
-            href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block text-xl underline underline-offset-4 md:text-2xl"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Chame nossa equipe.
-          </a>
-        </section>
-
         <section className="mt-10">
           <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
             OUTROS PRODUTOS
@@ -412,6 +397,21 @@ export default function Dashboard() {
           {otherProducts.length === 0 && (
             <p className="text-sm text-[#6B705C]/75">Nenhum outro produto disponível.</p>
           )}
+        </section>
+
+        <section className="mt-9 rounded-2xl bg-[#6B705C] px-5 py-6 text-center text-white">
+          <p className="text-xl leading-tight md:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+            Quer algo mais personalizado?
+          </p>
+          <a
+            href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-xl underline underline-offset-4 md:text-2xl"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Chame nossa equipe.
+          </a>
         </section>
       </div>
 
