@@ -3,7 +3,6 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-export NODE_ENV=production
 
 echo "=== 1. Git pull (remove deploy.sh local se bloquear) ==="
 rm -f deploy.sh
@@ -17,8 +16,9 @@ if ! grep -q 'app.post("/api/admin-login"' server/index.ts; then
 fi
 
 echo "=== 2. Build ==="
-npm install
+npm install --include=dev
 npm run build
+export NODE_ENV=production
 
 size=$(wc -c < dist/index.js | tr -d ' ')
 echo "dist/index.js: ${size} bytes"

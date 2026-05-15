@@ -2,7 +2,6 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-export NODE_ENV=production
 
 # deploy.sh local (criado à mão no VPS) bloqueia o pull quando entra no repositório
 if [ -f deploy.sh ] && ! git ls-files --error-unmatch deploy.sh >/dev/null 2>&1; then
@@ -16,8 +15,10 @@ if ! git pull origin main; then
 fi
 
 echo "Commit: $(git rev-parse --short HEAD)"
-npm install
+# Vite/esbuild estão em devDependencies — não usar NODE_ENV=production no install
+npm install --include=dev
 npm run build
+export NODE_ENV=production
 
 # Servidor sem rotas /api gera dist/index.js ~800 bytes; com login embutido, ~10kb+
 size=$(wc -c < dist/index.js | tr -d ' ')
