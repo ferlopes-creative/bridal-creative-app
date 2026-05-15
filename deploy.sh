@@ -27,6 +27,18 @@ if [ "$size" -lt 5000 ]; then
   exit 1
 fi
 
-pm2 restart bridal-app --update-env
-echo "Deploy finalizado com sucesso! (dist/index.js: ${size} bytes)"
-echo "Teste: curl -s http://127.0.0.1:\${PORT:-3000}/api/health"
+if pm2 describe bridal-app >/dev/null 2>&1; then
+  pm2 restart bridal-app --update-env
+else
+  pm2 start ecosystem.config.cjs
+fi
+pm2 save 2>/dev/null || true
+
+sleep 1
+if ! curl -sf "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null; then
+  echo "ERRO: Node local não responde /api/health. Veja: pm2 logs bridal-app"
+  exit 1
+fi
+
+echo "Deploy finalizado! (dist/index.js: ${size} bytes)"
+echo "JSON local: curl -s http://127.0.0.1:${PORT:-3000}/api/health"
