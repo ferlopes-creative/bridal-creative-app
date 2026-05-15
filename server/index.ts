@@ -2,6 +2,9 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import caktoWebhookHandler from "../api/cakto-webhook.js";
+import { processAdminLogin } from "../api/admin-login-serve.js";
+import { processAuthEmailLogin } from "../api/auth-email-login-serve.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +12,26 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  app.use(express.json());
+
+  app.post("/api/auth-email-login", async (req, res) => {
+    const result = await processAuthEmailLogin((req.body || {}) as Record<string, unknown>);
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/api/admin-login", async (req, res) => {
+    const result = await processAdminLogin((req.body || {}) as Record<string, unknown>);
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/api/cakto-webhook", (req, res) => {
+    void caktoWebhookHandler(req, res);
+  });
+
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, api: true });
+  });
 
   // Serve static files from dist/public in production
   const staticPath =
