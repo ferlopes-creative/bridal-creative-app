@@ -1,10 +1,12 @@
+import { parseRequestBody } from "./parse-request-body";
 import { processAdminLogin } from "./admin-login-serve";
 
-export default async function handler(req: { method?: string; body?: unknown }, res: { status: (n: number) => { json: (b: unknown) => void } }) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const result = await processAdminLogin((req.body || {}) as Record<string, unknown>);
+  const body = await parseRequestBody(req);
+  const result = await processAdminLogin(body);
   return res.status(result.status).json(result.body);
 }

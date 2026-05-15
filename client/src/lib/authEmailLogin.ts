@@ -29,7 +29,7 @@ export async function loginOrRegisterWithEmail(email: string): Promise<EmailLogi
       typeof payload.error === "string"
         ? payload.error
         : response.status === 404
-          ? "Serviço de login indisponível. Reinicie o servidor de desenvolvimento."
+          ? "Serviço de login indisponível. Verifique o deploy da API ou tente novamente."
           : "Não foi possível entrar com este e-mail.";
     throw new Error(detail);
   }

@@ -22,7 +22,7 @@ export async function loginAdminWithPassword(email: string, password: string): P
       typeof payload.error === "string"
         ? payload.error
         : response.status === 404
-          ? "Serviço de login indisponível. Reinicie o servidor de desenvolvimento."
+          ? "Serviço de login indisponível. Verifique o deploy da API ou tente novamente."
           : "Não foi possível entrar.";
     throw new Error(detail);
   }
