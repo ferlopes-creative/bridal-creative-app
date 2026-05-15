@@ -38,12 +38,7 @@ export default function DashboardProduct() {
 
   useEffect(() => {
     const loadProduct = async () => {
-      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user && !isDevBypass) {
-        setLocation("/");
-        return;
-      }
 
       if (!match || !params?.id) {
         setLocation("/dashboard");

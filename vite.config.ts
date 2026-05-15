@@ -3,7 +3,8 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin, type ViteDevServer } from "vite";
+import { pathToFileURL } from "node:url";
+import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
@@ -98,6 +99,46 @@ function vitePluginManusDebugCollector(): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
+      const env = loadEnv(server.config.mode, PROJECT_ROOT, "");
+      Object.assign(process.env, env);
+
+      let authServeModule: typeof import("./api/auth-email-login-serve") | null = null;
+
+      async function loadAuthServe() {
+        if (authServeModule) return authServeModule;
+        const { register } = await import("tsx/esm/api");
+        register();
+        authServeModule = await import(
+          pathToFileURL(path.join(PROJECT_ROOT, "api", "auth-email-login-serve.ts")).href
+        );
+        return authServeModule;
+      }
+
+      server.middlewares.use("/api/auth-email-login", (req, res, next) => {
+        if (req.method !== "POST") return next();
+
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+
+        req.on("end", () => {
+          void (async () => {
+            try {
+              const parsed = body ? (JSON.parse(body) as Record<string, unknown>) : {};
+              const { processAuthEmailLogin } = await loadAuthServe();
+              const result = await processAuthEmailLogin(parsed);
+              res.writeHead(result.status, { "Content-Type": "application/json" });
+              res.end(JSON.stringify(result.body));
+            } catch (err) {
+              console.error("[vite] auth-email-login:", err);
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Erro interno" }));
+            }
+          })();
+        });
+      });
+
       // POST /__manus__/logs: Browser sends logs (written directly to files)
       server.middlewares.use("/__manus__/logs", (req, res, next) => {
         if (req.method !== "POST") {

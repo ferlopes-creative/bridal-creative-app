@@ -10,7 +10,9 @@ import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
+import WelcomePopup from "@/components/WelcomePopup";
 import { supabase } from "@/lib/supabase";
+import { consumeWelcomePopupPending } from "@/lib/welcomePopup";
 
 type Product = {
   id: string;
@@ -79,6 +81,7 @@ export default function Dashboard() {
   const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
@@ -93,12 +96,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadProducts = async () => {
-      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user && !isDevBypass) {
-        setLocation("/");
-        return;
-      }
 
       if (userData.user) {
         const { data: purchasesData, error: purchasesError } = await supabase
@@ -151,6 +149,12 @@ export default function Dashboard() {
 
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    if (!loading && consumeWelcomePopupPending()) {
+      setShowWelcomePopup(true);
+    }
+  }, [loading]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -410,6 +414,8 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+      <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />
 
       <BottomAppNav />
     </div>

@@ -346,13 +346,7 @@ export default function Community() {
 
   useEffect(() => {
     const loadCommunityAccess = async () => {
-      const isDevBypass = localStorage.getItem("dev_bypass_auth") === "true";
       const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData.user && !isDevBypass) {
-        setLocation("/");
-        return;
-      }
 
       if (!userData.user) {
         setCanOpenCommunity(false);
