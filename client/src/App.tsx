@@ -11,7 +11,9 @@ import Dashboard from "./pages/Dashboard";
 import DashboardProduct from "./pages/DashboardProduct";
 import Community from "./pages/Community";
 import AdminPage from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
 import AdminNew from "./pages/AdminNew";
+import RequireAdminAuth from "./components/RequireAdminAuth";
 import Notifications from "./pages/Notifications";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
@@ -46,8 +48,17 @@ function Router() {
           <Community />
         </RequireAuth>
       </Route>
-      <Route path="/admin" component={AdminPage} />
-      <Route path="/admin/new" component={AdminNew} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin">
+        <RequireAdminAuth>
+          <AdminPage />
+        </RequireAdminAuth>
+      </Route>
+      <Route path="/admin/new">
+        <RequireAdminAuth>
+          <AdminNew />
+        </RequireAdminAuth>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

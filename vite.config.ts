@@ -103,6 +103,7 @@ function vitePluginManusDebugCollector(): Plugin {
       Object.assign(process.env, env);
 
       let authServeModule: typeof import("./api/auth-email-login-serve") | null = null;
+      let adminLoginServeModule: typeof import("./api/admin-login-serve") | null = null;
 
       async function loadAuthServe() {
         if (authServeModule) return authServeModule;
@@ -112,6 +113,16 @@ function vitePluginManusDebugCollector(): Plugin {
           pathToFileURL(path.join(PROJECT_ROOT, "api", "auth-email-login-serve.ts")).href
         );
         return authServeModule;
+      }
+
+      async function loadAdminLoginServe() {
+        if (adminLoginServeModule) return adminLoginServeModule;
+        const { register } = await import("tsx/esm/api");
+        register();
+        adminLoginServeModule = await import(
+          pathToFileURL(path.join(PROJECT_ROOT, "api", "admin-login-serve.ts")).href
+        );
+        return adminLoginServeModule;
       }
 
       server.middlewares.use("/api/auth-email-login", (req, res, next) => {
@@ -132,6 +143,31 @@ function vitePluginManusDebugCollector(): Plugin {
               res.end(JSON.stringify(result.body));
             } catch (err) {
               console.error("[vite] auth-email-login:", err);
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Erro interno" }));
+            }
+          })();
+        });
+      });
+
+      server.middlewares.use("/api/admin-login", (req, res, next) => {
+        if (req.method !== "POST") return next();
+
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+
+        req.on("end", () => {
+          void (async () => {
+            try {
+              const parsed = body ? (JSON.parse(body) as Record<string, unknown>) : {};
+              const { processAdminLogin } = await loadAdminLoginServe();
+              const result = await processAdminLogin(parsed);
+              res.writeHead(result.status, { "Content-Type": "application/json" });
+              res.end(JSON.stringify(result.body));
+            } catch (err) {
+              console.error("[vite] admin-login:", err);
               res.writeHead(500, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: "Erro interno" }));
             }

@@ -428,7 +428,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setLocation("/login");
+    setLocation("/admin/login");
   };
 
   const handleDeleteProduct = async (product: Product) => {
