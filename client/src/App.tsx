@@ -5,6 +5,7 @@ import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import GuestOnly from "./components/GuestOnly";
 import RequireAuth from "./components/RequireAuth";
+import RequireAppAccess from "./components/RequireAppAccess";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -15,6 +16,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminNew from "./pages/AdminNew";
 import RequireAdminAuth from "./components/RequireAdminAuth";
 import Notifications from "./pages/Notifications";
+import Profile from "./pages/Profile";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
 function Router() {
@@ -29,14 +31,19 @@ function Router() {
         </GuestOnly>
       </Route>
       <Route path="/dashboard">
-        <RequireAuth>
+        <RequireAppAccess>
           <Dashboard />
-        </RequireAuth>
+        </RequireAppAccess>
       </Route>
       <Route path="/dashboard/product/:id">
-        <RequireAuth>
+        <RequireAppAccess>
           <DashboardProduct />
-        </RequireAuth>
+        </RequireAppAccess>
+      </Route>
+      <Route path="/profile">
+        <RequireAppAccess>
+          <Profile />
+        </RequireAppAccess>
       </Route>
       <Route path="/notifications">
         <RequireAuth>
@@ -44,9 +51,9 @@ function Router() {
         </RequireAuth>
       </Route>
       <Route path="/community">
-        <RequireAuth>
+        <RequireAppAccess>
           <Community />
-        </RequireAuth>
+        </RequireAppAccess>
       </Route>
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin">

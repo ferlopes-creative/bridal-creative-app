@@ -5,6 +5,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { useSiteSettings, resolveLoginPageBackground } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
+import { clearGuestMode, setGuestMode } from "@/lib/guestMode";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { markWelcomePopupPending } from "@/lib/welcomePopup";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
@@ -39,6 +40,7 @@ export default function Login() {
     setLoading(true);
     try {
       const { isNewUser } = await loginOrRegisterWithEmail(email);
+      clearGuestMode();
       if (isNewUser) {
         markWelcomePopupPending();
       }
@@ -127,7 +129,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex w-full justify-center">
+              <div className="flex w-full flex-col items-center gap-3">
                 <button
                   type="submit"
                   disabled={loading}
@@ -147,6 +149,18 @@ export default function Login() {
                   ) : (
                     "ACESSAR"
                   )}
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setGuestMode(true);
+                    setLocation("/dashboard");
+                  }}
+                  className="text-[11px] font-light uppercase tracking-[0.16em] text-[#6B7459]/80 underline underline-offset-4 transition-colors hover:text-[#6B7459] disabled:opacity-60"
+                  style={{ fontFamily: sansFont }}
+                >
+                  Convidado — entrar sem login
                 </button>
               </div>
             </form>

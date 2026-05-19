@@ -12,6 +12,7 @@ import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import WelcomePopup from "@/components/WelcomePopup";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
+import { isGuestMode } from "@/lib/guestMode";
 import { supabase } from "@/lib/supabase";
 import { consumeWelcomePopupPending } from "@/lib/welcomePopup";
 
@@ -130,6 +131,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const guestMode = isGuestMode();
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
@@ -194,10 +196,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!loading && consumeWelcomePopupPending()) {
+    if (!loading && !guestMode && consumeWelcomePopupPending()) {
       setShowWelcomePopup(true);
     }
-  }, [loading]);
+  }, [loading, guestMode]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -261,17 +263,21 @@ export default function Dashboard() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center">
             <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
           </div>
-          <button
-            type="button"
-            onClick={() => setLocation("/notifications")}
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
-            aria-label="Notificações"
-          >
-            <Bell className="h-5 w-5" />
-            {hasUnread && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
-            )}
-          </button>
+          {!guestMode ? (
+            <button
+              type="button"
+              onClick={() => setLocation("/notifications")}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+              aria-label="Notificações"
+            >
+              <Bell className="h-5 w-5" />
+              {hasUnread && (
+                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
+              )}
+            </button>
+          ) : (
+            <div className="h-10 w-10" aria-hidden />
+          )}
         </div>
       </div>
 
@@ -296,17 +302,21 @@ export default function Dashboard() {
                 className="max-h-12 max-w-12 object-contain brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)] md:max-h-14 md:max-w-[4.5rem]"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => setLocation("/notifications")}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
-              aria-label="Notificações"
-            >
-              <Bell className="h-6 w-6" />
-              {hasUnread && (
-                <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
-              )}
-            </button>
+            {!guestMode ? (
+              <button
+                type="button"
+                onClick={() => setLocation("/notifications")}
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                aria-label="Notificações"
+              >
+                <Bell className="h-6 w-6" />
+                {hasUnread && (
+                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
+                )}
+              </button>
+            ) : (
+              <div className="h-10 w-10" aria-hidden />
+            )}
           </header>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Home, Lock, MessageCircle } from "lucide-react";
+import { Home, Lock, MessageCircle, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { hasCommunityAccess } from "@/lib/communityAccess";
 import { supabase } from "@/lib/supabase";
@@ -10,13 +10,14 @@ export default function BottomAppNav() {
   const onDashboard =
     location === "/dashboard" || location.startsWith("/dashboard/");
   const onCommunity = location.startsWith("/community");
+  const onProfile = location === "/profile";
 
   const iconClass = "h-[18px] w-[18px] shrink-0";
   const strokeActive = 1.35;
   const strokeInactive = 1.2;
 
   const baseBtn =
-    "relative flex flex-1 max-w-[140px] flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+    "relative flex flex-1 max-w-[108px] flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
   const active = "bg-white/12 text-white shadow-inner";
   const inactive = "text-white/80 hover:bg-white/8 hover:text-white";
 
@@ -51,7 +52,7 @@ export default function BottomAppNav() {
       aria-label="Navegação principal"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-white/12 bg-[#6B705C]/98 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_32px_rgba(53,58,46,0.28)] backdrop-blur-md supports-[backdrop-filter]:bg-[#6B705C]/92"
     >
-      <div className="mx-auto flex min-h-12 max-w-lg items-center justify-center gap-4 px-6 sm:gap-10">
+      <div className="mx-auto flex min-h-12 max-w-lg items-center justify-center gap-2 px-4 sm:gap-5 sm:px-6">
         <button
           type="button"
           onClick={() => setLocation("/dashboard")}
@@ -84,6 +85,19 @@ export default function BottomAppNav() {
           <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">
             {canOpenCommunity ? "Chat" : "Chat bloqueado"}
           </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocation("/profile")}
+          className={`${baseBtn} ${onProfile ? active : inactive}`}
+          aria-current={onProfile ? "page" : undefined}
+          aria-label="Perfil"
+        >
+          <User
+            className={`${iconClass} ${onProfile ? "opacity-100" : "opacity-90"}`}
+            strokeWidth={onProfile ? strokeActive : strokeInactive}
+          />
+          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Perfil</span>
         </button>
       </div>
     </nav>
