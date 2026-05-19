@@ -1,5 +1,5 @@
-import { parseRequestBody } from "./parse-request-body";
-import { processAdminLogin } from "./admin-login-serve";
+import { parseRequestBody } from "./parse-request-body.js";
+import { processAdminLogin } from "./admin-login-serve.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {

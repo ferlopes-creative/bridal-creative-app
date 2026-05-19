@@ -11,6 +11,7 @@ import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettin
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import WelcomePopup from "@/components/WelcomePopup";
+import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { supabase } from "@/lib/supabase";
 import { consumeWelcomePopupPending } from "@/lib/welcomePopup";
 
@@ -356,15 +357,18 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="mt-9 rounded-2xl bg-[#6B705C] px-5 py-6 text-center text-white">
-          <p className="text-xl leading-tight md:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+        <section className="mt-8 rounded-xl bg-[#6B705C] px-4 py-3.5 text-center text-white">
+          <p
+            className="text-sm font-medium uppercase leading-snug tracking-[0.06em]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             Quer algo mais personalizado?
           </p>
           <a
             href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-block text-xl underline underline-offset-4 md:text-2xl"
+            className="mt-1 inline-block text-sm underline underline-offset-2"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Chame nossa equipe.
@@ -374,6 +378,7 @@ export default function Dashboard() {
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />
 
+      <WhatsAppSupportButton aboveBottomNav />
       <BottomAppNav />
     </div>
   );

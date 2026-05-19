@@ -3,7 +3,7 @@ import {
   createServiceRoleClient,
   isValidEmailAddress,
   normalizeEmail,
-} from "./auth-email-login-core";
+} from "./auth-email-login-core.js";
 
 export type AuthEmailLoginResult =
   | {

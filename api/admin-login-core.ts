@@ -4,7 +4,7 @@ import {
   findUserByEmail,
   isValidEmailAddress,
   normalizeEmail,
-} from "./auth-email-login-core";
+} from "./auth-email-login-core.js";
 
 export { createServiceRoleClient };
 

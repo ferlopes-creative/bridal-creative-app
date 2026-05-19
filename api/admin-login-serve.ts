@@ -1,4 +1,4 @@
-import { authenticateAdmin, createServiceRoleClient } from "./admin-login-core";
+import { authenticateAdmin, createServiceRoleClient } from "./admin-login-core.js";
 
 export type AdminLoginResult =
   | {
