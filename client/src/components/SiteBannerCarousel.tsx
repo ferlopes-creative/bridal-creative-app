@@ -11,6 +11,8 @@ type SiteBannerCarouselProps = {
   urls: string[];
   /** Classes aplicadas a cada slide + viewport (altura mínima da faixa) */
   slideMinClass?: string;
+  /** object-position da imagem (útil em faixas largas no desktop) */
+  imageObjectPosition?: string;
   className?: string;
 };
 
@@ -19,7 +21,8 @@ type SiteBannerCarouselProps = {
  */
 export function SiteBannerCarousel({
   urls,
-  slideMinClass = "min-h-[240px] md:min-h-[260px]",
+  slideMinClass = "min-h-[240px]",
+  imageObjectPosition = "center",
   className,
 }: SiteBannerCarouselProps) {
   const [api, setApi] = useState<CarouselApi | null>(null);
@@ -60,6 +63,7 @@ export function SiteBannerCarousel({
                 src={url}
                 alt=""
                 className="absolute inset-0 size-full object-cover"
+                style={{ objectPosition: imageObjectPosition }}
                 decoding="async"
                 draggable={false}
               />

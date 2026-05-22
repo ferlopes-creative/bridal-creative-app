@@ -11,6 +11,7 @@ export type SiteSettingsRow = {
   page_background_opacity_percent: number;
   hero_image_url: string | null;
   hero_banner_urls: string[];
+  hero_banner_desktop_urls: string[];
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -24,7 +25,7 @@ function parseOpacityPercent(raw: unknown): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
-function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): string[] {
+export function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): string[] {
   let urls: string[] = [];
   if (Array.isArray(raw)) {
     urls = raw.filter((u): u is string => typeof u === "string" && u.trim() !== "");
@@ -49,6 +50,10 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
   const raw = data.hero_banner_urls;
   const legacyHero = (data.hero_image_url as string | null | undefined)?.trim() || null;
   const hero_banner_urls = parseHeroBannerUrls(raw, legacyHero);
+  const hero_banner_desktop_urls = parseHeroBannerUrls(
+    data.hero_banner_desktop_urls,
+    null
+  );
   return {
     logo_url: (data.logo_url as string | null | undefined) ?? null,
     page_background_image_url: (data.page_background_image_url as string | null | undefined) ?? null,
@@ -57,6 +62,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     page_background_opacity_percent: parseOpacityPercent(data.page_background_opacity_percent),
     hero_image_url: legacyHero,
     hero_banner_urls,
+    hero_banner_desktop_urls,
   };
 }
 
@@ -80,6 +86,11 @@ export async function fetchSiteSettingsRow(): Promise<SiteSettingsRow | null> {
 export function isHeroBannerUrlsSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("hero_banner_urls") || m.includes("schema cache");
+}
+
+export function isHeroBannerDesktopUrlsSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("hero_banner_desktop") || m.includes("schema cache");
 }
 
 export function isPageBackgroundSplitError(message: string | undefined): boolean {

@@ -8,7 +8,12 @@ import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
-import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
+import {
+  useSiteSettings,
+  resolveAppPageBackground,
+  resolveHeroBannerMobileUrls,
+  resolveHeroBannerDesktopUrls,
+} from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import WelcomePopup from "@/components/WelcomePopup";
@@ -136,7 +141,16 @@ export default function Dashboard() {
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
-  const heroBannerUrls = useMemo(() => settings.hero_banner_urls ?? [], [settings.hero_banner_urls]);
+  const heroMobileUrls = useMemo(
+    () => resolveHeroBannerMobileUrls(settings),
+    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
+  );
+  const heroDesktopUrls = useMemo(
+    () => resolveHeroBannerDesktopUrls(settings),
+    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
+  );
+  const showHeroMobile = heroMobileUrls.length > 0;
+  const showHeroDesktop = heroDesktopUrls.length > 0;
 
   useEffect(() => {
     refreshSiteSettings();
@@ -283,11 +297,24 @@ export default function Dashboard() {
         settings={settings}
         backgroundColor="#FBFAF6"
       />
-      <section className="relative min-h-[240px] overflow-hidden md:min-h-[260px]">
+      <section className="relative min-h-[240px] overflow-hidden md:min-h-[320px]">
         <div className="absolute inset-0 bg-[#6B705C]">
-          <SiteBannerCarousel urls={heroBannerUrls} />
+          {showHeroMobile ? (
+            <div className="h-full md:hidden">
+              <SiteBannerCarousel urls={heroMobileUrls} slideMinClass="min-h-[240px]" />
+            </div>
+          ) : null}
+          {showHeroDesktop ? (
+            <div className="hidden h-full md:block">
+              <SiteBannerCarousel
+                urls={heroDesktopUrls}
+                slideMinClass="min-h-[320px] lg:min-h-[360px]"
+                imageObjectPosition="center top"
+              />
+            </div>
+          ) : null}
         </div>
-        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[260px]">
+        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[320px]">
           <header className="flex items-center justify-between">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
               <BrandLogo

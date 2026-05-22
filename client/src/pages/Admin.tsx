@@ -26,6 +26,7 @@ import {
 } from "@/contexts/SiteSettingsContext";
 import {
   fetchSiteSettingsRow,
+  isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
   isPageBackgroundSplitError,
@@ -183,7 +184,9 @@ export default function AdminPage() {
     DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT
   );
   const [siteHeroUrls, setSiteHeroUrls] = useState<string[]>([]);
+  const [siteHeroDesktopUrls, setSiteHeroDesktopUrls] = useState<string[]>([]);
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
+  const [heroDesktopPendingFiles, setHeroDesktopPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bgLoginFile, setBgLoginFile] = useState<File | null>(null);
   const [bgAppFile, setBgAppFile] = useState<File | null>(null);
@@ -194,6 +197,7 @@ export default function AdminPage() {
   const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
   const bgAppFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
+  const heroDesktopFileInputRef = useRef<HTMLInputElement>(null);
 
   const [kitProductId, setKitProductId] = useState("");
   const [kitBonusIds, setKitBonusIds] = useState<Record<string, boolean>>({});
@@ -403,7 +407,9 @@ export default function AdminPage() {
         setSiteAppBgUrl(row.page_background_app_url ?? legacy);
         setSiteBgOpacityPercent(row.page_background_opacity_percent);
         setSiteHeroUrls(row.hero_banner_urls);
+        setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
         setHeroPendingFiles([]);
+        setHeroDesktopPendingFiles([]);
       }
       setSiteLoading(false);
     };
@@ -682,7 +688,14 @@ export default function AdminPage() {
       for (const file of heroPendingFiles) {
         uploadedHeroUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images", "site"));
       }
+      const uploadedHeroDesktopUrls: string[] = [];
+      for (const file of heroDesktopPendingFiles) {
+        uploadedHeroDesktopUrls.push(
+          await uploadFileToStorage(file, IMAGE_BUCKET, "images", "site")
+        );
+      }
       const bannerUrls = [...siteHeroUrls, ...uploadedHeroUrls];
+      const bannerDesktopUrls = [...siteHeroDesktopUrls, ...uploadedHeroDesktopUrls];
 
       const legacyBgMirror = appBgUrl ?? loginBgUrl ?? null;
 
@@ -702,8 +715,17 @@ export default function AdminPage() {
       };
 
       const upsertSiteSettings = async (row: Record<string, unknown>) => {
-        const withHero = { ...row, hero_banner_urls: bannerUrls };
+        const withHero = {
+          ...row,
+          hero_banner_urls: bannerUrls,
+          hero_banner_desktop_urls: bannerDesktopUrls,
+        };
         let { error: upsertError } = await supabase.from("site_settings").upsert(withHero);
+        if (upsertError && isHeroBannerDesktopUrlsSchemaError(upsertError.message)) {
+          const { hero_banner_desktop_urls: _d, ...withoutDesktop } = withHero;
+          const retry = await supabase.from("site_settings").upsert(withoutDesktop);
+          upsertError = retry.error;
+        }
         if (upsertError && isHeroBannerUrlsSchemaError(upsertError.message)) {
           const retry = await supabase.from("site_settings").upsert(row);
           upsertError = retry.error;
@@ -727,8 +749,11 @@ export default function AdminPage() {
       }
       if (error) throw error;
       setSiteHeroUrls(bannerUrls);
+      setSiteHeroDesktopUrls(bannerDesktopUrls);
       setHeroPendingFiles([]);
+      setHeroDesktopPendingFiles([]);
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+      if (heroDesktopFileInputRef.current) heroDesktopFileInputRef.current.value = "";
       setLogoFile(null);
       setBgLoginFile(null);
       setBgAppFile(null);
@@ -770,10 +795,21 @@ export default function AdminPage() {
     setHeroPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const removeHeroDesktopUrlAt = (index: number) => {
+    setSiteHeroDesktopUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeHeroDesktopPendingAt = (index: number) => {
+    setHeroDesktopPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const clearAllHeroBanners = () => {
     setSiteHeroUrls([]);
+    setSiteHeroDesktopUrls([]);
     setHeroPendingFiles([]);
+    setHeroDesktopPendingFiles([]);
     if (heroFileInputRef.current) heroFileInputRef.current.value = "";
+    if (heroDesktopFileInputRef.current) heroDesktopFileInputRef.current.value = "";
   };
 
   const handleSaveKitBonuses = async () => {
@@ -846,7 +882,7 @@ export default function AdminPage() {
           id="appearance"
           icon={Palette}
           title="Aparência do app"
-          description="Logo, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo. No carrossel pode usar várias imagens. Remova os arquivos e salve para voltar ao padrão."
+          description="Logo, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
@@ -978,7 +1014,10 @@ export default function AdminPage() {
               <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="text-sm font-medium text-zinc-800">Banners do topo (carrossel)</label>
-                  {(siteHeroUrls.length > 0 || heroPendingFiles.length > 0) && (
+                  {(siteHeroUrls.length > 0 ||
+                    siteHeroDesktopUrls.length > 0 ||
+                    heroPendingFiles.length > 0 ||
+                    heroDesktopPendingFiles.length > 0) && (
                     <button
                       type="button"
                       onClick={clearAllHeroBanners}
@@ -991,65 +1030,134 @@ export default function AdminPage() {
                   )}
                 </div>
                 <p className="text-xs text-zinc-500">
-                  Adicione uma ou mais imagens; no app elas passam em sequência automaticamente.
+                  No celular use imagens em retrato ou quadradas; no desktop, faixas largas (ex. 1920×480 px).
+                  Se só enviar mobile, o mesmo carrossel aparece em todos os tamanhos de tela.
                 </p>
-                <input
-                  ref={heroFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const next = Array.from(e.target.files ?? []);
-                    if (next.length) setHeroPendingFiles((p) => [...p, ...next]);
-                    e.target.value = "";
-                  }}
-                  className="w-full max-w-md text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                  disabled={siteSaving}
-                />
-                {siteHeroUrls.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    {siteHeroUrls.map((url, i) => (
-                      <li
-                        key={`${url}-${i}`}
-                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                          {url.slice(0, 72)}
-                          {url.length > 72 ? "…" : ""}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeHeroUrlAt(i)}
-                          disabled={siteSaving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {heroPendingFiles.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    <li className="text-zinc-500">A enviar ao salvar:</li>
-                    {heroPendingFiles.map((file, i) => (
-                      <li
-                        key={`${file.name}-${i}`}
-                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeHeroPendingAt(i)}
-                          disabled={siteSaving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-2 rounded-lg border border-zinc-200/80 bg-white/80 p-3">
+                    <p className="text-sm font-medium text-zinc-800">Celular</p>
+                    <input
+                      ref={heroFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const next = Array.from(e.target.files ?? []);
+                        if (next.length) setHeroPendingFiles((p) => [...p, ...next]);
+                        e.target.value = "";
+                      }}
+                      className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                      disabled={siteSaving}
+                    />
+                    {siteHeroUrls.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        {siteHeroUrls.map((url, i) => (
+                          <li
+                            key={`m-${url}-${i}`}
+                            className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                              {url.slice(0, 72)}
+                              {url.length > 72 ? "…" : ""}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeHeroUrlAt(i)}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {heroPendingFiles.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        <li className="text-zinc-500">A enviar ao salvar:</li>
+                        {heroPendingFiles.map((file, i) => (
+                          <li
+                            key={`mp-${file.name}-${i}`}
+                            className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeHeroPendingAt(i)}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-zinc-200/80 bg-white/80 p-3">
+                    <p className="text-sm font-medium text-zinc-800">Desktop (opcional)</p>
+                    <p className="text-xs text-zinc-500">
+                      Deixe vazio para reutilizar as imagens do celular no computador.
+                    </p>
+                    <input
+                      ref={heroDesktopFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const next = Array.from(e.target.files ?? []);
+                        if (next.length) setHeroDesktopPendingFiles((p) => [...p, ...next]);
+                        e.target.value = "";
+                      }}
+                      className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                      disabled={siteSaving}
+                    />
+                    {siteHeroDesktopUrls.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        {siteHeroDesktopUrls.map((url, i) => (
+                          <li
+                            key={`d-${url}-${i}`}
+                            className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                              {url.slice(0, 72)}
+                              {url.length > 72 ? "…" : ""}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeHeroDesktopUrlAt(i)}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {heroDesktopPendingFiles.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        <li className="text-zinc-500">A enviar ao salvar:</li>
+                        {heroDesktopPendingFiles.map((file, i) => (
+                          <li
+                            key={`dp-${file.name}-${i}`}
+                            className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeHeroDesktopPendingAt(i)}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
               <button
                 type="submit"

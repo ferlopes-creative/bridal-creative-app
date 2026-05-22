@@ -20,6 +20,8 @@ export type SiteSettings = {
   /** @deprecated use hero_banner_urls; mantido para compat. */
   hero_image_url: string | null;
   hero_banner_urls: string[];
+  /** Vazio no CMS = no app usa hero_banner_urls no desktop */
+  hero_banner_desktop_urls: string[];
 };
 
 const defaultSettings: SiteSettings = {
@@ -30,7 +32,22 @@ const defaultSettings: SiteSettings = {
   page_background_opacity_percent: DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   hero_image_url: null,
   hero_banner_urls: [],
+  hero_banner_desktop_urls: [],
 };
+
+/** Banners do carrossel no mobile (< md). */
+export function resolveHeroBannerMobileUrls(settings: SiteSettings): string[] {
+  const mobile = settings.hero_banner_urls ?? [];
+  if (mobile.length > 0) return mobile;
+  return settings.hero_banner_desktop_urls ?? [];
+}
+
+/** Banners do carrossel no desktop (md+); arte própria ou fallback mobile. */
+export function resolveHeroBannerDesktopUrls(settings: SiteSettings): string[] {
+  const desktop = settings.hero_banner_desktop_urls ?? [];
+  if (desktop.length > 0) return desktop;
+  return settings.hero_banner_urls ?? [];
+}
 
 /** Opacidade da textura (0–100), com fallback ao padrão. */
 export function resolvePageBackgroundOpacityPercent(settings: SiteSettings): number {
@@ -79,6 +96,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         page_background_opacity_percent: row.page_background_opacity_percent,
         hero_image_url: row.hero_image_url,
         hero_banner_urls: row.hero_banner_urls,
+        hero_banner_desktop_urls: row.hero_banner_desktop_urls,
       });
     }
     setLoading(false);
