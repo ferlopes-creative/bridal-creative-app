@@ -7,6 +7,7 @@ import caktoWebhookHandler from "../api/cakto-webhook.js";
 
 loadEnvFromFile();
 import { processAdminLogin } from "../api/admin-login-serve.js";
+import { processAdminGrantPurchase } from "../api/admin-grant-purchase-serve.js";
 import { processAuthEmailLogin } from "../api/auth-email-login-serve.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +26,16 @@ async function startServer() {
 
   app.post("/api/admin-login", async (req, res) => {
     const result = await processAdminLogin((req.body || {}) as Record<string, unknown>);
+    res.status(result.status).json(result.body);
+  });
+
+  app.post("/api/admin-grant-purchase", async (req, res) => {
+    const authHeader =
+      typeof req.headers.authorization === "string" ? req.headers.authorization : undefined;
+    const result = await processAdminGrantPurchase(
+      (req.body || {}) as Record<string, unknown>,
+      authHeader
+    );
     res.status(result.status).json(result.body);
   });
 

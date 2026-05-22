@@ -104,6 +104,7 @@ function vitePluginManusDebugCollector(): Plugin {
 
       let authServeModule: typeof import("./api/auth-email-login-serve") | null = null;
       let adminLoginServeModule: typeof import("./api/admin-login-serve") | null = null;
+      let adminGrantPurchaseServeModule: typeof import("./api/admin-grant-purchase-serve") | null = null;
 
       async function loadAuthServe() {
         if (authServeModule) return authServeModule;
@@ -123,6 +124,39 @@ function vitePluginManusDebugCollector(): Plugin {
           pathToFileURL(path.join(PROJECT_ROOT, "api", "admin-login-serve.ts")).href
         );
         return adminLoginServeModule;
+      }
+
+      async function loadAdminGrantPurchaseServe() {
+        if (adminGrantPurchaseServeModule) return adminGrantPurchaseServeModule;
+        const { register } = await import("tsx/esm/api");
+        register();
+        adminGrantPurchaseServeModule = await import(
+          pathToFileURL(path.join(PROJECT_ROOT, "api", "admin-grant-purchase-serve.ts")).href
+        );
+        return adminGrantPurchaseServeModule;
+      }
+
+      function readJsonBody(
+        req: import("http").IncomingMessage,
+        res: import("http").ServerResponse,
+        onParsed: (parsed: Record<string, unknown>) => void
+      ) {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+        req.on("end", () => {
+          void (async () => {
+            try {
+              const parsed = body ? (JSON.parse(body) as Record<string, unknown>) : {};
+              onParsed(parsed);
+            } catch (err) {
+              console.error("[vite] api json parse:", err);
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "JSON inválido" }));
+            }
+          })();
+        });
       }
 
       server.middlewares.use("/api/auth-email-login", (req, res, next) => {
@@ -152,22 +186,35 @@ function vitePluginManusDebugCollector(): Plugin {
 
       server.middlewares.use("/api/admin-login", (req, res, next) => {
         if (req.method !== "POST") return next();
-
-        let body = "";
-        req.on("data", (chunk) => {
-          body += chunk.toString();
-        });
-
-        req.on("end", () => {
+        readJsonBody(req, res, (parsed) => {
           void (async () => {
             try {
-              const parsed = body ? (JSON.parse(body) as Record<string, unknown>) : {};
               const { processAdminLogin } = await loadAdminLoginServe();
               const result = await processAdminLogin(parsed);
               res.writeHead(result.status, { "Content-Type": "application/json" });
               res.end(JSON.stringify(result.body));
             } catch (err) {
               console.error("[vite] admin-login:", err);
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Erro interno" }));
+            }
+          })();
+        });
+      });
+
+      server.middlewares.use("/api/admin-grant-purchase", (req, res, next) => {
+        if (req.method !== "POST") return next();
+        readJsonBody(req, res, (parsed) => {
+          void (async () => {
+            try {
+              const authHeader =
+                typeof req.headers.authorization === "string" ? req.headers.authorization : undefined;
+              const { processAdminGrantPurchase } = await loadAdminGrantPurchaseServe();
+              const result = await processAdminGrantPurchase(parsed, authHeader);
+              res.writeHead(result.status, { "Content-Type": "application/json" });
+              res.end(JSON.stringify(result.body));
+            } catch (err) {
+              console.error("[vite] admin-grant-purchase:", err);
               res.writeHead(500, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: "Erro interno" }));
             }

@@ -60,6 +60,16 @@ O projeto entrega uma experiência de acesso para clientes que compraram produto
 
 A função `api/cakto-webhook.ts` recebe eventos `POST` da plataforma de pagamento, identifica usuário por e-mail e faz `upsert` na tabela `purchases`, atualizando status como `active` ou `refunded`.
 
+### Compradores da plataforma antiga
+
+O acesso ao conteúdo depende de registros em `purchases` com `status = active`, vinculados ao **mesmo e-mail** usado na compra original.
+
+1. No painel `/admin`, abra **Compradores antigos**.
+2. Libere uma cliente (e-mail + produto) ou importe em lote (`email,product_id` por linha).
+3. A cliente faz login em `/login` com esse e-mail; o dashboard carrega as compras ativas e libera vídeo, links e comunidade.
+
+A API `POST /api/admin-grant-purchase` (sessão admin) cria a conta no Supabase Auth se ainda não existir e grava a compra com `source = legacy` ou `admin`. Execute a migração `20260522190000_purchases_legacy_access.sql` no Supabase se a tabela `purchases` ainda não existir.
+
 ## Pré-requisitos
 
 - Node.js 20+ (recomendado)

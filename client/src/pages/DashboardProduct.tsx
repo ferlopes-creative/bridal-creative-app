@@ -22,6 +22,7 @@ type Product = {
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
+  access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
 };
@@ -83,6 +84,7 @@ export default function DashboardProduct() {
           image: item.image as string | null | undefined,
           thumbnail_url: item.thumbnail_url as string | null | undefined,
           video_url: (item.video_url ?? item.video) as string | null | undefined,
+          access_links: item.access_links,
           link_compra: (item.link_compra ?? item.link) as string | null | undefined,
           link: item.link as string | null | undefined,
         });

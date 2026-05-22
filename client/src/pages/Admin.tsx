@@ -12,6 +12,7 @@ import {
   Save,
   Send,
   Trash2,
+  UserCheck,
   X,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -37,6 +38,16 @@ import {
   isPageBackgroundSplitError,
   isSiteColorsSchemaError,
 } from "@/lib/siteSettingsRemote";
+import {
+  accessLinksEqual,
+  accessLinksToFormRows,
+  emptyAccessLinkRow,
+  formRowsToAccessLinks,
+  parseAccessLinks,
+  type ProductAccessLinkRow,
+} from "@/lib/productAccessLinks";
+import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
+import { parseLegacyPurchaseLines } from "@/lib/legacyPurchaseImport";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 import { supabase } from "@/lib/supabase";
 
@@ -53,6 +64,7 @@ type Product = {
   video_url?: string | null;
   video?: string | null;
   link_compra?: string | null;
+  access_links?: unknown;
   external_sales_id?: string | null;
 };
 
@@ -89,6 +101,12 @@ function isMissingVideoUrlColumnError(err: unknown): boolean {
   return m.includes("video_url");
 }
 
+/** Banco sem migração da coluna `access_links`. */
+function isMissingAccessLinksColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("access_links");
+}
+
 /** Banco sem migração da coluna `external_sales_id` — PostgREST / Postgres avisa no erro. */
 function isMissingExternalSalesIdColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
@@ -109,6 +127,20 @@ function looksLikeStorageError(err: unknown): boolean {
     (m.includes("upload") && (m.includes("policy") || m.includes("denied") || m.includes("jwt"))) ||
     m.includes("new row violates row-level security policy") && m.includes("objects")
   );
+}
+
+/** RLS em `products` sem política de escrita para admin autenticado. */
+function isProductsRlsError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return (
+    m.includes("row-level security") ||
+    m.includes("row level security") ||
+    (m.includes("permission denied") && m.includes("products"))
+  );
+}
+
+function productsRlsHint(): string {
+  return " Execute no Supabase (SQL Editor) a migração 20260522180000_products_grants_and_rls.sql.";
 }
 
 const sectionShell =
@@ -191,6 +223,7 @@ export default function AdminPage() {
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
   const [linkCompra, setLinkCompra] = useState("");
+  const [accessLinkRows, setAccessLinkRows] = useState<ProductAccessLinkRow[]>([emptyAccessLinkRow()]);
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -236,11 +269,17 @@ export default function AdminPage() {
   const [notifSaving, setNotifSaving] = useState(false);
   const [deletingNotifId, setDeletingNotifId] = useState<string | null>(null);
 
+  const [legacyEmail, setLegacyEmail] = useState("");
+  const [legacyProductId, setLegacyProductId] = useState("");
+  const [legacyBulkText, setLegacyBulkText] = useState("");
+  const [legacyGranting, setLegacyGranting] = useState(false);
+
   type ProductFormSnapshot = {
     name: string;
     description: string;
     descriptionDelivery: string;
     linkCompra: string;
+    accessLinks: ReturnType<typeof formRowsToAccessLinks>;
     externalSalesId: string;
     type: "PRO" | "BON";
   };
@@ -250,6 +289,7 @@ export default function AdminPage() {
     description: "",
     descriptionDelivery: "",
     linkCompra: "",
+    accessLinks: [],
     externalSalesId: "",
     type: "PRO",
   };
@@ -274,6 +314,7 @@ export default function AdminPage() {
     setDescription("");
     setDescriptionDelivery("");
     setLinkCompra("");
+    setAccessLinkRows([emptyAccessLinkRow()]);
     setType("PRO");
     setImageFile(null);
     setVideoFile(null);
@@ -305,6 +346,8 @@ export default function AdminPage() {
     setDescription(product.description || "");
     setDescriptionDelivery(product.description_delivery || "");
     setLinkCompra(product.link_compra || "");
+    const parsedAccessLinks = parseAccessLinks(product.access_links);
+    setAccessLinkRows(accessLinksToFormRows(parsedAccessLinks));
     setType(product.type === "BON" ? "BON" : "PRO");
     setImageFile(null);
     setVideoFile(null);
@@ -314,6 +357,7 @@ export default function AdminPage() {
       description: product.description || "",
       descriptionDelivery: product.description_delivery || "",
       linkCompra: product.link_compra || "",
+      accessLinks: parsedAccessLinks,
       externalSalesId: product.external_sales_id?.trim() || "",
       type: product.type === "BON" ? "BON" : "PRO",
     });
@@ -326,6 +370,7 @@ export default function AdminPage() {
     setDescription(emptyFormSnapshot.description);
     setDescriptionDelivery(emptyFormSnapshot.descriptionDelivery);
     setLinkCompra(emptyFormSnapshot.linkCompra);
+    setAccessLinkRows(accessLinksToFormRows(emptyFormSnapshot.accessLinks));
     setExternalSalesId(emptyFormSnapshot.externalSalesId);
     setType(emptyFormSnapshot.type);
     setImageFile(null);
@@ -344,11 +389,16 @@ export default function AdminPage() {
       richTextPlain(description) !== richTextPlain(modalSnapshot.description);
     const descDeliveryChanged =
       richTextPlain(descriptionDelivery) !== richTextPlain(modalSnapshot.descriptionDelivery);
+    const accessLinksChanged = !accessLinksEqual(
+      formRowsToAccessLinks(accessLinkRows),
+      modalSnapshot.accessLinks
+    );
     return (
       name.trim() !== modalSnapshot.name.trim() ||
       descChanged ||
       descDeliveryChanged ||
       linkCompra.trim() !== modalSnapshot.linkCompra.trim() ||
+      accessLinksChanged ||
       externalSalesId.trim() !== modalSnapshot.externalSalesId.trim() ||
       type !== modalSnapshot.type ||
       imageFile != null ||
@@ -361,6 +411,7 @@ export default function AdminPage() {
     description,
     descriptionDelivery,
     linkCompra,
+    accessLinkRows,
     externalSalesId,
     type,
     imageFile,
@@ -610,6 +661,7 @@ export default function AdminPage() {
         includeExternalSalesId: boolean;
         includeDescriptionDelivery: boolean;
         includeVideoUrl: boolean;
+        includeAccessLinks: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -625,6 +677,9 @@ export default function AdminPage() {
       if (opts.includeVideoUrl) {
         payload.video_url = videoUrl;
       }
+      if (opts.includeAccessLinks) {
+        payload.access_links = formRowsToAccessLinks(accessLinkRows);
+      }
       if (opts.includeExternalSalesId) {
         payload.external_sales_id = extId.length ? extId : null;
       }
@@ -639,11 +694,12 @@ export default function AdminPage() {
         includeExternalSalesId: true,
         includeDescriptionDelivery: true,
         includeVideoUrl: true,
+        includeAccessLinks: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
 
-      for (let attempt = 0; attempt < 8; attempt++) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         const result = await saveProductRow(imageUrl, videoUrl, flags);
         dbError = result.error;
         if (!dbError) {
@@ -654,6 +710,10 @@ export default function AdminPage() {
         }
         if (isMissingVideoUrlColumnError(dbError) && flags.includeVideoUrl) {
           flags.includeVideoUrl = false;
+          continue;
+        }
+        if (isMissingAccessLinksColumnError(dbError) && flags.includeAccessLinks) {
+          flags.includeAccessLinks = false;
           continue;
         }
         if (isMissingDescriptionDeliveryColumnError(dbError) && flags.includeDescriptionDelivery) {
@@ -721,13 +781,19 @@ export default function AdminPage() {
 
       if (
         !dbError &&
-        (!flags.includeDescriptionDelivery || !flags.includeExternalSalesId || !flags.includeVideoUrl)
+        (!flags.includeDescriptionDelivery ||
+          !flags.includeExternalSalesId ||
+          !flags.includeVideoUrl ||
+          !flags.includeAccessLinks)
       ) {
         await fetchProducts();
         closeModal();
         const parts: string[] = [];
         if (!flags.includeVideoUrl) {
           parts.push("vídeo do produto (migração video_url)");
+        }
+        if (!flags.includeAccessLinks) {
+          parts.push("links de acesso (migração access_links)");
         }
         if (!flags.includeDescriptionDelivery) {
           parts.push("descrição de entrega (migração description_delivery)");
@@ -763,6 +829,7 @@ export default function AdminPage() {
             closeModal();
             const parts: string[] = [];
             if (!flags.includeVideoUrl) parts.push("vídeo do produto");
+            if (!flags.includeAccessLinks) parts.push("links de acesso");
             if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
             if (!flags.includeExternalSalesId) parts.push("ID da loja");
             toast.success(
@@ -784,14 +851,16 @@ export default function AdminPage() {
           const extra = looksLikeStorageError(fallbackError)
             ? " Se o problema for upload, confira Storage no Supabase."
             : "";
-          toast.error(`Não foi possível salvar: ${fbMsg.slice(0, 220)}${extra}`);
+          const rlsHint = isProductsRlsError(fallbackError) ? productsRlsHint() : "";
+          toast.error(`Não foi possível salvar: ${fbMsg.slice(0, 220)}${extra}${rlsHint}`);
         }
       } else {
         const short = message.length > 220 ? `${message.slice(0, 220)}…` : message;
         const storageHint = looksLikeStorageError(error)
           ? " Confira o bucket no Supabase Storage (nome no .env) e as políticas de upload."
           : "";
-        toast.error(`Não foi possível salvar: ${short}${storageHint}`);
+        const rlsHint = isProductsRlsError(error) ? productsRlsHint() : "";
+        toast.error(`Não foi possível salvar: ${short}${storageHint}${rlsHint}`);
       }
     } finally {
       setSaving(false);
@@ -982,6 +1051,73 @@ export default function AdminPage() {
     setHeroDesktopPendingFiles([]);
     if (heroFileInputRef.current) heroFileInputRef.current.value = "";
     if (heroDesktopFileInputRef.current) heroDesktopFileInputRef.current.value = "";
+  };
+
+  const summarizeLegacyGrant = (payload: {
+    granted: number;
+    alreadyActive: number;
+    createdUsers: number;
+    errors: { message: string }[];
+  }) => {
+    const parts: string[] = [];
+    if (payload.granted > 0) parts.push(`${payload.granted} liberada(s)`);
+    if (payload.alreadyActive > 0) parts.push(`${payload.alreadyActive} já ativa(s)`);
+    if (payload.createdUsers > 0) parts.push(`${payload.createdUsers} conta(s) criada(s)`);
+    if (payload.errors.length > 0) parts.push(`${payload.errors.length} erro(s)`);
+    return parts.length > 0 ? parts.join(" · ") : "Nenhuma alteração";
+  };
+
+  const handleGrantSingleLegacy = async () => {
+    const email = legacyEmail.trim();
+    if (!email || !legacyProductId) {
+      toast.error("Informe o e-mail da compra e o produto.");
+      return;
+    }
+    setLegacyGranting(true);
+    try {
+      const result = await grantSingleLegacyPurchase(email, [legacyProductId], "admin");
+      toast.success(summarizeLegacyGrant(result));
+      if (result.errors.length > 0) {
+        console.warn("legacy grant errors", result.errors);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Erro ao liberar acesso.");
+    } finally {
+      setLegacyGranting(false);
+    }
+  };
+
+  const handleGrantBulkLegacy = async () => {
+    const { lines, errors: parseErrors } = parseLegacyPurchaseLines(legacyBulkText);
+    if (parseErrors.length > 0) {
+      toast.error(parseErrors.slice(0, 3).join(" — "));
+      return;
+    }
+    if (lines.length === 0) {
+      toast.error("Cole ao menos uma linha no formato email,product_id");
+      return;
+    }
+    setLegacyGranting(true);
+    try {
+      const result = await grantLegacyPurchases(lines, "legacy");
+      toast.success(summarizeLegacyGrant(result));
+      if (result.errors.length > 0) {
+        toast.message(
+          result.errors
+            .slice(0, 2)
+            .map((e) => `${e.email}: ${e.message}`)
+            .join(" · ")
+        );
+      } else {
+        setLegacyBulkText("");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Erro na importação.");
+    } finally {
+      setLegacyGranting(false);
+    }
   };
 
   const handleSaveKitBonuses = async () => {
@@ -1434,6 +1570,100 @@ export default function AdminPage() {
         </AdminSection>
 
         <AdminSection
+          id="legacy-access"
+          icon={UserCheck}
+          title="Compradores antigos"
+          description="Libera o acesso na plataforma nova para quem já tinha comprado antes. Use o mesmo e-mail informado na compra original. A cliente entra em /login com esse e-mail e vê o conteúdo liberado."
+        >
+          <div className="mb-6 space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
+            <p className="text-sm font-medium text-zinc-800">Uma cliente</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-sm text-zinc-700">E-mail da compra</label>
+                <input
+                  type="email"
+                  value={legacyEmail}
+                  onChange={(e) => setLegacyEmail(e.target.value)}
+                  placeholder="ex.: cliente@email.com"
+                  className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                  disabled={legacyGranting}
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-sm text-zinc-700">Produto</label>
+                {sortedProducts.length === 0 ? (
+                  <p className="text-sm text-amber-800">Cadastre produtos no catálogo antes de liberar acesso.</p>
+                ) : (
+                  <select
+                    value={legacyProductId}
+                    onChange={(e) => setLegacyProductId(e.target.value)}
+                    className="h-11 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                    disabled={legacyGranting}
+                  >
+                    <option value="">Selecione o produto</option>
+                    {sortedProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name || p.title || p.id}
+                        {p.external_sales_id ? ` (Cakto: ${p.external_sales_id})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleGrantSingleLegacy()}
+              disabled={legacyGranting || !legacyEmail.trim() || !legacyProductId}
+              className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+              style={{ backgroundColor: "#6B705C" }}
+            >
+              {legacyGranting ? (
+                <>
+                  <Spinner className="size-4 text-white" />
+                  Liberando…
+                </>
+              ) : (
+                "Liberar acesso"
+              )}
+            </button>
+          </div>
+
+          <div className="space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
+            <p className="text-sm font-medium text-zinc-800">Importação em lote</p>
+            <p className="text-xs leading-relaxed text-zinc-600">
+              Uma linha por compra: <code className="rounded bg-white px-1">email,product_id</code> (também aceita
+              ponto-e-vírgula ou tab). O <code className="rounded bg-white px-1">product_id</code> é o UUID do produto
+              no catálogo ou o ID externo da Cakto (campo no cadastro do produto).
+            </p>
+            <textarea
+              value={legacyBulkText}
+              onChange={(e) => setLegacyBulkText(e.target.value)}
+              placeholder={`# Exemplo\nmaria@email.com,uuid-do-produto\njoana@email.com,12345`}
+              rows={8}
+              className="w-full rounded-md border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+              disabled={legacyGranting}
+            />
+            <button
+              type="button"
+              onClick={() => void handleGrantBulkLegacy()}
+              disabled={legacyGranting || !legacyBulkText.trim()}
+              className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+              style={{ backgroundColor: "#6B705C" }}
+            >
+              {legacyGranting ? (
+                <>
+                  <Spinner className="size-4 text-white" />
+                  Importando…
+                </>
+              ) : (
+                "Importar compradores"
+              )}
+            </button>
+          </div>
+        </AdminSection>
+
+        <AdminSection
           id="kit-bonus"
           icon={Package}
           title="Bônus por kit"
@@ -1811,7 +2041,10 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Link do Produto (compra / checkout)</label>
+                <label className="text-sm text-zinc-700">Link de compra (checkout)</label>
+                <p className="text-xs text-zinc-500">
+                  URL da página de vendas. Usada no botão &quot;Quero ter acesso agora&quot; antes da compra.
+                </p>
                 <input
                   type="url"
                   value={linkCompra}
@@ -1819,6 +2052,76 @@ export default function AdminPage() {
                   placeholder="https://..."
                   className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm text-zinc-700">Links de acesso (após a compra)</label>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Cadastre quantos links precisar (Drive, Notion, aulas, etc.). Cada um vira um botão na página do
+                    produto.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {accessLinkRows.map((row, index) => (
+                    <div
+                      key={row.id}
+                      className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-zinc-600">Link {index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAccessLinkRows((prev) =>
+                              prev.length <= 1 ? prev : prev.filter((item) => item.id !== row.id)
+                            )
+                          }
+                          disabled={saving || accessLinkRows.length <= 1}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
+                          aria-label={`Remover link ${index + 1}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={row.label}
+                        onChange={(e) =>
+                          setAccessLinkRows((prev) =>
+                            prev.map((item) =>
+                              item.id === row.id ? { ...item, label: e.target.value } : item
+                            )
+                          )
+                        }
+                        placeholder="Nome do link (ex: Google Drive)"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      />
+                      <input
+                        type="url"
+                        value={row.url}
+                        onChange={(e) =>
+                          setAccessLinkRows((prev) =>
+                            prev.map((item) =>
+                              item.id === row.id ? { ...item, url: e.target.value } : item
+                            )
+                          )
+                        }
+                        placeholder="https://..."
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAccessLinkRows((prev) => [...prev, emptyAccessLinkRow()])}
+                  disabled={saving}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Adicionar link
+                </button>
               </div>
 
               <div className="space-y-1.5">

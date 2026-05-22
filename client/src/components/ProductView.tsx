@@ -1,5 +1,6 @@
 import { ExternalLink, Lock, PlayCircle } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
+import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 
 type ProductViewData = {
   id?: string;
@@ -15,6 +16,7 @@ type ProductViewData = {
   thumbnail_url?: string | null;
   video_url?: string | null;
   video?: string | null;
+  access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
 };
@@ -62,9 +64,17 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     product.image ||
     product.thumbnail_url ||
     "https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1600&auto=format&fit=crop";
-  const purchaseLink = product.link_compra || product.link;
+  const purchaseLink = (product.link_compra || product.link || "").trim() || null;
+  const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
   const videoSrc = (product.video_url || product.video || "").trim() || null;
   const hasVideo = Boolean(videoSrc);
+
+  const accessButtonClass = (enabled: boolean) =>
+    `inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm tracking-[0.12em] transition-colors ${
+      enabled
+        ? "border-bc-primary bg-white text-bc-primary hover:bg-bc-primary hover:text-white"
+        : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
+    }`;
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-3xl space-y-6">
@@ -116,25 +126,36 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         </div>
       )}
 
-      <div className="flex flex-col items-stretch justify-end gap-3 sm:flex-row sm:justify-end">
+      <div
+        className={`flex flex-col items-stretch gap-3 sm:items-end ${
+          canAccess && accessLinks.length > 1 ? "sm:flex-col" : "sm:flex-row sm:justify-end"
+        }`}
+      >
         {canAccess ? (
-          <a
-            href={purchaseLink || "#"}
-            target="_blank"
-            rel="noreferrer"
-            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm tracking-[0.12em] transition-colors ${
-              purchaseLink
-                ? "border-bc-primary bg-white text-bc-primary hover:bg-bc-primary hover:text-white"
-                : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
-            }`}
-            aria-disabled={!purchaseLink}
-            onClick={(e) => {
-              if (!purchaseLink) e.preventDefault();
-            }}
-          >
-            ACESSO / LINK
-            <ExternalLink className="h-4 w-4" />
-          </a>
+          accessLinks.length > 0 ? (
+            accessLinks.map((link, index) => {
+              const label =
+                link.label ||
+                (accessLinks.length === 1 ? "ACESSO / LINK" : `ACESSO ${index + 1}`);
+              return (
+                <a
+                  key={`${link.url}-${index}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={accessButtonClass(true)}
+                >
+                  {label.toUpperCase()}
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              );
+            })
+          ) : (
+            <span className={accessButtonClass(false)} aria-disabled>
+              ACESSO / LINK
+              <ExternalLink className="h-4 w-4" />
+            </span>
+          )
         ) : (
           <a
             href={purchaseLink || "#"}

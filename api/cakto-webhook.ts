@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { ensureAuthUserByEmail } from "./grant-purchase-core.js";
 
 function getWebhookToken(req: any): string | undefined {
   const headerToken =
@@ -87,18 +88,14 @@ export default async function handler(req: any, res: any) {
 
     const productId = matchRows?.[0]?.id ?? pid;
 
-    const { data: users } = await supabase.auth.admin.listUsers();
-
-    const user = users?.users.find((u: any) => u.email === email);
-
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const { userId } = await ensureAuthUserByEmail(supabase, email);
 
     const { error } = await supabase.from("purchases").upsert({
-      user_id: user.id,
+      user_id: userId,
       product_id: productId,
       status: normalizePurchaseStatus(rawStatus),
+      source: "webhook",
+      updated_at: new Date().toISOString(),
     });
 
     if (error) {
