@@ -6,12 +6,15 @@ type ProductViewData = {
   name?: string | null;
   title?: string | null;
   description?: string | null;
+  /** Texto após a compra; se vazio, usa `description`. */
+  description_delivery?: string | null;
   descricao?: string | null;
   type?: string | null;
   image_url?: string | null;
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
+  video?: string | null;
   link_compra?: string | null;
   link?: string | null;
 };
@@ -40,10 +43,18 @@ function sanitizeProductDescription(raw: string, fallback: string) {
   return DOMPurify.sanitize(payload, PURIFY);
 }
 
+function resolveProductDescription(product: ProductViewData, canAccess: boolean) {
+  const legacy = product.description || product.descricao || "";
+  if (canAccess) {
+    return product.description_delivery?.trim() || legacy;
+  }
+  return legacy;
+}
+
 export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
   const safeHtml = sanitizeProductDescription(
-    product.description || product.descricao || "",
+    resolveProductDescription(product, canAccess),
     "Sem descrição disponível.",
   );
   const imageSrc =
@@ -52,7 +63,8 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     product.thumbnail_url ||
     "https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1600&auto=format&fit=crop";
   const purchaseLink = product.link_compra || product.link;
-  const hasVideo = Boolean(product.video_url);
+  const videoSrc = (product.video_url || product.video || "").trim() || null;
+  const hasVideo = Boolean(videoSrc);
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-3xl space-y-6">
@@ -86,7 +98,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
           </div>
           {canAccess ? (
             <video
-              src={product.video_url || undefined}
+              src={videoSrc || undefined}
               controls
               preload="metadata"
               className="mx-auto aspect-video w-full max-w-2xl rounded-xl bg-[#e8eadf]"

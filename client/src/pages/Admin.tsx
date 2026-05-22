@@ -45,11 +45,13 @@ type Product = {
   name: string | null;
   title?: string | null;
   description?: string | null;
+  description_delivery?: string | null;
   type?: "PRO" | "BON" | string | null;
   image_url?: string | null;
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
+  video?: string | null;
   link_compra?: string | null;
   external_sales_id?: string | null;
 };
@@ -73,6 +75,18 @@ function getErrorMessage(err: unknown): string {
   }
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+/** Banco sem migração da coluna `description_delivery`. */
+function isMissingDescriptionDeliveryColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("description_delivery");
+}
+
+/** Banco sem migração da coluna `video_url`. */
+function isMissingVideoUrlColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("video_url");
 }
 
 /** Banco sem migração da coluna `external_sales_id` — PostgREST / Postgres avisa no erro. */
@@ -175,10 +189,12 @@ export default function AdminPage() {
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionDelivery, setDescriptionDelivery] = useState("");
   const [linkCompra, setLinkCompra] = useState("");
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [clearVideo, setClearVideo] = useState(false);
   const [externalSalesId, setExternalSalesId] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -223,6 +239,7 @@ export default function AdminPage() {
   type ProductFormSnapshot = {
     name: string;
     description: string;
+    descriptionDelivery: string;
     linkCompra: string;
     externalSalesId: string;
     type: "PRO" | "BON";
@@ -231,6 +248,7 @@ export default function AdminPage() {
   const emptyFormSnapshot: ProductFormSnapshot = {
     name: "",
     description: "",
+    descriptionDelivery: "",
     linkCompra: "",
     externalSalesId: "",
     type: "PRO",
@@ -254,10 +272,12 @@ export default function AdminPage() {
     setExistingVideoUrl(null);
     setName("");
     setDescription("");
+    setDescriptionDelivery("");
     setLinkCompra("");
     setType("PRO");
     setImageFile(null);
     setVideoFile(null);
+    setClearVideo(false);
     setExternalSalesId("");
   };
 
@@ -279,9 +299,11 @@ export default function AdminPage() {
   const openEditModal = (product: Product) => {
     setEditingProductId(product.id);
     setExistingImageUrl(product.image_url || product.image || product.thumbnail_url || null);
-    setExistingVideoUrl(product.video_url || null);
+    setExistingVideoUrl(product.video_url || product.video || null);
+    setClearVideo(false);
     setName(product.name || "");
     setDescription(product.description || "");
+    setDescriptionDelivery(product.description_delivery || "");
     setLinkCompra(product.link_compra || "");
     setType(product.type === "BON" ? "BON" : "PRO");
     setImageFile(null);
@@ -290,6 +312,7 @@ export default function AdminPage() {
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
+      descriptionDelivery: product.description_delivery || "",
       linkCompra: product.link_compra || "",
       externalSalesId: product.external_sales_id?.trim() || "",
       type: product.type === "BON" ? "BON" : "PRO",
@@ -301,11 +324,13 @@ export default function AdminPage() {
   const clearFormFields = () => {
     setName(emptyFormSnapshot.name);
     setDescription(emptyFormSnapshot.description);
+    setDescriptionDelivery(emptyFormSnapshot.descriptionDelivery);
     setLinkCompra(emptyFormSnapshot.linkCompra);
     setExternalSalesId(emptyFormSnapshot.externalSalesId);
     setType(emptyFormSnapshot.type);
     setImageFile(null);
     setVideoFile(null);
+    setClearVideo(false);
     if (!editingProductId) {
       setExistingImageUrl(null);
       setExistingVideoUrl(null);
@@ -317,24 +342,30 @@ export default function AdminPage() {
     if (!isModalOpen) return false;
     const descChanged =
       richTextPlain(description) !== richTextPlain(modalSnapshot.description);
+    const descDeliveryChanged =
+      richTextPlain(descriptionDelivery) !== richTextPlain(modalSnapshot.descriptionDelivery);
     return (
       name.trim() !== modalSnapshot.name.trim() ||
       descChanged ||
+      descDeliveryChanged ||
       linkCompra.trim() !== modalSnapshot.linkCompra.trim() ||
       externalSalesId.trim() !== modalSnapshot.externalSalesId.trim() ||
       type !== modalSnapshot.type ||
       imageFile != null ||
-      videoFile != null
+      videoFile != null ||
+      clearVideo
     );
   }, [
     isModalOpen,
     name,
     description,
+    descriptionDelivery,
     linkCompra,
     externalSalesId,
     type,
     imageFile,
     videoFile,
+    clearVideo,
     modalSnapshot,
   ]);
 
@@ -575,7 +606,11 @@ export default function AdminPage() {
     const saveProductRow = async (
       imageUrl: string | null,
       videoUrl: string | null,
-      includeExternalSalesId: boolean
+      opts: {
+        includeExternalSalesId: boolean;
+        includeDescriptionDelivery: boolean;
+        includeVideoUrl: boolean;
+      }
     ) => {
       const payload: Record<string, unknown> = {
         name,
@@ -583,41 +618,125 @@ export default function AdminPage() {
         link_compra: linkCompra,
         type,
         image_url: imageUrl,
-        video_url: videoUrl,
       };
-      if (includeExternalSalesId) {
+      if (opts.includeDescriptionDelivery) {
+        payload.description_delivery = descriptionDelivery;
+      }
+      if (opts.includeVideoUrl) {
+        payload.video_url = videoUrl;
+      }
+      if (opts.includeExternalSalesId) {
         payload.external_sales_id = extId.length ? extId : null;
       }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
-      return supabase.from("products").insert(payload);
+      return supabase.from("products").insert(payload).select("id").single();
+    };
+
+    const persistWithSchemaFallback = async (imageUrl: string | null, videoUrl: string | null) => {
+      const flags = {
+        includeExternalSalesId: true,
+        includeDescriptionDelivery: true,
+        includeVideoUrl: true,
+      };
+      let dbError: unknown = null;
+      let insertedId: string | null = editingProductId;
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const result = await saveProductRow(imageUrl, videoUrl, flags);
+        dbError = result.error;
+        if (!dbError) {
+          if (!editingProductId && result.data && "id" in result.data) {
+            insertedId = String((result.data as { id: string }).id);
+          }
+          break;
+        }
+        if (isMissingVideoUrlColumnError(dbError) && flags.includeVideoUrl) {
+          flags.includeVideoUrl = false;
+          continue;
+        }
+        if (isMissingDescriptionDeliveryColumnError(dbError) && flags.includeDescriptionDelivery) {
+          flags.includeDescriptionDelivery = false;
+          continue;
+        }
+        if (isMissingExternalSalesIdColumnError(dbError) && flags.includeExternalSalesId) {
+          flags.includeExternalSalesId = false;
+          continue;
+        }
+        break;
+      }
+
+      return { dbError, insertedId, flags };
     };
 
     try {
       let imageUrl = existingImageUrl;
-      let videoUrl = existingVideoUrl;
+      let videoUrl = clearVideo ? null : existingVideoUrl;
+      let pendingVideoFile: File | null = null;
 
       if (imageFile) {
         imageUrl = await uploadFileToStorage(imageFile, IMAGE_BUCKET, "images");
       }
 
-      if (videoFile) {
-        videoUrl = await uploadFileToStorage(videoFile, VIDEO_BUCKET, "videos");
+      if (videoFile && !clearVideo) {
+        if (editingProductId) {
+          videoUrl = await uploadFileToStorage(
+            videoFile,
+            VIDEO_BUCKET,
+            "videos",
+            editingProductId
+          );
+        } else {
+          pendingVideoFile = videoFile;
+          videoUrl = null;
+        }
       }
 
-      let { error: dbError } = await saveProductRow(imageUrl, videoUrl, true);
-      if (dbError && isMissingExternalSalesIdColumnError(dbError)) {
-        const second = await saveProductRow(imageUrl, videoUrl, false);
-        dbError = second.error;
-        if (!dbError) {
+      const { dbError, insertedId, flags } = await persistWithSchemaFallback(imageUrl, videoUrl);
+
+      if (!dbError && pendingVideoFile && insertedId) {
+        const uploadedUrl = await uploadFileToStorage(
+          pendingVideoFile,
+          VIDEO_BUCKET,
+          "videos",
+          insertedId
+        );
+        const { error: videoUpdateError } = await supabase
+          .from("products")
+          .update({ video_url: uploadedUrl })
+          .eq("id", insertedId);
+        if (videoUpdateError && isMissingVideoUrlColumnError(videoUpdateError)) {
+          toast.success(
+            "Produto salvo, mas o vídeo não foi guardado — execute a migração SQL que adiciona a coluna video_url em products."
+          );
           await fetchProducts();
           closeModal();
-          toast.success(
-            "Produto salvo. O ID da loja (Cakto) ainda não foi guardado — execute a migração SQL que adiciona a coluna external_sales_id em products."
-          );
           return;
         }
+        if (videoUpdateError) {
+          throw videoUpdateError;
+        }
+      }
+
+      if (
+        !dbError &&
+        (!flags.includeDescriptionDelivery || !flags.includeExternalSalesId || !flags.includeVideoUrl)
+      ) {
+        await fetchProducts();
+        closeModal();
+        const parts: string[] = [];
+        if (!flags.includeVideoUrl) {
+          parts.push("vídeo do produto (migração video_url)");
+        }
+        if (!flags.includeDescriptionDelivery) {
+          parts.push("descrição de entrega (migração description_delivery)");
+        }
+        if (!flags.includeExternalSalesId) {
+          parts.push("ID da loja Cakto (migração external_sales_id)");
+        }
+        toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
+        return;
       }
 
       if (dbError) {
@@ -634,18 +753,22 @@ export default function AdminPage() {
 
       if (message.toLowerCase().includes("auth session missing")) {
         try {
-          let { error: fallbackError } = await saveProductRow(existingImageUrl, existingVideoUrl, true);
-          if (fallbackError && isMissingExternalSalesIdColumnError(fallbackError)) {
-            const second = await saveProductRow(existingImageUrl, existingVideoUrl, false);
-            fallbackError = second.error;
-            if (!fallbackError) {
-              await fetchProducts();
-              closeModal();
-              toast.success(
-                "Produto salvo (sem upload de arquivo). Adicione a coluna external_sales_id no banco para guardar o ID da loja."
-              );
-              return;
-            }
+          const fallbackVideoUrl = clearVideo ? null : existingVideoUrl;
+          const { dbError: fallbackError, flags } = await persistWithSchemaFallback(
+            existingImageUrl,
+            fallbackVideoUrl
+          );
+          if (!fallbackError) {
+            await fetchProducts();
+            closeModal();
+            const parts: string[] = [];
+            if (!flags.includeVideoUrl) parts.push("vídeo do produto");
+            if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
+            if (!flags.includeExternalSalesId) parts.push("ID da loja");
+            toast.success(
+              `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
+            );
+            return;
           }
           if (fallbackError) {
             throw fallbackError;
@@ -1627,18 +1750,64 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Descrição (editor)</label>
+                <label className="text-sm text-zinc-700">Descrição na compra (editor)</label>
+                <p className="text-xs text-zinc-500">
+                  Exibida para quem ainda não comprou o conteúdo (página com CTA de compra).
+                </p>
                 <AdminRichTextEditor value={description} onChange={setDescription} disabled={saving} />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Arquivo de Vídeo</label>
+                <label className="text-sm text-zinc-700">Descrição na entrega (editor)</label>
+                <p className="text-xs text-zinc-500">
+                  Exibida após a compra, quando vídeo e link de acesso estão liberados.
+                </p>
+                <AdminRichTextEditor
+                  value={descriptionDelivery}
+                  onChange={setDescriptionDelivery}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-zinc-700">Vídeo deste produto</label>
+                <p className="text-xs text-zinc-500">
+                  Cada conteúdo tem seu próprio arquivo. O vídeo é exibido na página do produto após a compra.
+                </p>
                 <input
                   type="file"
                   accept="video/*"
-                  onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    setVideoFile(e.target.files?.[0] ?? null);
+                    if (e.target.files?.[0]) setClearVideo(false);
+                  }}
                   className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                 />
+                {existingVideoUrl && !videoFile && !clearVideo && (
+                  <p className="text-[11px] text-zinc-500">
+                    Vídeo atual deste produto salvo; envie outro arquivo só se quiser trocar.
+                  </p>
+                )}
+                {existingVideoUrl && !clearVideo && (
+                  <video
+                    src={existingVideoUrl}
+                    controls
+                    preload="metadata"
+                    className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
+                  />
+                )}
+                {existingVideoUrl && !videoFile && (
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={clearVideo}
+                      onChange={(e) => setClearVideo(e.target.checked)}
+                      disabled={saving}
+                      className="rounded border-zinc-300"
+                    />
+                    Remover vídeo deste produto
+                  </label>
+                )}
               </div>
 
               <div className="space-y-1.5">

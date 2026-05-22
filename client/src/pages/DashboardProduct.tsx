@@ -15,6 +15,7 @@ type Product = {
   name?: string | null;
   title?: string | null;
   description?: string | null;
+  description_delivery?: string | null;
   descricao?: string | null;
   type?: string | null;
   image_url?: string | null;
@@ -75,6 +76,7 @@ export default function DashboardProduct() {
           name: (item.name ?? item.title ?? "Produto") as string,
           title: item.title as string | null | undefined,
           description: (item.description ?? item.descricao) as string | null | undefined,
+          description_delivery: item.description_delivery as string | null | undefined,
           descricao: item.descricao as string | null | undefined,
           type: (item.type ?? item.tipo ?? "PRO") as string,
           image_url: (item.image_url ?? item.image) as string | null | undefined,
