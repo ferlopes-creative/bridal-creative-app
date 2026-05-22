@@ -43,7 +43,7 @@ export default function ProductCard({ image, title, locked = false, size = "norm
 
   return (
     <div
-      className={`relative flex-shrink-0 overflow-hidden rounded-xl bg-[#677354] shadow-[0_2px_12px_rgba(0,0,0,0.1)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(0,0,0,0.15)] ${sizeClasses[size]}`}
+      className={`relative flex-shrink-0 overflow-hidden rounded-xl bg-bc-primary shadow-[0_2px_12px_rgba(0,0,0,0.1)] transition-all duration-300 hover:shadow-[0_4px_20px_rgba(0,0,0,0.15)] ${sizeClasses[size]}`}
     >
       {/* Imagem do produto */}
       <div className={`relative overflow-hidden ${imageHeights[size]}`}>
@@ -60,7 +60,7 @@ export default function ProductCard({ image, title, locked = false, size = "norm
         {locked && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/15">
             <div className="w-11 h-11 rounded-full bg-white/75 backdrop-blur-sm flex items-center justify-center shadow-lg">
-              <Lock className="w-5 h-5 text-[#677354]" strokeWidth={2} />
+              <Lock className="w-5 h-5 text-bc-primary" strokeWidth={2} />
             </div>
           </div>
         )}

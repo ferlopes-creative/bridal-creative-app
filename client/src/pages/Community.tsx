@@ -98,7 +98,7 @@ function CommentNode({
 
   const replyForm = isReplying ? (
     <form
-      className="space-y-2 rounded-lg border border-[#6B705C]/30 bg-white p-3 shadow-sm"
+      className="space-y-2 rounded-lg border border-bc-primary/30 bg-white p-3 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         onReplySubmit(item.id);
@@ -120,13 +120,13 @@ function CommentNode({
         onChange={(e) => setReplyText(e.target.value)}
         placeholder="Escreva a sua resposta…"
         rows={3}
-        className="min-h-20 w-full min-w-0 rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+        className="min-h-20 w-full min-w-0 rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25"
       />
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
           disabled={Boolean(submittingReplyTo) || !replyText.trim()}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-[#6B705C] px-4 text-sm text-white disabled:opacity-60"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-bc-primary px-4 text-sm text-white disabled:opacity-60"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {submittingReplyTo === item.id ? (
@@ -155,7 +155,7 @@ function CommentNode({
   const authorBlock = (
     <div className="mb-2 flex min-w-0 items-start gap-2">
       <CircleUserRound
-        className={`shrink-0 text-[#6B705C] ${isRoot ? "h-9 w-9" : "h-7 w-7"}`}
+        className={`shrink-0 text-bc-primary ${isRoot ? "h-9 w-9" : "h-7 w-7"}`}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -163,7 +163,7 @@ function CommentNode({
             {item.name}
           </p>
           {!isRoot && (
-            <span className="inline-flex items-center rounded-full bg-[#6B705C]/12 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#4e563f]">
+            <span className="inline-flex items-center rounded-full bg-bc-primary/12 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#4e563f]">
               Resposta
             </span>
           )}
@@ -187,7 +187,7 @@ function CommentNode({
       <p className="min-w-0 max-w-full whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700 [overflow-wrap:anywhere] [word-break:break-word]">
         {item.comment}
       </p>
-      <div className="mt-3 flex justify-end border-t border-[#6B705C]/10 pt-2">
+      <div className="mt-3 flex justify-end border-t border-bc-primary/10 pt-2">
         <button
           type="button"
           onClick={() => {
@@ -199,7 +199,7 @@ function CommentNode({
               setReplyText("");
             }
           }}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#6B705C] transition-colors hover:bg-[#6B705C]/12"
+          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-bc-primary transition-colors hover:bg-bc-primary/12"
         >
           <Reply className="h-3.5 w-3.5" strokeWidth={2} />
           Responder
@@ -210,9 +210,9 @@ function CommentNode({
 
   if (isRoot) {
     return (
-      <div className="mb-4 overflow-hidden rounded-2xl border border-[#6B705C]/35 bg-white shadow-md ring-1 ring-black/[0.04]">
-        <div className="border-b border-[#6B705C]/12 bg-gradient-to-b from-white to-[#faf9f6] px-3 py-3 md:px-4 md:py-4">
-          <div className="mb-2 flex items-center gap-2 text-[#6B705C]">
+      <div className="mb-4 overflow-hidden rounded-2xl border border-bc-primary/35 bg-white shadow-md ring-1 ring-black/[0.04]">
+        <div className="border-b border-bc-primary/12 bg-gradient-to-b from-white to-[#faf9f6] px-3 py-3 md:px-4 md:py-4">
+          <div className="mb-2 flex items-center gap-2 text-bc-primary">
             <MessageSquareText className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
             <span className="text-[11px] font-semibold tracking-[0.12em] uppercase">Publicação</span>
           </div>
@@ -220,20 +220,20 @@ function CommentNode({
           {bodyBlock}
         </div>
 
-        {replyForm && <div className="border-b border-[#6B705C]/12 bg-[#f7f6f2] px-3 py-3 md:px-4">{replyForm}</div>}
+        {replyForm && <div className="border-b border-bc-primary/12 bg-[#f7f6f2] px-3 py-3 md:px-4">{replyForm}</div>}
 
         {replies.length > 0 && (
           <div className="bg-[#eef0e8]/90">
             <button
               type="button"
               onClick={() => setThreadOpen((o) => !o)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[#6B705C]/10 md:px-4"
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-bc-primary/10 md:px-4"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#6B705C]/20">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-bc-primary/20">
                 {threadOpen ? (
-                  <ChevronDown className="h-4 w-4 text-[#6B705C]" strokeWidth={2.5} />
+                  <ChevronDown className="h-4 w-4 text-bc-primary" strokeWidth={2.5} />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-[#6B705C]" strokeWidth={2.5} />
+                  <ChevronRight className="h-4 w-4 text-bc-primary" strokeWidth={2.5} />
                 )}
               </span>
               <span className="min-w-0 flex-1 text-sm font-semibold text-[#4a5342]">
@@ -245,11 +245,11 @@ function CommentNode({
             </button>
 
             {threadOpen && (
-              <div className="border-t border-[#6B705C]/15 bg-[#e8eae3]/65 px-3 pb-4 pt-1 md:px-4">
-                <p className="mb-3 mt-2 flex items-center gap-2 text-[11px] font-semibold tracking-wide text-[#6B705C]">
-                  <span className="h-px flex-1 bg-[#6B705C]/25" aria-hidden />
+              <div className="border-t border-bc-primary/15 bg-[#e8eae3]/65 px-3 pb-4 pt-1 md:px-4">
+                <p className="mb-3 mt-2 flex items-center gap-2 text-[11px] font-semibold tracking-wide text-bc-primary">
+                  <span className="h-px flex-1 bg-bc-primary/25" aria-hidden />
                   <span className="shrink-0 uppercase">Na mesma conversa</span>
-                  <span className="h-px flex-1 bg-[#6B705C]/25" aria-hidden />
+                  <span className="h-px flex-1 bg-bc-primary/25" aria-hidden />
                 </p>
                 <div className="relative pl-2">
                   <div
@@ -288,8 +288,8 @@ function CommentNode({
       <article
         className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-xl border p-3 shadow-sm ${
           depth === 1
-            ? "border-[#8f9a82]/50 bg-white ring-1 ring-[#6B705C]/15"
-            : "border-[#6B705C]/25 bg-[#fcfcfa] ring-1 ring-black/[0.03]"
+            ? "border-[#8f9a82]/50 bg-white ring-1 ring-bc-primary/15"
+            : "border-bc-primary/25 bg-[#fcfcfa] ring-1 ring-black/[0.03]"
         }`}
       >
         {authorBlock}
@@ -651,7 +651,7 @@ export default function Community() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
@@ -661,23 +661,23 @@ export default function Community() {
           <button
             type="button"
             onClick={() => setLocation("/notifications")}
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
             aria-label="Notificações"
           >
             <Bell className="h-6 w-6" />
             {hasUnread && (
               <span
-                className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]"
+                className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-bc-page-bg"
                 aria-hidden
               />
             )}
           </button>
         </header>
 
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-[#6B705C]/40 bg-white/70 p-3">
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-bc-primary/40 bg-white/70 p-3">
           <button
             onClick={() => setLocation("/dashboard")}
-            className="inline-flex items-center gap-1 text-[#6B705C]"
+            className="inline-flex items-center gap-1 text-bc-primary"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -690,7 +690,7 @@ export default function Community() {
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
             disabled={loading}
-            className="inline-flex items-center gap-1 rounded-md border border-[#6B705C]/40 px-3 py-1 text-sm text-[#6B705C] disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-md border border-bc-primary/40 px-3 py-1 text-sm text-bc-primary disabled:opacity-50"
           >
             <Filter className="h-4 w-4" />
             Filtrar
@@ -699,7 +699,7 @@ export default function Community() {
 
         {refreshing && (
           <div
-            className="mb-3 flex items-center gap-2 rounded-lg border border-[#6B705C]/25 bg-white/90 px-3 py-2 text-xs text-[#6B705C]"
+            className="mb-3 flex items-center gap-2 rounded-lg border border-bc-primary/25 bg-white/90 px-3 py-2 text-xs text-bc-primary"
             role="status"
             aria-live="polite"
           >
@@ -709,12 +709,12 @@ export default function Community() {
         )}
 
         {showFilters && (
-          <section className="mb-4 space-y-3 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3">
+          <section className="mb-4 space-y-3 rounded-2xl border border-bc-primary/35 bg-white/75 p-3">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar por nome ou comentário"
-              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25"
+              className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25"
             />
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <select
@@ -741,14 +741,14 @@ export default function Community() {
         )}
 
         {!accessLoading && !canOpenCommunity && (
-          <section className="mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/90 p-4">
+          <section className="mb-5 rounded-2xl border border-bc-primary/35 bg-white/90 p-4">
             <div className="flex items-start gap-3">
-              <div className="rounded-full bg-[#6B705C]/12 p-2">
-                <Lock className="h-5 w-5 text-[#6B705C]" />
+              <div className="rounded-full bg-bc-primary/12 p-2">
+                <Lock className="h-5 w-5 text-bc-primary" />
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-[#4c4f46]">Chat bloqueado no momento</h2>
-                <p className="mt-1 text-sm text-[#6B705C]">
+                <p className="mt-1 text-sm text-bc-primary">
                   A comunidade de noivas fica disponivel apos a primeira compra. Assim que voce virar cliente,
                   o chat sera liberado automaticamente.
                 </p>
@@ -759,15 +759,15 @@ export default function Community() {
 
         {canOpenCommunity && (
           <section
-            className="relative mb-5 rounded-2xl border border-[#6B705C]/35 bg-white/75 p-3"
+            className="relative mb-5 rounded-2xl border border-bc-primary/35 bg-white/75 p-3"
             aria-busy={submitting || loading}
           >
           <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
             {submitting && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[2px]">
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-[#6B705C]/20 bg-white px-6 py-4 shadow-sm">
-                  <Spinner className="size-9 text-[#6B705C]" />
-                  <span className="text-xs font-medium tracking-wide text-[#6B705C]">Enviando comentário...</span>
+                <div className="flex flex-col items-center gap-2 rounded-xl border border-bc-primary/20 bg-white px-6 py-4 shadow-sm">
+                  <Spinner className="size-9 text-bc-primary" />
+                  <span className="text-xs font-medium tracking-wide text-bc-primary">Enviando comentário...</span>
                 </div>
               </div>
             )}
@@ -779,7 +779,7 @@ export default function Community() {
                 placeholder="Nome"
                 disabled={loading || submitting}
                 autoComplete="name"
-                className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
+                className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
               />
               <p className="mt-1 text-[11px] text-zinc-500">
                 Guardado neste dispositivo para não precisar repetir; pode alterar quando quiser.
@@ -801,7 +801,7 @@ export default function Community() {
                   disabled={loading || submitting}
                   onClick={() => imageInputRef.current?.click()}
                   aria-controls="community-chat-image"
-                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-dashed border-[#b8baa8] bg-white px-3 text-sm text-[#6B705C] transition-colors hover:border-[#6B705C]/50 hover:bg-[#6B705C]/5 disabled:bg-zinc-50"
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-dashed border-[#b8baa8] bg-white px-3 text-sm text-bc-primary transition-colors hover:border-bc-primary/50 hover:bg-bc-primary/5 disabled:bg-zinc-50"
                 >
                   <ImagePlus className="h-4 w-4 shrink-0 opacity-90" strokeWidth={1.5} />
                   Adicionar foto (opcional)
@@ -813,7 +813,7 @@ export default function Community() {
                     type="button"
                     onClick={clearChosenImage}
                     disabled={loading || submitting}
-                    className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#6B705C] shadow-sm ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
+                    className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-bc-primary shadow-sm ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
                     aria-label="Remover imagem"
                   >
                     <X className="h-4 w-4" strokeWidth={2} />
@@ -829,12 +829,12 @@ export default function Community() {
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Nova postagem"
               disabled={loading || submitting}
-              className="min-h-22 w-full rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-[#6B705C]/25 disabled:bg-zinc-50"
+              className="min-h-22 w-full rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
             />
             <button
               type="submit"
               disabled={submitting || loading}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#6B705C] px-4 text-sm tracking-wide text-white disabled:opacity-70 sm:w-auto"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-bc-primary px-4 text-sm tracking-wide text-white disabled:opacity-70 sm:w-auto"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {submitting ? (
@@ -852,31 +852,31 @@ export default function Community() {
 
         <section className="space-y-3" aria-busy={loading || accessLoading}>
           {accessLoading && (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
-              <Spinner className="size-11 text-[#6B705C]" />
-              <p className="text-sm font-medium text-[#6B705C]">Verificando acesso ao chat...</p>
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-bc-primary/20 bg-white/80 py-10">
+              <Spinner className="size-11 text-bc-primary" />
+              <p className="text-sm font-medium text-bc-primary">Verificando acesso ao chat...</p>
             </div>
           )}
           {loading && (
             <div className="space-y-4">
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#6B705C]/20 bg-white/80 py-10">
-                <Spinner className="size-11 text-[#6B705C]" />
-                <p className="text-sm font-medium text-[#6B705C]">Carregando mensagens...</p>
-                <p className="max-w-xs text-center text-xs text-[#6B705C]/70">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-bc-primary/20 bg-white/80 py-10">
+                <Spinner className="size-11 text-bc-primary" />
+                <p className="text-sm font-medium text-bc-primary">Carregando mensagens...</p>
+                <p className="max-w-xs text-center text-xs text-bc-primary/70">
                   Aguarde enquanto buscamos o histórico do chat.
                 </p>
               </div>
               <div className="space-y-3">
                 {[1, 2, 3].map((key) => (
-                  <div key={key} className="rounded-2xl border border-[#6B705C]/20 bg-white/70 p-4">
+                  <div key={key} className="rounded-2xl border border-bc-primary/20 bg-white/70 p-4">
                     <div className="mb-3 flex items-center gap-2">
-                      <Skeleton className="size-8 shrink-0 rounded-full bg-[#6B705C]/15" />
+                      <Skeleton className="size-8 shrink-0 rounded-full bg-bc-primary/15" />
                       <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-28 bg-[#6B705C]/15" />
-                        <Skeleton className="h-3 w-20 bg-[#6B705C]/10" />
+                        <Skeleton className="h-4 w-28 bg-bc-primary/15" />
+                        <Skeleton className="h-3 w-20 bg-bc-primary/10" />
                       </div>
                     </div>
-                    <Skeleton className="h-14 w-full bg-[#6B705C]/10" />
+                    <Skeleton className="h-14 w-full bg-bc-primary/10" />
                   </div>
                 ))}
               </div>
@@ -884,7 +884,7 @@ export default function Community() {
           )}
 
           {!accessLoading && canOpenCommunity && !loading && filteredRoots.length === 0 && (
-            <p className="text-sm text-[#6B705C]">Sem comentários para os filtros selecionados.</p>
+            <p className="text-sm text-bc-primary">Sem comentários para os filtros selecionados.</p>
           )}
 
           {!accessLoading &&
@@ -912,7 +912,7 @@ export default function Community() {
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#6B705C]/35 bg-white text-[#6B705C] shadow-md md:right-6"
+            className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-bc-primary/35 bg-white text-bc-primary shadow-md md:right-6"
             style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
             aria-label="Subir ao formulário"
           >

@@ -30,8 +30,12 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Bridal Creative custom colors */
-  --color-olive: #677354;
+  /* Bridal Creative custom colors (CMS sobrescreve --bc-* em runtime) */
+  --color-bc-primary: var(--bc-primary);
+  --color-bc-banner: var(--bc-banner);
+  --color-bc-banner-light: var(--bc-banner-light);
+  --color-bc-page-bg: var(--bc-page-bg);
+  --color-olive: var(--bc-primary);
   --color-olive-light: #7a8665;
   --color-olive-dark: #566343;
   --color-cream: #F5F2E9;
@@ -43,7 +47,11 @@
 }
 
 :root {
-  --primary: #677354;
+  --bc-primary: #6B705C;
+  --bc-banner: #5F684F;
+  --bc-banner-light: #aeb6a1;
+  --bc-page-bg: #FBFAF6;
+  --primary: var(--bc-primary);
   --primary-foreground: #ffffff;
   --radius: 0.75rem;
   --background: #F5F2E9;
@@ -52,7 +60,7 @@
   --card-foreground: #2f2f2f;
   --border: #e8e3d8;
   --input: #e8e3d8;
-  --ring: #677354;
+  --ring: var(--bc-primary);
 }
 
 @layer base {

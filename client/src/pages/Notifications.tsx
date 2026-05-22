@@ -56,14 +56,14 @@ export default function Notifications() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center">
             <BrandLogo src={logoUrl} className="max-h-14 max-w-14 object-contain" />
           </div>
-          <span className="rounded-full border border-[#6B705C]/20 bg-[#6B705C]/10 p-2 text-[#6B705C]" aria-hidden>
+          <span className="rounded-full border border-bc-primary/20 bg-bc-primary/10 p-2 text-bc-primary" aria-hidden>
             <Bell className="h-6 w-6" />
           </span>
         </header>
@@ -72,12 +72,12 @@ export default function Notifications() {
           <button
             type="button"
             onClick={() => setLocation("/dashboard")}
-            className="inline-flex items-center gap-1 text-[#6B705C]"
+            className="inline-flex items-center gap-1 text-bc-primary"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-3xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
+          <h1 className="text-3xl text-bc-primary" style={{ fontFamily: "var(--font-display)" }}>
             Notificações
           </h1>
         </div>
@@ -85,18 +85,18 @@ export default function Notifications() {
         {loading ? (
           <PageLoading label="Carregando avisos..." className="min-h-[50vh] py-12" />
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-[#6B705C]/30 bg-white/80 p-8 text-center">
-            <p className="text-sm text-[#6B705C]/80">Nenhum aviso por enquanto.</p>
+          <div className="rounded-2xl border border-bc-primary/30 bg-white/80 p-8 text-center">
+            <p className="text-sm text-bc-primary/80">Nenhum aviso por enquanto.</p>
           </div>
         ) : (
           <ul className="space-y-4">
             {items.map((n) => (
               <li
                 key={n.id}
-                className="rounded-2xl border border-[#6B705C]/25 bg-white/90 p-5 shadow-sm"
+                className="rounded-2xl border border-bc-primary/25 bg-white/90 p-5 shadow-sm"
               >
-                <p className="text-xs uppercase tracking-wide text-[#6B705C]/70">{formatDate(n.created_at)}</p>
-                <h2 className="mt-2 text-xl text-[#6B705C]" style={{ fontFamily: "var(--font-display)" }}>
+                <p className="text-xs uppercase tracking-wide text-bc-primary/70">{formatDate(n.created_at)}</p>
+                <h2 className="mt-2 text-xl text-bc-primary" style={{ fontFamily: "var(--font-display)" }}>
                   {n.title}
                 </h2>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{n.body}</p>

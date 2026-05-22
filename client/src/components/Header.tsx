@@ -20,10 +20,10 @@ export default function Header() {
 
         {/* Sino de notificação */}
         <button
-          className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#677354]/8 transition-colors duration-300"
+          className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-bc-primary/8 transition-colors duration-300"
           aria-label="Notificações"
         >
-          <Bell className="w-[22px] h-[22px] text-[#677354]" strokeWidth={1.6} />
+          <Bell className="w-[22px] h-[22px] text-bc-primary" strokeWidth={1.6} />
         </button>
       </div>
     </header>

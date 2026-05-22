@@ -95,11 +95,11 @@ export default function DashboardProduct() {
 
   if (loading) {
     return (
-      <div className="relative min-h-screen bg-[#F7F5F0]">
+      <div className="relative min-h-screen bg-bc-page-bg">
         <PageBackgroundTexture
           imageUrl={pageBgUrl}
           settings={settings}
-          backgroundColor="#FBFAF6"
+          backgroundColor={settings.colors.pageBg}
         />
         <PageLoading label="Carregando conteúdo..." className="relative min-h-screen" />
       </div>
@@ -108,12 +108,12 @@ export default function DashboardProduct() {
 
   if (!product) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F7F5F0] px-4">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bc-page-bg px-4">
         <p className="text-sm text-zinc-600">Produto não encontrado.</p>
         <button
           type="button"
           onClick={() => setLocation("/dashboard")}
-          className="rounded-md bg-[#6B705C] px-4 py-2 text-sm text-white"
+          className="rounded-md bg-bc-primary px-4 py-2 text-sm text-white"
         >
           Voltar ao dashboard
         </button>
@@ -122,17 +122,17 @@ export default function DashboardProduct() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#F7F5F0] px-4 py-6">
+    <div className="relative min-h-screen bg-bc-page-bg px-4 py-6">
       <PageBackgroundTexture
         imageUrl={pageBgUrl}
         settings={settings}
-        backgroundColor="#FBFAF6"
+        backgroundColor={settings.colors.pageBg}
       />
       <div className="relative mx-auto mb-6 flex w-full max-w-3xl items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setLocation("/dashboard")}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-[#6B705C] hover:bg-[#6B705C]/10"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-bc-primary hover:bg-bc-primary/10"
         >
           <ChevronLeft className="h-4 w-4" />
           Voltar

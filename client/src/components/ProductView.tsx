@@ -56,7 +56,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-3xl space-y-6">
-      <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/40 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-[22px] border border-bc-primary/40 bg-white shadow-sm">
         <img
           src={imageSrc}
           alt={`Capa ilustrativa — ${title}`}
@@ -64,23 +64,23 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         />
       </div>
 
-      <div className="w-full min-w-0 rounded-[28px] border border-[#6B705C]/45 bg-[#F7F5F0] p-5 shadow-sm md:p-7">
+      <div className="w-full min-w-0 rounded-[28px] border border-bc-primary/45 bg-bc-page-bg p-5 shadow-sm md:p-7">
         <h1
-          className="break-words text-2xl leading-tight text-[#6B705C] md:text-3xl"
+          className="break-words text-2xl leading-tight text-bc-primary md:text-3xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title}
         </h1>
         <div
-          className="product-html mt-4 w-full min-w-0 max-w-full text-sm leading-relaxed text-[#3A3A3A] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-[#6B705C] [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-[#6B705C] [&_h3]:text-base [&_h3]:text-[#6B705C] [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          className="product-html mt-4 w-full min-w-0 max-w-full text-sm leading-relaxed text-[#3A3A3A] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-bc-primary [&_h3]:text-base [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
       </div>
 
       {hasVideo && (
-        <div className="overflow-hidden rounded-[22px] border border-[#6B705C]/45 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-center gap-2 text-[#6B705C]">
+        <div className="overflow-hidden rounded-[22px] border border-bc-primary/45 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-center gap-2 text-bc-primary">
             <PlayCircle className="h-5 w-5" />
             <span className="text-sm tracking-wide">VÍDEO</span>
           </div>
@@ -92,7 +92,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
               className="mx-auto aspect-video w-full max-w-2xl rounded-xl bg-[#e8eadf]"
             />
           ) : (
-            <div className="flex h-[200px] items-center justify-center rounded-xl bg-[#eef1e9] text-[#6B705C]">
+            <div className="flex h-[200px] items-center justify-center rounded-xl bg-[#eef1e9] text-bc-primary">
               <div className="flex flex-col items-center gap-2 px-4 text-center">
                 <Lock className="h-8 w-8" />
                 <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
@@ -112,7 +112,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
             rel="noreferrer"
             className={`inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-sm tracking-[0.12em] transition-colors ${
               purchaseLink
-                ? "border-[#6B705C] bg-white text-[#6B705C] hover:bg-[#6B705C] hover:text-white"
+                ? "border-bc-primary bg-white text-bc-primary hover:bg-bc-primary hover:text-white"
                 : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
             }`}
             aria-disabled={!purchaseLink}
@@ -128,7 +128,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
             href={purchaseLink || "#"}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#6B705C] bg-[#6B705C] px-5 py-2.5 text-sm tracking-[0.12em] text-white transition-colors hover:opacity-95"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-bc-primary bg-bc-primary px-5 py-2.5 text-sm tracking-[0.12em] text-white transition-colors hover:opacity-95"
             onClick={(e) => {
               if (!purchaseLink) e.preventDefault();
             }}

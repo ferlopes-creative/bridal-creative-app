@@ -23,7 +23,7 @@ function ProfileField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p
-        className="text-[10px] font-light uppercase tracking-[0.16em] text-[#6B705C]/70"
+        className="text-[10px] font-light uppercase tracking-[0.16em] text-bc-primary/70"
         style={{ fontFamily: sansFont }}
       >
         {label}
@@ -39,13 +39,13 @@ function GuestProfileCTA({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="mt-6 w-full max-w-sm">
       <h2
-        className="text-lg font-medium uppercase tracking-[0.1em] text-[#6B705C]"
+        className="text-lg font-medium uppercase tracking-[0.1em] text-bc-primary"
         style={{ fontFamily: serifFont }}
       >
         Modo convidado
       </h2>
       <p
-        className="mt-3 text-sm leading-relaxed text-[#6B705C]/80"
+        className="mt-3 text-sm leading-relaxed text-bc-primary/80"
         style={{ fontFamily: sansFont, fontWeight: 300 }}
       >
         Faça login para acessar todos os recursos, liberar seus produtos e personalizar sua experiência.
@@ -80,7 +80,7 @@ function LoggedInProfile({
   return (
     <div className="mt-6 w-full max-w-sm text-left">
       <h2
-        className="text-center text-lg font-medium uppercase tracking-[0.1em] text-[#6B705C]"
+        className="text-center text-lg font-medium uppercase tracking-[0.1em] text-bc-primary"
         style={{ fontFamily: serifFont }}
       >
         Sua conta
@@ -166,11 +166,11 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="relative min-h-screen bg-[#F7F5F0]">
+      <div className="relative min-h-screen bg-bc-page-bg">
         <PageBackgroundTexture
           imageUrl={pageBgUrl}
           settings={settings}
-          backgroundColor="#FBFAF6"
+          backgroundColor={settings.colors.pageBg}
         />
         <PageLoading label="Carregando perfil..." className="relative min-h-screen flex-1" />
       </div>
@@ -182,16 +182,16 @@ export default function Profile() {
       <PageBackgroundTexture
         imageUrl={pageBgUrl}
         settings={settings}
-        backgroundColor="#FBFAF6"
+        backgroundColor={settings.colors.pageBg}
       />
 
-      <header className="relative border-b border-[#6B705C]/12 bg-[#FBFAF6]/96 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 backdrop-blur-sm">
+      <header className="relative border-b border-bc-primary/12 bg-bc-page-bg/96 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center">
             <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
           </div>
           <h1
-            className="text-sm font-bold uppercase tracking-[0.12em] text-[#6B705C]"
+            className="text-sm font-bold uppercase tracking-[0.12em] text-bc-primary"
             style={{ fontFamily: serifFont }}
           >
             Perfil
@@ -203,10 +203,10 @@ export default function Profile() {
       <main className="relative mx-auto w-full max-w-lg px-4 pt-8">
         <div className="flex flex-col items-center text-center">
           <div
-            className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-[#6B705C]/25 bg-[#6B705C]/8 shadow-inner"
+            className="flex h-28 w-28 items-center justify-center rounded-full border-2 border-bc-primary/25 bg-bc-primary/8 shadow-inner"
             aria-hidden
           >
-            <CircleUserRound className="h-14 w-14 text-[#6B705C]/70" strokeWidth={1.1} />
+            <CircleUserRound className="h-14 w-14 text-bc-primary/70" strokeWidth={1.1} />
           </div>
 
           {guest ? (
@@ -227,7 +227,7 @@ export default function Profile() {
               type="button"
               onClick={() => void handleSignOut()}
               disabled={signingOut}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#6B705C]/30 bg-transparent px-5 py-2.5 text-sm font-medium uppercase tracking-[0.1em] text-[#6B705C] transition-colors hover:bg-[#6B705C]/8 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg border border-bc-primary/30 bg-transparent px-5 py-2.5 text-sm font-medium uppercase tracking-[0.1em] text-bc-primary transition-colors hover:bg-bc-primary/8 disabled:opacity-60"
               style={{ fontFamily: serifFont }}
             >
               <LogOut className="h-4 w-4" />

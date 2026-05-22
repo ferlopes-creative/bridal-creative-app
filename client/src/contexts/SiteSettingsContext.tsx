@@ -1,8 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { applySiteColorsToDocument, DEFAULT_SITE_COLORS, type SiteColors } from "@/lib/siteColors";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   fetchSiteSettingsRow,
 } from "@/lib/siteSettingsRemote";
+
+export { DEFAULT_SITE_COLORS, type SiteColors };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
 
@@ -22,6 +25,7 @@ export type SiteSettings = {
   hero_banner_urls: string[];
   /** Vazio no CMS = no app usa hero_banner_urls no desktop */
   hero_banner_desktop_urls: string[];
+  colors: SiteColors;
 };
 
 const defaultSettings: SiteSettings = {
@@ -33,6 +37,7 @@ const defaultSettings: SiteSettings = {
   hero_image_url: null,
   hero_banner_urls: [],
   hero_banner_desktop_urls: [],
+  colors: { ...DEFAULT_SITE_COLORS },
 };
 
 /** Banners do carrossel no mobile (< md). */
@@ -97,6 +102,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         hero_image_url: row.hero_image_url,
         hero_banner_urls: row.hero_banner_urls,
         hero_banner_desktop_urls: row.hero_banner_desktop_urls,
+        colors: row.colors,
       });
     }
     setLoading(false);
@@ -105,6 +111,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    applySiteColorsToDocument(settings.colors);
+  }, [settings.colors]);
 
   const value = useMemo(() => ({ settings, loading, refresh }), [settings, loading, refresh]);
 

@@ -1,3 +1,4 @@
+import { resolveSiteColors, type SiteColors } from "@/lib/siteColors";
 import { supabase } from "@/lib/supabase";
 
 /** Opacidade padrão da textura (~22 %; antes era 14 % fixo no CSS). */
@@ -12,6 +13,7 @@ export type SiteSettingsRow = {
   hero_image_url: string | null;
   hero_banner_urls: string[];
   hero_banner_desktop_urls: string[];
+  colors: SiteColors;
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -25,18 +27,25 @@ function parseOpacityPercent(raw: unknown): number {
   return Math.min(100, Math.max(0, Math.round(n)));
 }
 
+function urlsFromJsonValue(value: unknown): string[] {
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+}
+
 export function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): string[] {
   let urls: string[] = [];
   if (Array.isArray(raw)) {
-    urls = raw.filter((u): u is string => typeof u === "string" && u.trim() !== "");
+    urls = raw.flatMap((u) => urlsFromJsonValue(u));
   } else if (typeof raw === "string" && raw.trim()) {
     try {
       const p = JSON.parse(raw) as unknown;
       if (Array.isArray(p)) {
-        urls = p.filter((u): u is string => typeof u === "string" && u.trim() !== "");
+        urls = p.flatMap((u) => urlsFromJsonValue(u));
       }
     } catch {
-      /* ignore */
+      urls = urlsFromJsonValue(raw);
     }
   }
   const legacy = legacyHero?.trim() || null;
@@ -63,6 +72,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     hero_image_url: legacyHero,
     hero_banner_urls,
     hero_banner_desktop_urls,
+    colors: resolveSiteColors(data),
   };
 }
 
@@ -102,3 +112,5 @@ export function isPageBackgroundOpacityError(message: string | undefined): boole
   const m = (message || "").toLowerCase();
   return m.includes("page_background_opacity");
 }
+
+export { isSiteColorsSchemaError } from "@/lib/siteColors";

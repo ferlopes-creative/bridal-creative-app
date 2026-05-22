@@ -50,7 +50,7 @@ export default function BottomAppNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/12 bg-[#6B705C]/98 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_32px_rgba(53,58,46,0.28)] backdrop-blur-md supports-[backdrop-filter]:bg-[#6B705C]/92"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/12 bg-bc-primary/98 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_32px_rgba(53,58,46,0.28)] backdrop-blur-md supports-[backdrop-filter]:bg-bc-primary/92"
     >
       <div className="mx-auto flex min-h-12 max-w-lg items-center justify-center gap-2 px-4 sm:gap-5 sm:px-6">
         <button
@@ -79,7 +79,7 @@ export default function BottomAppNav() {
               strokeWidth={onCommunity ? strokeActive : strokeInactive}
             />
             {!canOpenCommunity ? (
-              <Lock className="absolute -right-2.5 -bottom-1 h-3.5 w-3.5 rounded-full bg-[#6B705C] p-[1px] text-white" />
+              <Lock className="absolute -right-2.5 -bottom-1 h-3.5 w-3.5 rounded-full bg-bc-primary p-[1px] text-white" />
             ) : null}
           </div>
           <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">

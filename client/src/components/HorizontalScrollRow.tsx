@@ -62,7 +62,7 @@ export function HorizontalScrollRow({
         >
           <div className="absolute inset-0 rounded-full bg-[#e8e6df] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]" />
           <div
-            className="absolute top-0 h-full rounded-full bg-[#6B705C] shadow-sm transition-[left,width] duration-100 ease-out"
+            className="absolute top-0 h-full rounded-full bg-bc-primary shadow-sm transition-[left,width] duration-100 ease-out"
             style={{
               width: `${metrics.thumbW}%`,
               left: `${metrics.thumbLeft}%`,

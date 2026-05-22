@@ -7,6 +7,7 @@ import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
+import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import {
   useSiteSettings,
@@ -54,9 +55,9 @@ function ProductCard({
   return (
     <article
       onClick={onNavigate}
-      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-[#5F684F] p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
+      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-bc-banner p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
     >
-      <div className="relative overflow-hidden rounded-[10px] bg-[#aeb6a1]">
+      <div className="relative overflow-hidden rounded-[10px] bg-bc-banner-light">
         <img
           src={imageSrc}
           alt={product.name || "Produto"}
@@ -64,10 +65,10 @@ function ProductCard({
         />
         {showLockedOverlay ? (
           <>
-            <div className="absolute inset-0 bg-[#6B705C]/55" aria-hidden />
+            <div className="absolute inset-0 bg-bc-primary/55" aria-hidden />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="rounded-lg bg-white/95 p-2 shadow-sm sm:rounded-xl sm:p-3">
-                <Lock className="h-6 w-6 text-[#6B705C] sm:h-8 sm:w-8" />
+                <Lock className="h-6 w-6 text-bc-primary sm:h-8 sm:w-8" />
               </div>
             </div>
           </>
@@ -149,8 +150,9 @@ export default function Dashboard() {
     () => resolveHeroBannerDesktopUrls(settings),
     [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
   );
-  const showHeroMobile = heroMobileUrls.length > 0;
-  const showHeroDesktop = heroDesktopUrls.length > 0;
+  const isMobile = useIsMobile();
+  const activeHeroUrls = isMobile ? heroMobileUrls : heroDesktopUrls;
+  const showHero = activeHeroUrls.length > 0;
 
   useEffect(() => {
     refreshSiteSettings();
@@ -248,15 +250,15 @@ export default function Dashboard() {
   const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
 
   const sectionTitleClass =
-    "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-[#6B705C] md:text-base";
+    "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-bc-primary md:text-base";
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
+      <div className="flex min-h-screen flex-col bg-bc-page-bg">
         <PageBackgroundTexture
           imageUrl={pageBgUrl}
           settings={settings}
-          backgroundColor="#FBFAF6"
+          backgroundColor={settings.colors.pageBg}
         />
         <PageLoading label="Carregando seus produtos..." className="relative min-h-screen flex-1" />
       </div>
@@ -266,7 +268,7 @@ export default function Dashboard() {
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
-        className={`fixed top-0 right-0 left-0 z-40 bg-[#FBFAF6]/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
+        className={`fixed top-0 right-0 left-0 z-40 bg-bc-page-bg/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
         }`}
       >
@@ -278,12 +280,12 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setLocation("/notifications")}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#6B705C] transition-colors hover:bg-[#6B705C]/10"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
               aria-label="Notificações"
             >
               <Bell className="h-5 w-5" />
               {hasUnread && (
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#FBFAF6]" aria-hidden />
+                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-bc-page-bg" aria-hidden />
               )}
             </button>
           ) : (
@@ -295,27 +297,20 @@ export default function Dashboard() {
       <PageBackgroundTexture
         imageUrl={pageBgUrl}
         settings={settings}
-        backgroundColor="#FBFAF6"
+        backgroundColor={settings.colors.pageBg}
       />
       <section className="relative min-h-[240px] overflow-hidden md:min-h-[320px]">
-        <div className="absolute inset-0 bg-[#6B705C]">
-          {showHeroMobile ? (
-            <div className="h-full md:hidden">
-              <SiteBannerCarousel urls={heroMobileUrls} slideMinClass="min-h-[240px]" />
-            </div>
-          ) : null}
-          {showHeroDesktop ? (
-            <div className="hidden h-full md:block">
-              <SiteBannerCarousel
-                urls={heroDesktopUrls}
-                slideMinClass="min-h-[320px] lg:min-h-[360px]"
-                imageObjectPosition="center top"
-              />
-            </div>
+        <div className="absolute inset-0 bg-bc-primary">
+          {showHero ? (
+            <SiteBannerCarousel
+              urls={activeHeroUrls}
+              slideMinClass={isMobile ? "min-h-[240px]" : "min-h-[320px] lg:min-h-[360px]"}
+              imageObjectPosition={isMobile ? "center" : "center top"}
+            />
           ) : null}
         </div>
-        <div className="relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[320px]">
-          <header className="flex items-center justify-between">
+        <div className="pointer-events-none relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[320px]">
+          <header className="pointer-events-auto flex items-center justify-between">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
               <BrandLogo
                 src={logoUrl}
@@ -348,7 +343,7 @@ export default function Dashboard() {
           </h2>
           <ProductList products={purchasedProducts} keyPrefix="owned" showLocked={false} onOpen={openProduct} />
           {purchasedProducts.length === 0 && (
-            <p className="text-sm text-[#6B705C]/75">Nenhum produto liberado no momento.</p>
+            <p className="text-sm text-bc-primary/75">Nenhum produto liberado no momento.</p>
           )}
         </section>
 
@@ -358,7 +353,7 @@ export default function Dashboard() {
           </h2>
           <ProductList products={suggestedProducts} keyPrefix="suggested" showLocked onOpen={openProduct} />
           {suggestedProducts.length === 0 && (
-            <p className="text-sm text-[#6B705C]/75">Sem sugestões bloqueadas para agora.</p>
+            <p className="text-sm text-bc-primary/75">Sem sugestões bloqueadas para agora.</p>
           )}
         </section>
 
@@ -368,7 +363,7 @@ export default function Dashboard() {
           </h2>
           <ProductList products={bonusProducts} keyPrefix="bonus" showLocked={false} onOpen={openProduct} />
           {bonusProducts.length === 0 && (
-            <p className="text-sm text-[#6B705C]/75">Nenhum bônus cadastrado.</p>
+            <p className="text-sm text-bc-primary/75">Nenhum bônus cadastrado.</p>
           )}
         </section>
 
@@ -383,11 +378,11 @@ export default function Dashboard() {
             onOpen={openProduct}
           />
           {nonBonusProducts.length === 0 && (
-            <p className="text-sm text-[#6B705C]/75">Nenhum outro produto disponível.</p>
+            <p className="text-sm text-bc-primary/75">Nenhum outro produto disponível.</p>
           )}
         </section>
 
-        <section className="mt-8 rounded-xl bg-[#6B705C] px-4 py-3.5 text-center text-white">
+        <section className="mt-8 rounded-xl bg-bc-primary px-4 py-3.5 text-center text-white">
           <p
             className="text-sm font-medium uppercase leading-snug tracking-[0.06em]"
             style={{ fontFamily: "var(--font-display)" }}

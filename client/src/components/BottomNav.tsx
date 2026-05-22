@@ -18,7 +18,7 @@ export default function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="max-w-[480px] mx-auto bg-[#677354] rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+      <div className="max-w-[480px] mx-auto bg-bc-primary rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
         <div className="flex items-center justify-center gap-14 py-3.5 px-8">
           {/* Home */}
           <button

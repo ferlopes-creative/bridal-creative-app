@@ -15,8 +15,8 @@ export function PageLoading({ label = "Carregando...", className = "" }: PageLoa
       aria-live="polite"
       aria-busy="true"
     >
-      <Spinner className="size-10 text-[#6B705C]" />
-      <p className="text-sm text-[#6B705C]">{label}</p>
+      <Spinner className="size-10 text-bc-primary" />
+      <p className="text-sm text-bc-primary">{label}</p>
     </div>
   );
 }

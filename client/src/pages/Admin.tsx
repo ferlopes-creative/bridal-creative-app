@@ -25,11 +25,17 @@ import {
   useSiteSettings,
 } from "@/contexts/SiteSettingsContext";
 import {
+  DEFAULT_SITE_COLORS,
+  normalizeHexColor,
+  type SiteColors,
+} from "@/lib/siteColors";
+import {
   fetchSiteSettingsRow,
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
   isPageBackgroundSplitError,
+  isSiteColorsSchemaError,
 } from "@/lib/siteSettingsRemote";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 import { supabase } from "@/lib/supabase";
@@ -192,6 +198,7 @@ export default function AdminPage() {
   const [bgAppFile, setBgAppFile] = useState<File | null>(null);
   const [siteSaving, setSiteSaving] = useState(false);
   const [siteLoading, setSiteLoading] = useState(true);
+  const [siteColors, setSiteColors] = useState<SiteColors>({ ...DEFAULT_SITE_COLORS });
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
@@ -408,6 +415,7 @@ export default function AdminPage() {
         setSiteBgOpacityPercent(row.page_background_opacity_percent);
         setSiteHeroUrls(row.hero_banner_urls);
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
+        setSiteColors(row.colors);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -699,6 +707,14 @@ export default function AdminPage() {
 
       const legacyBgMirror = appBgUrl ?? loginBgUrl ?? null;
 
+      const colorsPayload = {
+        color_primary: normalizeHexColor(siteColors.primary) ?? DEFAULT_SITE_COLORS.primary,
+        color_banner: normalizeHexColor(siteColors.banner) ?? DEFAULT_SITE_COLORS.banner,
+        color_banner_light:
+          normalizeHexColor(siteColors.bannerLight) ?? DEFAULT_SITE_COLORS.bannerLight,
+        color_page_bg: normalizeHexColor(siteColors.pageBg) ?? DEFAULT_SITE_COLORS.pageBg,
+      };
+
       const baseRow = {
         id: 1 as const,
         hero_headline: null as string | null,
@@ -712,7 +728,11 @@ export default function AdminPage() {
         ),
         hero_image_url: bannerUrls[0] ?? null,
         updated_at: new Date().toISOString(),
+        ...colorsPayload,
       };
+
+      let heroBannerUrlsDropped = false;
+      let heroBannerDesktopUrlsDropped = false;
 
       const upsertSiteSettings = async (row: Record<string, unknown>) => {
         const withHero = {
@@ -722,18 +742,33 @@ export default function AdminPage() {
         };
         let { error: upsertError } = await supabase.from("site_settings").upsert(withHero);
         if (upsertError && isHeroBannerDesktopUrlsSchemaError(upsertError.message)) {
+          heroBannerDesktopUrlsDropped = bannerDesktopUrls.length > 0;
           const { hero_banner_desktop_urls: _d, ...withoutDesktop } = withHero;
           const retry = await supabase.from("site_settings").upsert(withoutDesktop);
           upsertError = retry.error;
         }
         if (upsertError && isHeroBannerUrlsSchemaError(upsertError.message)) {
+          heroBannerUrlsDropped = bannerUrls.length > 1;
           const retry = await supabase.from("site_settings").upsert(row);
           upsertError = retry.error;
         }
         return upsertError;
       };
 
+      let siteColorsDropped = false;
+
       let error = await upsertSiteSettings(baseRow);
+      if (error && isSiteColorsSchemaError(error.message)) {
+        siteColorsDropped = true;
+        const {
+          color_primary: _cp,
+          color_banner: _cb,
+          color_banner_light: _cbl,
+          color_page_bg: _cpb,
+          ...withoutColors
+        } = baseRow;
+        error = await upsertSiteSettings(withoutColors);
+      }
       if (error && isPageBackgroundOpacityError(error.message)) {
         const { page_background_opacity_percent, ...withoutOpacity } = baseRow;
         error = await upsertSiteSettings(withoutOpacity);
@@ -760,7 +795,21 @@ export default function AdminPage() {
       if (bgLoginFileInputRef.current) bgLoginFileInputRef.current.value = "";
       if (bgAppFileInputRef.current) bgAppFileInputRef.current.value = "";
       await refreshSiteSettings();
-      toast.success("Aparência atualizada.");
+      if (heroBannerUrlsDropped) {
+        toast.warning(
+          "Salvo só o primeiro banner. Execute as migrações hero_banner_urls no Supabase para o carrossel com várias imagens."
+        );
+      } else if (heroBannerDesktopUrlsDropped) {
+        toast.warning(
+          "Banners de desktop não foram gravados. Execute a migração hero_banner_desktop_urls no Supabase."
+        );
+      } else if (siteColorsDropped) {
+        toast.warning(
+          "Imagens salvas, mas as cores não foram gravadas. Execute a migração site_colors no Supabase."
+        );
+      } else {
+        toast.success("Aparência atualizada.");
+      }
     } catch (err) {
       console.error(err);
       toast.error("Não foi possível salvar a aparência (execute a migração site_settings no Supabase se necessário).");
@@ -882,7 +931,7 @@ export default function AdminPage() {
           id="appearance"
           icon={Palette}
           title="Aparência do app"
-          description="Logo, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
+          description="Logo, cores do site, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
@@ -1009,6 +1058,89 @@ export default function AdminPage() {
                     />
                     <span className="text-sm text-zinc-600">%</span>
                   </div>
+                </div>
+              </div>
+              <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-medium text-zinc-800">Cores do site</label>
+                  <button
+                    type="button"
+                    onClick={() => setSiteColors({ ...DEFAULT_SITE_COLORS })}
+                    disabled={siteSaving}
+                    className="text-xs text-[#6B705C] hover:underline disabled:opacity-50"
+                  >
+                    Restaurar padrão
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Unifique o verde do banner, dos cards e das páginas. Use o seletor ou digite o código hex
+                  (ex.: #6B705C).
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {(
+                    [
+                      {
+                        key: "primary" as const,
+                        label: "Verde principal",
+                        hint: "Botões, textos, bordas e barra inferior",
+                      },
+                      {
+                        key: "banner" as const,
+                        label: "Verde dos cards",
+                        hint: "Moldura dos produtos no dashboard",
+                      },
+                      {
+                        key: "bannerLight" as const,
+                        label: "Verde claro dos cards",
+                        hint: "Área da foto nos cards",
+                      },
+                      {
+                        key: "pageBg" as const,
+                        label: "Fundo das páginas",
+                        hint: "Dashboard, chat, perfil e notificações",
+                      },
+                    ] as const
+                  ).map(({ key, label, hint }) => (
+                    <div key={key} className="space-y-1.5 rounded-lg border border-zinc-200/80 bg-white/90 p-3">
+                      <label className="text-sm font-medium text-zinc-800">{label}</label>
+                      <p className="text-[11px] text-zinc-500">{hint}</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={siteColors[key]}
+                          onChange={(e) =>
+                            setSiteColors((prev) => ({ ...prev, [key]: e.target.value }))
+                          }
+                          disabled={siteSaving}
+                          className="h-10 w-14 shrink-0 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+                          aria-label={`${label} — seletor`}
+                        />
+                        <input
+                          type="text"
+                          value={siteColors[key]}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSiteColors((prev) => ({ ...prev, [key]: v }));
+                          }}
+                          onBlur={(e) => {
+                            const n = normalizeHexColor(e.target.value);
+                            if (n) {
+                              setSiteColors((prev) => ({ ...prev, [key]: n }));
+                            }
+                          }}
+                          disabled={siteSaving}
+                          className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 px-2 font-mono text-sm uppercase"
+                          placeholder="#6B705C"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div
+                        className="h-8 rounded-md border border-zinc-200/80"
+                        style={{ backgroundColor: siteColors[key] }}
+                        aria-hidden
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">

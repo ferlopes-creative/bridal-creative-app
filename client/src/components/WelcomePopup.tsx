@@ -1,4 +1,5 @@
 import BrandLogo from "@/components/BrandLogo";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,9 @@ type WelcomePopupProps = {
 };
 
 export default function WelcomePopup({ open, onOpenChange, logoUrl }: WelcomePopupProps) {
+  const { settings } = useSiteSettings();
+  const { primary, bannerLight } = settings.colors;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -26,8 +30,7 @@ export default function WelcomePopup({ open, onOpenChange, logoUrl }: WelcomePop
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.08]"
             style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, #6B7459 0%, transparent 45%), radial-gradient(circle at 80% 80%, #aeb6a1 0%, transparent 40%)",
+              backgroundImage: `radial-gradient(circle at 20% 20%, ${primary} 0%, transparent 45%), radial-gradient(circle at 80% 80%, ${bannerLight} 0%, transparent 40%)`,
             }}
             aria-hidden
           />
@@ -39,7 +42,7 @@ export default function WelcomePopup({ open, onOpenChange, logoUrl }: WelcomePop
             />
 
             <DialogTitle
-              className="text-[22px] leading-tight font-medium tracking-[0.14em] text-[#6B7459] sm:text-[26px]"
+              className="text-[22px] leading-tight font-medium tracking-[0.14em] text-bc-primary sm:text-[26px]"
               style={{ fontFamily: serifFont }}
             >
               BEM-VINDA
@@ -58,7 +61,7 @@ export default function WelcomePopup({ open, onOpenChange, logoUrl }: WelcomePop
               onClick={() => onOpenChange(false)}
               className="mt-6 inline-flex h-9 min-w-[168px] items-center justify-center rounded-lg px-6 text-[14px] font-medium text-white transition-opacity hover:opacity-90 sm:mt-8 sm:h-10 sm:text-[15px]"
               style={{
-                backgroundColor: "#6B7459",
+                backgroundColor: primary,
                 fontFamily: serifFont,
                 letterSpacing: "0.12em",
               }}

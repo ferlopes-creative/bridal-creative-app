@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Carousel,
   type CarouselApi,
@@ -27,6 +27,13 @@ export function SiteBannerCarousel({
 }: SiteBannerCarouselProps) {
   const [api, setApi] = useState<CarouselApi | null>(null);
   const [slideIndex, setSlideIndex] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const slideCount = urls.length;
+  const carouselKey = urls.join("\0");
+
+  useEffect(() => {
+    setSlideIndex(0);
+  }, [carouselKey]);
 
   useEffect(() => {
     if (!api) return;
@@ -39,18 +46,44 @@ export function SiteBannerCarousel({
   }, [api]);
 
   useEffect(() => {
-    if (!api || urls.length <= 1) return;
-    const id = window.setInterval(() => api.scrollNext(), 6500);
-    return () => window.clearInterval(id);
-  }, [api, urls.length]);
+    if (!api || slideCount <= 1) return;
+    api.reInit();
+  }, [api, carouselKey, slideCount]);
 
-  if (urls.length === 0) return null;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!api || !root || slideCount <= 1) return;
+    const ro = new ResizeObserver(() => {
+      api.reInit();
+    });
+    ro.observe(root);
+    return () => ro.disconnect();
+  }, [api, slideCount]);
+
+  useEffect(() => {
+    if (!api || slideCount <= 1) return;
+    const advance = () => {
+      if (api.canScrollNext()) {
+        api.scrollNext();
+      } else {
+        api.scrollTo(0);
+      }
+    };
+    const id = window.setInterval(advance, 6500);
+    return () => window.clearInterval(id);
+  }, [api, slideCount]);
+
+  if (slideCount === 0) return null;
 
   return (
-    <div className={cn("relative h-full w-full", slideMinClass, className)}>
+    <div
+      ref={rootRef}
+      className={cn("relative h-full w-full", slideMinClass, className)}
+    >
       <Carousel
+        key={carouselKey}
         className={cn("h-full w-full", slideMinClass)}
-        opts={{ loop: urls.length > 1, align: "start", duration: 20 }}
+        opts={{ loop: slideCount > 1, align: "start", duration: 20 }}
         setApi={setApi}
       >
         <CarouselContent className="-ml-0 flex h-full min-h-[inherit] items-stretch">
@@ -71,9 +104,9 @@ export function SiteBannerCarousel({
           ))}
         </CarouselContent>
       </Carousel>
-      {urls.length > 1 ? (
+      {slideCount > 1 ? (
         <div
-          className="pointer-events-auto absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5"
+          className="pointer-events-auto absolute bottom-4 left-0 right-0 z-30 flex justify-center gap-1.5"
           role="tablist"
           aria-label="Banners"
         >
