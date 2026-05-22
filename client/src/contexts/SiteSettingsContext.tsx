@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchSiteSettingsRow } from "@/lib/siteSettingsRemote";
+import {
+  DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
+  fetchSiteSettingsRow,
+} from "@/lib/siteSettingsRemote";
+
+export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
 
 export const DEFAULT_FLORAL_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
@@ -10,6 +15,8 @@ export type SiteSettings = {
   page_background_image_url: string | null;
   page_background_login_url: string | null;
   page_background_app_url: string | null;
+  /** 0–100: visibilidade da textura de fundo */
+  page_background_opacity_percent: number;
   /** @deprecated use hero_banner_urls; mantido para compat. */
   hero_image_url: string | null;
   hero_banner_urls: string[];
@@ -20,9 +27,19 @@ const defaultSettings: SiteSettings = {
   page_background_image_url: null,
   page_background_login_url: null,
   page_background_app_url: null,
+  page_background_opacity_percent: DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   hero_image_url: null,
   hero_banner_urls: [],
 };
+
+/** Opacidade da textura (0–100), com fallback ao padrão. */
+export function resolvePageBackgroundOpacityPercent(settings: SiteSettings): number {
+  const n = settings.page_background_opacity_percent;
+  if (n == null || !Number.isFinite(n)) {
+    return DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT;
+  }
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
 
 /** URL da textura na página de login (prioriza campo próprio, senão legado). */
 export function resolveLoginPageBackground(settings: SiteSettings): string {
@@ -59,6 +76,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         page_background_image_url: row.page_background_image_url,
         page_background_login_url: row.page_background_login_url,
         page_background_app_url: row.page_background_app_url,
+        page_background_opacity_percent: row.page_background_opacity_percent,
         hero_image_url: row.hero_image_url,
         hero_banner_urls: row.hero_banner_urls,
       });

@@ -3,6 +3,7 @@ import { CircleUserRound, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
@@ -166,14 +167,10 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="relative min-h-screen bg-[#F7F5F0]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
-          style={{
-            backgroundImage: `url(${pageBgUrl})`,
-            backgroundSize: "360px auto",
-            backgroundRepeat: "repeat",
-            backgroundColor: "#FBFAF6",
-          }}
+        <PageBackgroundTexture
+          imageUrl={pageBgUrl}
+          settings={settings}
+          backgroundColor="#FBFAF6"
         />
         <PageLoading label="Carregando perfil..." className="relative min-h-screen flex-1" />
       </div>
@@ -182,14 +179,10 @@ export default function Profile() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
-        style={{
-          backgroundImage: `url(${pageBgUrl})`,
-          backgroundSize: "360px auto",
-          backgroundRepeat: "repeat",
-          backgroundColor: "#FBFAF6",
-        }}
+      <PageBackgroundTexture
+        imageUrl={pageBgUrl}
+        settings={settings}
+        backgroundColor="#FBFAF6"
       />
 
       <header className="relative border-b border-[#6B705C]/12 bg-[#FBFAF6]/96 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 backdrop-blur-sm">

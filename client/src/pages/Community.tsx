@@ -16,6 +16,7 @@ import {
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -651,14 +652,7 @@ export default function Community() {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-[#FBFAF6] pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
-        style={{
-          backgroundImage: `url(${pageBgUrl})`,
-          backgroundSize: "360px auto",
-          backgroundRepeat: "repeat",
-        }}
-      />
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
         <header className="mb-4 flex items-center justify-between">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center">

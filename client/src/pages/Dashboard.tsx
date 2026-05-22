@@ -5,6 +5,7 @@ import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
@@ -238,14 +239,10 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F7F5F0]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
-          style={{
-            backgroundImage: `url(${pageBgUrl})`,
-            backgroundSize: "360px auto",
-            backgroundRepeat: "repeat",
-            backgroundColor: "#FBFAF6",
-          }}
+        <PageBackgroundTexture
+          imageUrl={pageBgUrl}
+          settings={settings}
+          backgroundColor="#FBFAF6"
         />
         <PageLoading label="Carregando seus produtos..." className="relative min-h-screen flex-1" />
       </div>
@@ -281,14 +278,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
-        style={{
-          backgroundImage: `url(${pageBgUrl})`,
-          backgroundSize: "360px auto",
-          backgroundRepeat: "repeat",
-          backgroundColor: "#FBFAF6",
-        }}
+      <PageBackgroundTexture
+        imageUrl={pageBgUrl}
+        settings={settings}
+        backgroundColor="#FBFAF6"
       />
       <section className="relative min-h-[240px] overflow-hidden md:min-h-[260px]">
         <div className="absolute inset-0 bg-[#6B705C]">

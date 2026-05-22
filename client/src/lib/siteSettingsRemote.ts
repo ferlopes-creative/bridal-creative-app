@@ -1,13 +1,28 @@
 import { supabase } from "@/lib/supabase";
 
+/** Opacidade padrão da textura (~22 %; antes era 14 % fixo no CSS). */
+export const DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT = 22;
+
 export type SiteSettingsRow = {
   logo_url: string | null;
   page_background_image_url: string | null;
   page_background_login_url: string | null;
   page_background_app_url: string | null;
+  page_background_opacity_percent: number;
   hero_image_url: string | null;
   hero_banner_urls: string[];
 };
+
+function parseOpacityPercent(raw: unknown): number {
+  if (raw == null || raw === "") {
+    return DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT;
+  }
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) {
+    return DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT;
+  }
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
 
 function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): string[] {
   let urls: string[] = [];
@@ -39,6 +54,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     page_background_image_url: (data.page_background_image_url as string | null | undefined) ?? null,
     page_background_login_url: (data.page_background_login_url as string | null | undefined) ?? null,
     page_background_app_url: (data.page_background_app_url as string | null | undefined) ?? null,
+    page_background_opacity_percent: parseOpacityPercent(data.page_background_opacity_percent),
     hero_image_url: legacyHero,
     hero_banner_urls,
   };
@@ -69,4 +85,9 @@ export function isHeroBannerUrlsSchemaError(message: string | undefined): boolea
 export function isPageBackgroundSplitError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("page_background_login") || m.includes("page_background_app");
+}
+
+export function isPageBackgroundOpacityError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("page_background_opacity");
 }

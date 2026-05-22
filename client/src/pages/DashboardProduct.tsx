@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import BrandLogo from "@/components/BrandLogo";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import ProductView from "@/components/ProductView";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
@@ -95,14 +96,10 @@ export default function DashboardProduct() {
   if (loading) {
     return (
       <div className="relative min-h-screen bg-[#F7F5F0]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.14]"
-          style={{
-            backgroundImage: `url(${pageBgUrl})`,
-            backgroundSize: "360px auto",
-            backgroundRepeat: "repeat",
-            backgroundColor: "#FBFAF6",
-          }}
+        <PageBackgroundTexture
+          imageUrl={pageBgUrl}
+          settings={settings}
+          backgroundColor="#FBFAF6"
         />
         <PageLoading label="Carregando conteúdo..." className="relative min-h-screen" />
       </div>
@@ -126,14 +123,10 @@ export default function DashboardProduct() {
 
   return (
     <div className="relative min-h-screen bg-[#F7F5F0] px-4 py-6">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
-        style={{
-          backgroundImage: `url(${pageBgUrl})`,
-          backgroundSize: "360px auto",
-          backgroundRepeat: "repeat",
-          backgroundColor: "#FBFAF6",
-        }}
+      <PageBackgroundTexture
+        imageUrl={pageBgUrl}
+        settings={settings}
+        backgroundColor="#FBFAF6"
       />
       <div className="relative mx-auto mb-6 flex w-full max-w-3xl items-center justify-between gap-3">
         <button

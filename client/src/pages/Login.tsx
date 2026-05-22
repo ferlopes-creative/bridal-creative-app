@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import BrandLogo from "@/components/BrandLogo";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { useSiteSettings, resolveLoginPageBackground } from "@/contexts/SiteSettingsContext";
 import { useLocation } from "wouter";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
@@ -57,9 +58,10 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#F9F9F7" }}>
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.14]"
-        style={{ backgroundImage: `url(${pageBgUrl})`, backgroundSize: "420px auto", backgroundRepeat: "repeat" }}
+      <PageBackgroundTexture
+        imageUrl={pageBgUrl}
+        settings={settings}
+        backgroundSize="420px auto"
       />
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[420px] items-center justify-center px-4 py-8 md:py-12">

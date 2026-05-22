@@ -20,10 +20,14 @@ import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { useSiteSettings } from "@/contexts/SiteSettingsContext";
+import {
+  DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
+  useSiteSettings,
+} from "@/contexts/SiteSettingsContext";
 import {
   fetchSiteSettingsRow,
   isHeroBannerUrlsSchemaError,
+  isPageBackgroundOpacityError,
   isPageBackgroundSplitError,
 } from "@/lib/siteSettingsRemote";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
@@ -175,6 +179,9 @@ export default function AdminPage() {
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteLoginBgUrl, setSiteLoginBgUrl] = useState<string | null>(null);
   const [siteAppBgUrl, setSiteAppBgUrl] = useState<string | null>(null);
+  const [siteBgOpacityPercent, setSiteBgOpacityPercent] = useState(
+    DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT
+  );
   const [siteHeroUrls, setSiteHeroUrls] = useState<string[]>([]);
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -394,6 +401,7 @@ export default function AdminPage() {
         setSiteLogoUrl(row.logo_url);
         setSiteLoginBgUrl(row.page_background_login_url ?? legacy);
         setSiteAppBgUrl(row.page_background_app_url ?? legacy);
+        setSiteBgOpacityPercent(row.page_background_opacity_percent);
         setSiteHeroUrls(row.hero_banner_urls);
         setHeroPendingFiles([]);
       }
@@ -685,29 +693,36 @@ export default function AdminPage() {
         page_background_image_url: legacyBgMirror,
         page_background_login_url: loginBgUrl,
         page_background_app_url: appBgUrl,
+        page_background_opacity_percent: Math.min(
+          100,
+          Math.max(0, Math.round(siteBgOpacityPercent))
+        ),
         hero_image_url: bannerUrls[0] ?? null,
         updated_at: new Date().toISOString(),
       };
 
-      let { error } = await supabase.from("site_settings").upsert({
-        ...baseRow,
-        hero_banner_urls: bannerUrls,
-      });
-      if (error && isHeroBannerUrlsSchemaError(error.message)) {
-        const retry = await supabase.from("site_settings").upsert(baseRow);
-        error = retry.error;
+      const upsertSiteSettings = async (row: Record<string, unknown>) => {
+        const withHero = { ...row, hero_banner_urls: bannerUrls };
+        let { error: upsertError } = await supabase.from("site_settings").upsert(withHero);
+        if (upsertError && isHeroBannerUrlsSchemaError(upsertError.message)) {
+          const retry = await supabase.from("site_settings").upsert(row);
+          upsertError = retry.error;
+        }
+        return upsertError;
+      };
+
+      let error = await upsertSiteSettings(baseRow);
+      if (error && isPageBackgroundOpacityError(error.message)) {
+        const { page_background_opacity_percent, ...withoutOpacity } = baseRow;
+        error = await upsertSiteSettings(withoutOpacity);
       }
       if (error && isPageBackgroundSplitError(error.message)) {
         const { page_background_login_url, page_background_app_url, ...rest } = baseRow;
         const legacyOnly = { ...rest, page_background_image_url: legacyBgMirror };
-        const r2 = await supabase.from("site_settings").upsert({
-          ...legacyOnly,
-          hero_banner_urls: bannerUrls,
-        });
-        error = r2.error;
-        if (error && isHeroBannerUrlsSchemaError(error.message)) {
-          const r3 = await supabase.from("site_settings").upsert(legacyOnly);
-          error = r3.error;
+        error = await upsertSiteSettings(legacyOnly);
+        if (error && isPageBackgroundOpacityError(error.message)) {
+          const { page_background_opacity_percent, ...legacyNoOpacity } = legacyOnly;
+          error = await upsertSiteSettings(legacyNoOpacity);
         }
       }
       if (error) throw error;
@@ -831,7 +846,7 @@ export default function AdminPage() {
           id="appearance"
           icon={Palette}
           title="Aparência do app"
-          description="Logo, texturas de fundo (login e áreas internas) e banners do topo. No carrossel pode usar várias imagens. Remova os arquivos e salve para voltar ao padrão."
+          description="Logo, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo. No carrossel pode usar várias imagens. Remova os arquivos e salve para voltar ao padrão."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
@@ -920,6 +935,44 @@ export default function AdminPage() {
                       Remover
                     </button>
                   )}
+                </div>
+                <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                  <label htmlFor="site-bg-opacity" className="text-sm text-zinc-700">
+                    Opacidade do fundo ({siteBgOpacityPercent}%)
+                  </label>
+                  <p className="text-xs text-zinc-500">
+                    Controla o quanto a textura aparece nas páginas. Valores maiores deixam o padrão mais
+                    visível (padrão {DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT}%).
+                  </p>
+                  <input
+                    id="site-bg-opacity"
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={siteBgOpacityPercent}
+                    onChange={(e) => setSiteBgOpacityPercent(Number(e.target.value))}
+                    disabled={siteSaving}
+                    className="h-2 w-full max-w-md cursor-pointer accent-[#6B705C]"
+                  />
+                  <div className="flex max-w-md items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={siteBgOpacityPercent}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v)) {
+                          setSiteBgOpacityPercent(Math.min(100, Math.max(0, Math.round(v))));
+                        }
+                      }}
+                      disabled={siteSaving}
+                      className="h-9 w-20 rounded-md border border-zinc-200 px-2 text-sm"
+                      aria-label="Opacidade do fundo em porcentagem"
+                    />
+                    <span className="text-sm text-zinc-600">%</span>
+                  </div>
                 </div>
               </div>
               <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
