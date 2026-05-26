@@ -1,3 +1,4 @@
+import "./bootstrap-env.js";
 import { describeServiceRoleKey } from "./auth-email-login-core.js";
 
 export default function handler(_req: unknown, res: any) {

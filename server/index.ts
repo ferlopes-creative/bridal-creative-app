@@ -20,6 +20,11 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("X-Bridal-Api", "node");
+    next();
+  });
+
   app.post("/api/auth-email-login", async (req, res) => {
     const result = await processAuthEmailLogin((req.body || {}) as Record<string, unknown>);
     res.status(result.status).json(result.body);

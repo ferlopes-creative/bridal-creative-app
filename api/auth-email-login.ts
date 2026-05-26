@@ -1,3 +1,4 @@
+import "./bootstrap-env.js";
 import { parseRequestBody } from "./parse-request-body.js";
 import { processAuthEmailLogin } from "./auth-email-login-serve.js";
 

@@ -132,7 +132,7 @@ function assertServiceRoleKey(serviceKey: string): void {
 
   if (trimmed.startsWith("sb_publishable_")) {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY está com a chave publishable. No Supabase → Settings → API Keys, use Secret keys (sb_secret_...) ou Legacy → service_role."
+      "SUPABASE_SERVICE_ROLE_KEY está com a chave publishable. No Supabase → Settings → API Keys, use Secret keys (sb_secret_...) ou Legacy → service_role. Se o site está na Vercel, corrija também em Project → Settings → Environment Variables (não só no .env da VPS)."
     );
   }
 
