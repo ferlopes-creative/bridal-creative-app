@@ -15,6 +15,16 @@ if ! git pull origin main; then
 fi
 
 echo "Commit: $(git rev-parse --short HEAD)"
+
+if [ -f .env ]; then
+  service_key=$(grep -E '^SUPABASE_SERVICE_ROLE_KEY=' .env | head -1 | cut -d= -f2- | tr -d '\r' | sed 's/^["'\'']//; s/["'\'']$//')
+  if [ -n "$service_key" ] && [[ "$service_key" == sb_publishable_* ]]; then
+    echo "ERRO: SUPABASE_SERVICE_ROLE_KEY no .env é publishable (sb_publishable_...)."
+    echo "Use Secret key (sb_secret_...) ou Legacy → service_role no Supabase → Settings → API Keys."
+    exit 1
+  fi
+fi
+
 # Vite/esbuild estão em devDependencies — não usar NODE_ENV=production no install
 npm install --include=dev
 npm run build
@@ -29,7 +39,7 @@ if [ "$size" -lt 5000 ]; then
 fi
 
 if pm2 describe bridal-app >/dev/null 2>&1; then
-  pm2 restart bridal-app --update-env
+  pm2 restart bridal-app
 else
   pm2 start ecosystem.config.cjs
 fi

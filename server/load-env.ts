@@ -23,8 +23,7 @@ export function loadEnvFromFile(): void {
       value = value.slice(1, -1);
     }
 
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
+    // .env na VPS tem prioridade sobre variáveis antigas cacheadas no PM2
+    process.env[key] = value;
   }
 }
