@@ -19,6 +19,8 @@ type Product = {
   descricao?: string | null;
   type?: string | null;
   image_url?: string | null;
+  image_delivery_url?: string | null;
+  delivery_gallery_urls?: unknown;
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
@@ -81,6 +83,8 @@ export default function DashboardProduct() {
           descricao: item.descricao as string | null | undefined,
           type: (item.type ?? item.tipo ?? "PRO") as string,
           image_url: (item.image_url ?? item.image) as string | null | undefined,
+          image_delivery_url: item.image_delivery_url as string | null | undefined,
+          delivery_gallery_urls: item.delivery_gallery_urls,
           image: item.image as string | null | undefined,
           thumbnail_url: item.thumbnail_url as string | null | undefined,
           video_url: (item.video_url ?? item.video) as string | null | undefined,

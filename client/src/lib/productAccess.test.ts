@@ -17,4 +17,10 @@ describe("canAccessProduct", () => {
     const kitRows = [{ kit_product_id: "kit-a", bonus_product_id: "bonus-1" }];
     expect(canAccessProduct({ id: "bonus-1", type: "BON" }, purchased, kitRows)).toBe(true);
   });
+
+  it("blocks bonus without purchase or matching kit", () => {
+    const purchased = new Set<string>();
+    const kitRows = [{ kit_product_id: "kit-a", bonus_product_id: "bonus-1" }];
+    expect(canAccessProduct({ id: "bonus-1", type: "BON" }, purchased, kitRows)).toBe(false);
+  });
 });

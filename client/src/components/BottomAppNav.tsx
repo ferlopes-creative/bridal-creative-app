@@ -50,7 +50,7 @@ export default function BottomAppNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/12 bg-bc-primary/98 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_32px_rgba(53,58,46,0.28)] backdrop-blur-md supports-[backdrop-filter]:bg-bc-primary/92"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-bc-primary/96 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-4px_24px_rgba(53,58,46,0.18)] backdrop-blur-md supports-[backdrop-filter]:bg-bc-primary/90"
     >
       <div className="mx-auto flex min-h-12 max-w-lg items-center justify-center gap-2 px-4 sm:gap-5 sm:px-6">
         <button

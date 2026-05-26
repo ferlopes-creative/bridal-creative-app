@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { applySiteColorsToDocument, DEFAULT_SITE_COLORS, type SiteColors } from "@/lib/siteColors";
+import { readSiteSettingsCache, writeSiteSettingsCache } from "@/lib/siteSettingsCache";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   fetchSiteSettingsRow,
@@ -8,9 +9,6 @@ import {
 export { DEFAULT_SITE_COLORS, type SiteColors };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
-
-export const DEFAULT_FLORAL_BG =
-  "https://d2xsxph8kpxj0f.cloudfront.net/310519663132399034/jpeYEGnYHUdNtg6CzjAYS3/floral-texture-8VK8r3EpbwG2BTJNWNsWef.webp";
 
 export type SiteSettings = {
   logo_url: string | null;
@@ -26,6 +24,7 @@ export type SiteSettings = {
   /** Vazio no CMS = no app usa hero_banner_urls no desktop */
   hero_banner_desktop_urls: string[];
   colors: SiteColors;
+  whatsapp_url: string | null;
 };
 
 const defaultSettings: SiteSettings = {
@@ -38,7 +37,58 @@ const defaultSettings: SiteSettings = {
   hero_banner_urls: [],
   hero_banner_desktop_urls: [],
   colors: { ...DEFAULT_SITE_COLORS },
+  whatsapp_url: null,
 };
+
+function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
+  const colors = partial.colors;
+  const parsedColors =
+    colors && typeof colors === "object" && !Array.isArray(colors)
+      ? { ...DEFAULT_SITE_COLORS, ...(colors as Partial<SiteColors>) }
+      : { ...DEFAULT_SITE_COLORS };
+
+  return {
+    ...defaultSettings,
+    logo_url: typeof partial.logo_url === "string" ? partial.logo_url : defaultSettings.logo_url,
+    page_background_image_url:
+      typeof partial.page_background_image_url === "string"
+        ? partial.page_background_image_url
+        : defaultSettings.page_background_image_url,
+    page_background_login_url:
+      typeof partial.page_background_login_url === "string"
+        ? partial.page_background_login_url
+        : defaultSettings.page_background_login_url,
+    page_background_app_url:
+      typeof partial.page_background_app_url === "string"
+        ? partial.page_background_app_url
+        : defaultSettings.page_background_app_url,
+    page_background_opacity_percent:
+      typeof partial.page_background_opacity_percent === "number"
+        ? partial.page_background_opacity_percent
+        : defaultSettings.page_background_opacity_percent,
+    hero_image_url:
+      typeof partial.hero_image_url === "string" ? partial.hero_image_url : defaultSettings.hero_image_url,
+    hero_banner_urls: Array.isArray(partial.hero_banner_urls)
+      ? partial.hero_banner_urls.filter((u): u is string => typeof u === "string")
+      : defaultSettings.hero_banner_urls,
+    hero_banner_desktop_urls: Array.isArray(partial.hero_banner_desktop_urls)
+      ? partial.hero_banner_desktop_urls.filter((u): u is string => typeof u === "string")
+      : defaultSettings.hero_banner_desktop_urls,
+    whatsapp_url:
+      typeof partial.whatsapp_url === "string" ? partial.whatsapp_url : defaultSettings.whatsapp_url,
+    colors: parsedColors,
+  };
+}
+
+function loadInitialSettings(): SiteSettings {
+  const cached = readSiteSettingsCache();
+  return cached ? mergeSiteSettings(cached) : defaultSettings;
+}
+
+const initialSettings = loadInitialSettings();
+if (typeof document !== "undefined") {
+  applySiteColorsToDocument(initialSettings.colors);
+}
 
 /** Banners do carrossel no mobile (< md). */
 export function resolveHeroBannerMobileUrls(settings: SiteSettings): string[] {
@@ -64,16 +114,21 @@ export function resolvePageBackgroundOpacityPercent(settings: SiteSettings): num
 }
 
 /** URL da textura na página de login (prioriza campo próprio, senão legado). */
-export function resolveLoginPageBackground(settings: SiteSettings): string {
-  const u =
-    settings.page_background_login_url?.trim() || settings.page_background_image_url?.trim();
-  return u || DEFAULT_FLORAL_BG;
+export function resolveLoginPageBackground(settings: SiteSettings): string | null {
+  return (
+    settings.page_background_login_url?.trim() ||
+    settings.page_background_image_url?.trim() ||
+    null
+  );
 }
 
 /** URL da textura no dashboard, chat/comunidade e página de produto. */
-export function resolveAppPageBackground(settings: SiteSettings): string {
-  const u = settings.page_background_app_url?.trim() || settings.page_background_image_url?.trim();
-  return u || DEFAULT_FLORAL_BG;
+export function resolveAppPageBackground(settings: SiteSettings): string | null {
+  return (
+    settings.page_background_app_url?.trim() ||
+    settings.page_background_image_url?.trim() ||
+    null
+  );
 }
 
 const SiteSettingsContext = createContext<{
@@ -87,13 +142,13 @@ const SiteSettingsContext = createContext<{
 });
 
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
+  const [settings, setSettings] = useState<SiteSettings>(initialSettings);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     const row = await fetchSiteSettingsRow();
     if (row) {
-      setSettings({
+      const next: SiteSettings = {
         logo_url: row.logo_url,
         page_background_image_url: row.page_background_image_url,
         page_background_login_url: row.page_background_login_url,
@@ -103,7 +158,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         hero_banner_urls: row.hero_banner_urls,
         hero_banner_desktop_urls: row.hero_banner_desktop_urls,
         colors: row.colors,
-      });
+        whatsapp_url: row.whatsapp_url,
+      };
+      setSettings(next);
+      writeSiteSettingsCache(next as unknown as Record<string, unknown>);
     }
     setLoading(false);
   }, []);
@@ -114,6 +172,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applySiteColorsToDocument(settings.colors);
+    document.body.style.backgroundColor = settings.colors.pageBg;
   }, [settings.colors]);
 
   const value = useMemo(() => ({ settings, loading, refresh }), [settings, loading, refresh]);

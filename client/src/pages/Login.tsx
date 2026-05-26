@@ -57,7 +57,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#F9F9F7" }}>
+    <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: settings.colors.pageBg }}>
       <PageBackgroundTexture
         imageUrl={pageBgUrl}
         settings={settings}
@@ -87,7 +87,7 @@ export default function Login() {
             </p>
           </header>
 
-          <div className="mx-auto max-w-[400px] rounded-xl border border-[#e9e9e6] bg-transparent p-6 md:p-8">
+          <div className="app-surface mx-auto max-w-[400px] p-6 md:p-8">
             {!isSupabaseConfigured && (
               <p
                 className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-center text-[10px] leading-snug text-amber-900"

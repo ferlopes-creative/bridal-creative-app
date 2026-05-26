@@ -14,6 +14,7 @@ export type SiteSettingsRow = {
   hero_banner_urls: string[];
   hero_banner_desktop_urls: string[];
   colors: SiteColors;
+  whatsapp_url: string | null;
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -73,6 +74,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     hero_banner_urls,
     hero_banner_desktop_urls,
     colors: resolveSiteColors(data),
+    whatsapp_url: (data.whatsapp_url as string | null | undefined)?.trim() || null,
   };
 }
 
@@ -111,6 +113,11 @@ export function isPageBackgroundSplitError(message: string | undefined): boolean
 export function isPageBackgroundOpacityError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("page_background_opacity");
+}
+
+export function isWhatsappUrlSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("whatsapp_url");
 }
 
 export { isSiteColorsSchemaError } from "@/lib/siteColors";

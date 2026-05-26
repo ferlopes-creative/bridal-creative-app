@@ -2,7 +2,7 @@
  * ProductCard Component — Bridal Creative
  * Design: Botanical Elegance — Organic Luxury
  * - Card de produto com imagem, título e estado bloqueado/desbloqueado
- * - Efeito blur + ícone de cadeado para produtos bloqueados
+ * - Leve escurecimento + cadeado branco para produtos bloqueados
  * - Cantos arredondados suaves, sombra delicada
  * - 3 tamanhos: large (seus produtos), normal (padrão), small (outros produtos)
  */
@@ -50,19 +50,20 @@ export default function ProductCard({ image, title, locked = false, size = "norm
         <img
           src={image}
           alt={title}
-          className={`w-full h-full object-cover transition-transform duration-500 hover:scale-105 ${
-            locked ? "blur-[5px] scale-[1.02]" : ""
-          }`}
+          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
           loading="lazy"
         />
 
-        {/* Overlay de bloqueio */}
         {locked && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/15">
-            <div className="w-11 h-11 rounded-full bg-white/75 backdrop-blur-sm flex items-center justify-center shadow-lg">
-              <Lock className="w-5 h-5 text-bc-primary" strokeWidth={2} />
+          <>
+            <div className="absolute inset-0 bg-black/20" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Lock
+                className="h-6 w-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]"
+                strokeWidth={2}
+              />
             </div>
-          </div>
+          </>
         )}
       </div>
 

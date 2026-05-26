@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
+import { useSiteSettings } from "@/contexts/SiteSettingsContext";
 
 type WhatsAppSupportButtonProps = {
   /** Posiciona acima da barra inferior fixa (dashboard, etc.) */
@@ -10,14 +12,20 @@ export default function WhatsAppSupportButton({
   aboveBottomNav = false,
   className,
 }: WhatsAppSupportButtonProps) {
+  const { settings } = useSiteSettings();
+  const href = resolveWhatsAppUrl(settings);
+
+  if (!href) return null;
+
   return (
     <a
-      href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
+      href={href}
       target="_blank"
       rel="noreferrer"
       aria-label="WhatsApp — falar com suporte"
+      style={{ backgroundColor: settings.colors.primary }}
       className={cn(
-        "fixed right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#6B7459] text-white shadow-[0_8px_20px_rgba(0,0,0,0.18)] transition-opacity hover:opacity-90 sm:h-14 sm:w-14",
+        "fixed right-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full text-white shadow-[0_6px_20px_rgba(53,58,46,0.22)] transition-[opacity,transform] hover:scale-[1.02] hover:opacity-95 active:scale-[0.98] sm:h-[3.25rem] sm:w-[3.25rem]",
         aboveBottomNav
           ? "bottom-[max(5.25rem,calc(4.75rem+env(safe-area-inset-bottom)))]"
           : "bottom-6",

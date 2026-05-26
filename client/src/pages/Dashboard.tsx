@@ -17,6 +17,7 @@ import {
 } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
+import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
 import WelcomePopup from "@/components/WelcomePopup";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { isGuestMode } from "@/lib/guestMode";
@@ -35,7 +36,7 @@ type Product = {
   link_compra?: string | null;
 };
 
-const cardWrap = "min-w-[142px] w-[40vw] max-w-[168px] shrink-0 snap-start";
+const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
 
 function ProductCard({
   product,
@@ -55,9 +56,9 @@ function ProductCard({
   return (
     <article
       onClick={onNavigate}
-      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-[22px] bg-bc-banner p-2 shadow-sm transition-transform hover:scale-[1.01] sm:p-3"
+      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-2xl bg-bc-banner p-1.5 shadow-[0_2px_14px_rgba(53,58,46,0.12)] transition-[transform,box-shadow] hover:scale-[1.01] hover:shadow-[0_4px_18px_rgba(53,58,46,0.14)] sm:p-2.5"
     >
-      <div className="relative overflow-hidden rounded-[10px] bg-bc-banner-light">
+      <div className="relative overflow-hidden rounded-xl bg-bc-banner-light">
         <img
           src={imageSrc}
           alt={product.name || "Produto"}
@@ -65,19 +66,20 @@ function ProductCard({
         />
         {showLockedOverlay ? (
           <>
-            <div className="absolute inset-0 bg-bc-primary/55" aria-hidden />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="rounded-lg bg-white/95 p-2 shadow-sm sm:rounded-xl sm:p-3">
-                <Lock className="h-6 w-6 text-bc-primary sm:h-8 sm:w-8" />
-              </div>
+            <div className="absolute inset-0 bg-black/20" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Lock
+                className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
+                strokeWidth={2}
+              />
             </div>
           </>
         ) : null}
       </div>
 
       <h3
-        className="mt-2 line-clamp-2 text-center text-[11px] font-bold leading-[1.15] text-white sm:mt-3 sm:text-[12px]"
-        style={{ fontFamily: "var(--font-display)", letterSpacing: "0.06em" }}
+        className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
+        style={{ fontFamily: "var(--font-display)" }}
       >
         {product.name || "Produto"}
       </h3>
@@ -142,6 +144,7 @@ export default function Dashboard() {
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
+  const whatsappUrl = resolveWhatsAppUrl(settings);
   const heroMobileUrls = useMemo(
     () => resolveHeroBannerMobileUrls(settings),
     [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
@@ -238,6 +241,10 @@ export default function Dashboard() {
     () => products.filter((product) => getType(product) === "BON"),
     [products]
   );
+  const accessibleBonusProducts = useMemo(
+    () => bonusProducts.filter((product) => canAccessProduct(product, purchasedIds, kitBonusRows)),
+    [bonusProducts, purchasedIds, kitBonusRows]
+  );
   const purchasedProducts = useMemo(
     () => nonBonusProducts.filter((product) => purchasedIds.has(product.id)),
     [nonBonusProducts, purchasedIds]
@@ -248,9 +255,6 @@ export default function Dashboard() {
   );
 
   const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
-
-  const sectionTitleClass =
-    "mb-3 text-sm font-bold uppercase tracking-[0.08em] text-bc-primary md:text-base";
 
   if (loading) {
     return (
@@ -314,7 +318,7 @@ export default function Dashboard() {
             <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
               <BrandLogo
                 src={logoUrl}
-                className="max-h-12 max-w-12 object-contain brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.12)] md:max-h-14 md:max-w-[4.5rem]"
+                className="max-h-12 max-w-12 object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.35)] md:max-h-14 md:max-w-[4.5rem]"
               />
             </div>
             {!guestMode ? (
@@ -336,41 +340,37 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-6 md:pt-8">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-7 md:pt-9">
         <section>
-          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
-            SEUS PRODUTOS
-          </h2>
+          <h2 className="app-section-title">SEUS PRODUTOS</h2>
           <ProductList products={purchasedProducts} keyPrefix="owned" showLocked={false} onOpen={openProduct} />
           {purchasedProducts.length === 0 && (
             <p className="text-sm text-bc-primary/75">Nenhum produto liberado no momento.</p>
           )}
         </section>
 
-        <section className="mt-8">
-          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
-            PENSADOS PARA VOCÊ
-          </h2>
+        <section className="mt-10">
+          <h2 className="app-section-title">PENSADOS PARA VOCÊ</h2>
           <ProductList products={suggestedProducts} keyPrefix="suggested" showLocked onOpen={openProduct} />
           {suggestedProducts.length === 0 && (
             <p className="text-sm text-bc-primary/75">Sem sugestões bloqueadas para agora.</p>
           )}
         </section>
 
-        <section className="mt-8">
-          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
-            BÔNUS
-          </h2>
-          <ProductList products={bonusProducts} keyPrefix="bonus" showLocked={false} onOpen={openProduct} />
-          {bonusProducts.length === 0 && (
-            <p className="text-sm text-bc-primary/75">Nenhum bônus cadastrado.</p>
-          )}
-        </section>
+        {accessibleBonusProducts.length > 0 ? (
+          <section className="mt-10">
+            <h2 className="app-section-title">BÔNUS</h2>
+            <ProductList
+              products={accessibleBonusProducts}
+              keyPrefix="bonus"
+              showLocked={false}
+              onOpen={openProduct}
+            />
+          </section>
+        ) : null}
 
         <section className="mt-10">
-          <h2 className={sectionTitleClass} style={{ fontFamily: "var(--font-display)" }}>
-            OUTROS PRODUTOS
-          </h2>
+          <h2 className="app-section-title">OUTROS PRODUTOS</h2>
           <ProductList
             products={nonBonusProducts}
             keyPrefix="other"
@@ -382,23 +382,25 @@ export default function Dashboard() {
           )}
         </section>
 
-        <section className="mt-8 rounded-xl bg-bc-primary px-4 py-3.5 text-center text-white">
-          <p
-            className="text-sm font-medium uppercase leading-snug tracking-[0.06em]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Quer algo mais personalizado?
-          </p>
-          <a
-            href={import.meta.env.VITE_WHATSAPP_URL || "https://wa.me/"}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-block text-sm underline underline-offset-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Chame nossa equipe.
-          </a>
-        </section>
+        {whatsappUrl ? (
+          <section className="app-cta-banner mt-10">
+            <p
+              className="text-xs font-medium uppercase leading-snug tracking-[0.12em] md:text-sm"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Quer algo mais personalizado?
+            </p>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1.5 inline-block text-sm tracking-[0.04em] underline underline-offset-[3px] opacity-95 transition-opacity hover:opacity-100"
+              style={{ fontFamily: "var(--font-body)" }}
+            >
+              Chame nossa equipe.
+            </a>
+          </section>
+        ) : null}
       </div>
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />

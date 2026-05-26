@@ -37,6 +37,7 @@ import {
   isPageBackgroundOpacityError,
   isPageBackgroundSplitError,
   isSiteColorsSchemaError,
+  isWhatsappUrlSchemaError,
 } from "@/lib/siteSettingsRemote";
 import {
   accessLinksEqual,
@@ -46,6 +47,8 @@ import {
   parseAccessLinks,
   type ProductAccessLinkRow,
 } from "@/lib/productAccessLinks";
+import { parseDeliveryGalleryUrls } from "@/lib/productDeliveryImages";
+import { normalizeWhatsAppUrl } from "@/lib/whatsappUrl";
 import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
 import { parseLegacyPurchaseLines } from "@/lib/legacyPurchaseImport";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
@@ -59,6 +62,8 @@ type Product = {
   description_delivery?: string | null;
   type?: "PRO" | "BON" | string | null;
   image_url?: string | null;
+  image_delivery_url?: string | null;
+  delivery_gallery_urls?: unknown;
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
@@ -105,6 +110,17 @@ function isMissingVideoUrlColumnError(err: unknown): boolean {
 function isMissingAccessLinksColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("access_links");
+}
+
+/** Banco sem migração das colunas de imagens de entrega. */
+function isMissingImageDeliveryUrlColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("image_delivery_url");
+}
+
+function isMissingDeliveryGalleryUrlsColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("delivery_gallery_urls");
 }
 
 /** Banco sem migração da coluna `external_sales_id` — PostgREST / Postgres avisa no erro. */
@@ -218,6 +234,9 @@ export default function AdminPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [existingDeliveryImageUrl, setExistingDeliveryImageUrl] = useState<string | null>(null);
+  const [deliveryGalleryUrls, setDeliveryGalleryUrls] = useState<string[]>([]);
+  const [deliveryGalleryPendingFiles, setDeliveryGalleryPendingFiles] = useState<File[]>([]);
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -226,6 +245,7 @@ export default function AdminPage() {
   const [accessLinkRows, setAccessLinkRows] = useState<ProductAccessLinkRow[]>([emptyAccessLinkRow()]);
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [deliveryImageFile, setDeliveryImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [clearVideo, setClearVideo] = useState(false);
   const [externalSalesId, setExternalSalesId] = useState("");
@@ -248,6 +268,7 @@ export default function AdminPage() {
   const [siteSaving, setSiteSaving] = useState(false);
   const [siteLoading, setSiteLoading] = useState(true);
   const [siteColors, setSiteColors] = useState<SiteColors>({ ...DEFAULT_SITE_COLORS });
+  const [siteWhatsappUrl, setSiteWhatsappUrl] = useState("");
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
@@ -309,6 +330,9 @@ export default function AdminPage() {
   const resetForm = () => {
     setEditingProductId(null);
     setExistingImageUrl(null);
+    setExistingDeliveryImageUrl(null);
+    setDeliveryGalleryUrls([]);
+    setDeliveryGalleryPendingFiles([]);
     setExistingVideoUrl(null);
     setName("");
     setDescription("");
@@ -317,6 +341,7 @@ export default function AdminPage() {
     setAccessLinkRows([emptyAccessLinkRow()]);
     setType("PRO");
     setImageFile(null);
+    setDeliveryImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
     setExternalSalesId("");
@@ -340,6 +365,9 @@ export default function AdminPage() {
   const openEditModal = (product: Product) => {
     setEditingProductId(product.id);
     setExistingImageUrl(product.image_url || product.image || product.thumbnail_url || null);
+    setExistingDeliveryImageUrl(product.image_delivery_url?.trim() || null);
+    setDeliveryGalleryUrls(parseDeliveryGalleryUrls(product.delivery_gallery_urls));
+    setDeliveryGalleryPendingFiles([]);
     setExistingVideoUrl(product.video_url || product.video || null);
     setClearVideo(false);
     setName(product.name || "");
@@ -350,6 +378,7 @@ export default function AdminPage() {
     setAccessLinkRows(accessLinksToFormRows(parsedAccessLinks));
     setType(product.type === "BON" ? "BON" : "PRO");
     setImageFile(null);
+    setDeliveryImageFile(null);
     setVideoFile(null);
     setExternalSalesId(product.external_sales_id?.trim() || "");
     setModalSnapshot({
@@ -374,10 +403,14 @@ export default function AdminPage() {
     setExternalSalesId(emptyFormSnapshot.externalSalesId);
     setType(emptyFormSnapshot.type);
     setImageFile(null);
+    setDeliveryImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
     if (!editingProductId) {
       setExistingImageUrl(null);
+      setExistingDeliveryImageUrl(null);
+      setDeliveryGalleryUrls([]);
+      setDeliveryGalleryPendingFiles([]);
       setExistingVideoUrl(null);
     }
     setModalSnapshot(emptyFormSnapshot);
@@ -402,6 +435,8 @@ export default function AdminPage() {
       externalSalesId.trim() !== modalSnapshot.externalSalesId.trim() ||
       type !== modalSnapshot.type ||
       imageFile != null ||
+      deliveryImageFile != null ||
+      deliveryGalleryPendingFiles.length > 0 ||
       videoFile != null ||
       clearVideo
     );
@@ -415,6 +450,8 @@ export default function AdminPage() {
     externalSalesId,
     type,
     imageFile,
+    deliveryImageFile,
+    deliveryGalleryPendingFiles,
     videoFile,
     clearVideo,
     modalSnapshot,
@@ -498,6 +535,7 @@ export default function AdminPage() {
         setSiteHeroUrls(row.hero_banner_urls);
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
         setSiteColors(row.colors);
+        setSiteWhatsappUrl(row.whatsapp_url ?? "");
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -657,11 +695,15 @@ export default function AdminPage() {
     const saveProductRow = async (
       imageUrl: string | null,
       videoUrl: string | null,
+      deliveryImageUrl: string | null,
+      galleryUrls: string[],
       opts: {
         includeExternalSalesId: boolean;
         includeDescriptionDelivery: boolean;
         includeVideoUrl: boolean;
         includeAccessLinks: boolean;
+        includeImageDeliveryUrl: boolean;
+        includeDeliveryGalleryUrls: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -683,24 +725,37 @@ export default function AdminPage() {
       if (opts.includeExternalSalesId) {
         payload.external_sales_id = extId.length ? extId : null;
       }
+      if (opts.includeImageDeliveryUrl) {
+        payload.image_delivery_url = deliveryImageUrl;
+      }
+      if (opts.includeDeliveryGalleryUrls) {
+        payload.delivery_gallery_urls = galleryUrls;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
       return supabase.from("products").insert(payload).select("id").single();
     };
 
-    const persistWithSchemaFallback = async (imageUrl: string | null, videoUrl: string | null) => {
+    const persistWithSchemaFallback = async (
+      imageUrl: string | null,
+      videoUrl: string | null,
+      deliveryImageUrl: string | null,
+      galleryUrls: string[]
+    ) => {
       const flags = {
         includeExternalSalesId: true,
         includeDescriptionDelivery: true,
         includeVideoUrl: true,
         includeAccessLinks: true,
+        includeImageDeliveryUrl: true,
+        includeDeliveryGalleryUrls: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
 
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const result = await saveProductRow(imageUrl, videoUrl, flags);
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const result = await saveProductRow(imageUrl, videoUrl, deliveryImageUrl, galleryUrls, flags);
         dbError = result.error;
         if (!dbError) {
           if (!editingProductId && result.data && "id" in result.data) {
@@ -724,6 +779,14 @@ export default function AdminPage() {
           flags.includeExternalSalesId = false;
           continue;
         }
+        if (isMissingImageDeliveryUrlColumnError(dbError) && flags.includeImageDeliveryUrl) {
+          flags.includeImageDeliveryUrl = false;
+          continue;
+        }
+        if (isMissingDeliveryGalleryUrlsColumnError(dbError) && flags.includeDeliveryGalleryUrls) {
+          flags.includeDeliveryGalleryUrls = false;
+          continue;
+        }
         break;
       }
 
@@ -732,12 +795,23 @@ export default function AdminPage() {
 
     try {
       let imageUrl = existingImageUrl;
+      let deliveryImageUrl = existingDeliveryImageUrl;
       let videoUrl = clearVideo ? null : existingVideoUrl;
       let pendingVideoFile: File | null = null;
 
       if (imageFile) {
         imageUrl = await uploadFileToStorage(imageFile, IMAGE_BUCKET, "images");
       }
+
+      if (deliveryImageFile) {
+        deliveryImageUrl = await uploadFileToStorage(deliveryImageFile, IMAGE_BUCKET, "images");
+      }
+
+      const uploadedGalleryUrls: string[] = [];
+      for (const file of deliveryGalleryPendingFiles) {
+        uploadedGalleryUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images"));
+      }
+      const galleryUrls = [...deliveryGalleryUrls, ...uploadedGalleryUrls];
 
       if (videoFile && !clearVideo) {
         if (editingProductId) {
@@ -753,7 +827,12 @@ export default function AdminPage() {
         }
       }
 
-      const { dbError, insertedId, flags } = await persistWithSchemaFallback(imageUrl, videoUrl);
+      const { dbError, insertedId, flags } = await persistWithSchemaFallback(
+        imageUrl,
+        videoUrl,
+        deliveryImageUrl,
+        galleryUrls
+      );
 
       if (!dbError && pendingVideoFile && insertedId) {
         const uploadedUrl = await uploadFileToStorage(
@@ -784,7 +863,9 @@ export default function AdminPage() {
         (!flags.includeDescriptionDelivery ||
           !flags.includeExternalSalesId ||
           !flags.includeVideoUrl ||
-          !flags.includeAccessLinks)
+          !flags.includeAccessLinks ||
+          !flags.includeImageDeliveryUrl ||
+          !flags.includeDeliveryGalleryUrls)
       ) {
         await fetchProducts();
         closeModal();
@@ -800,6 +881,12 @@ export default function AdminPage() {
         }
         if (!flags.includeExternalSalesId) {
           parts.push("ID da loja Cakto (migração external_sales_id)");
+        }
+        if (!flags.includeImageDeliveryUrl) {
+          parts.push("imagem de entrega (migração image_delivery_url)");
+        }
+        if (!flags.includeDeliveryGalleryUrls) {
+          parts.push("galeria de modelos (migração delivery_gallery_urls)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -822,7 +909,9 @@ export default function AdminPage() {
           const fallbackVideoUrl = clearVideo ? null : existingVideoUrl;
           const { dbError: fallbackError, flags } = await persistWithSchemaFallback(
             existingImageUrl,
-            fallbackVideoUrl
+            fallbackVideoUrl,
+            existingDeliveryImageUrl,
+            deliveryGalleryUrls
           );
           if (!fallbackError) {
             await fetchProducts();
@@ -832,6 +921,8 @@ export default function AdminPage() {
             if (!flags.includeAccessLinks) parts.push("links de acesso");
             if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
             if (!flags.includeExternalSalesId) parts.push("ID da loja");
+            if (!flags.includeImageDeliveryUrl) parts.push("imagem de entrega");
+            if (!flags.includeDeliveryGalleryUrls) parts.push("galeria de modelos");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -911,6 +1002,7 @@ export default function AdminPage() {
         id: 1 as const,
         hero_headline: null as string | null,
         logo_url: logoUrl ?? null,
+        whatsapp_url: siteWhatsappUrl.trim() || null,
         page_background_image_url: legacyBgMirror,
         page_background_login_url: loginBgUrl,
         page_background_app_url: appBgUrl,
@@ -948,6 +1040,7 @@ export default function AdminPage() {
       };
 
       let siteColorsDropped = false;
+      let whatsappUrlDropped = false;
 
       let error = await upsertSiteSettings(baseRow);
       if (error && isSiteColorsSchemaError(error.message)) {
@@ -974,7 +1067,15 @@ export default function AdminPage() {
           error = await upsertSiteSettings(legacyNoOpacity);
         }
       }
+      if (error && isWhatsappUrlSchemaError(error.message)) {
+        whatsappUrlDropped = true;
+        const { whatsapp_url: _wa, ...withoutWhatsapp } = baseRow;
+        error = await upsertSiteSettings(withoutWhatsapp);
+      }
       if (error) throw error;
+      setSiteLogoUrl(logoUrl ?? null);
+      setSiteLoginBgUrl(loginBgUrl);
+      setSiteAppBgUrl(appBgUrl);
       setSiteHeroUrls(bannerUrls);
       setSiteHeroDesktopUrls(bannerDesktopUrls);
       setHeroPendingFiles([]);
@@ -998,6 +1099,10 @@ export default function AdminPage() {
       } else if (siteColorsDropped) {
         toast.warning(
           "Imagens salvas, mas as cores não foram gravadas. Execute a migração site_colors no Supabase."
+        );
+      } else if (whatsappUrlDropped) {
+        toast.warning(
+          "Salvo, mas o link do WhatsApp não foi gravado. Execute a migração site_settings_whatsapp no Supabase."
         );
       } else {
         toast.success("Aparência atualizada.");
@@ -1034,6 +1139,14 @@ export default function AdminPage() {
 
   const removeHeroPendingAt = (index: number) => {
     setHeroPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeDeliveryGalleryUrlAt = (index: number) => {
+    setDeliveryGalleryUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeDeliveryGalleryPendingAt = (index: number) => {
+    setDeliveryGalleryPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removeHeroDesktopUrlAt = (index: number) => {
@@ -1190,7 +1303,7 @@ export default function AdminPage() {
           id="appearance"
           icon={Palette}
           title="Aparência do app"
-          description="Logo, cores do site, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
+          description="Logo, cores do site, WhatsApp de suporte, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
@@ -1318,6 +1431,31 @@ export default function AdminPage() {
                     <span className="text-sm text-zinc-600">%</span>
                   </div>
                 </div>
+              </div>
+              <div className="space-y-1.5 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
+                <label className="text-sm font-medium text-zinc-800">WhatsApp (suporte)</label>
+                <p className="text-xs text-zinc-500">
+                  Usado no botão flutuante e no CTA &quot;Quer algo mais personalizado?&quot; do dashboard. Informe o
+                  link completo (<code className="rounded bg-zinc-100 px-1">https://wa.me/5511…</code>) ou só o número
+                  com DDI.
+                </p>
+                <input
+                  type="text"
+                  value={siteWhatsappUrl}
+                  onChange={(e) => setSiteWhatsappUrl(e.target.value)}
+                  placeholder="5511999998888 ou https://wa.me/5511999998888"
+                  className="h-11 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                  disabled={siteSaving}
+                  spellCheck={false}
+                />
+                {normalizeWhatsAppUrl(siteWhatsappUrl) ? (
+                  <p className="text-[11px] text-[#5a6349]">
+                    Link ativo:{" "}
+                    <span className="break-all font-mono">{normalizeWhatsAppUrl(siteWhatsappUrl)}</span>
+                  </p>
+                ) : siteWhatsappUrl.trim() ? (
+                  <p className="text-[11px] text-amber-800">Número ou link inválido — use DDI + DDD + número.</p>
+                ) : null}
               </div>
               <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2000,6 +2138,97 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-sm text-zinc-700">Imagem da página de entrega</label>
+                <p className="text-xs text-zinc-500">
+                  Exibida após a compra, em proporção completa (sem o recorte da capa do catálogo). Se vazio, usa a capa.
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setDeliveryImageFile(e.target.files?.[0] ?? null)}
+                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                />
+                {existingDeliveryImageUrl && !deliveryImageFile && (
+                  <img
+                    src={existingDeliveryImageUrl}
+                    alt="Imagem de entrega atual"
+                    className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
+                  />
+                )}
+                {existingDeliveryImageUrl && !deliveryImageFile && (
+                  <p className="text-[11px] text-zinc-500">
+                    Imagem de entrega salva; envie outro arquivo só se quiser trocar.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <div>
+                  <label className="text-sm text-zinc-700">Galeria de modelos (entrega)</label>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Imagens extras exibidas na entrega para mostrar os modelos que a cliente recebe. Pode enviar várias de uma vez.
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const next = Array.from(e.target.files ?? []);
+                    if (next.length) setDeliveryGalleryPendingFiles((prev) => [...prev, ...next]);
+                    e.target.value = "";
+                  }}
+                  className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                  disabled={saving}
+                />
+                {deliveryGalleryUrls.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    {deliveryGalleryUrls.map((url, i) => (
+                      <li
+                        key={`dg-${url}-${i}`}
+                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                      >
+                        <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                          {url.slice(0, 72)}
+                          {url.length > 72 ? "…" : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeDeliveryGalleryUrlAt(i)}
+                          disabled={saving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {deliveryGalleryPendingFiles.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    <li className="text-zinc-500">A enviar ao salvar:</li>
+                    {deliveryGalleryPendingFiles.map((file, i) => (
+                      <li
+                        key={`dgp-${file.name}-${i}`}
+                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeDeliveryGalleryPendingAt(i)}
+                          disabled={saving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Vídeo deste produto</label>
                 <p className="text-xs text-zinc-500">
                   Cada conteúdo tem seu próprio arquivo. O vídeo é exibido na página do produto após a compra.
@@ -2140,7 +2369,10 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Imagem de capa (envie do seu computador)</label>
+                <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
+                <p className="text-xs text-zinc-500">
+                  Usada no dashboard e na página de compra (antes do acesso). Proporção retrato, com recorte.
+                </p>
                 <input
                   type="file"
                   accept="image/*"

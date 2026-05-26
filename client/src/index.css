@@ -43,7 +43,8 @@
 
   /* Typography */
   --font-display: "Cinzel", serif;
-  --font-body: "Cinzel", serif;
+  --font-body: "Montserrat", system-ui, sans-serif;
+  --font-accent: "Cormorant Garamond", "Times New Roman", serif;
 }
 
 :root {
@@ -53,7 +54,7 @@
   --bc-page-bg: #FBFAF6;
   --primary: var(--bc-primary);
   --primary-foreground: #ffffff;
-  --radius: 0.75rem;
+  --radius: 1rem;
   --background: #F5F2E9;
   --foreground: #2f2f2f;
   --card: #ffffff;
@@ -75,17 +76,62 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    font-weight: 400;
+    letter-spacing: 0.01em;
     overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    font-weight: 500;
   }
 
   button {
     font-family: var(--font-display);
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+  }
+}
+
+@layer components {
+  .app-section-title {
+    margin-bottom: 0.875rem;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--bc-primary);
+  }
+
+  @media (min-width: 768px) {
+    .app-section-title {
+      font-size: 0.8125rem;
+    }
+  }
+
+  .app-surface {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--bc-primary) 12%, transparent);
+    background: rgb(255 255 255 / 0.92);
+    box-shadow: 0 2px 20px rgb(80 88 60 / 0.05);
+  }
+
+  .app-surface-soft {
+    border-radius: 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--bc-primary) 10%, transparent);
+    background: var(--bc-page-bg);
+    box-shadow: 0 1px 14px rgb(80 88 60 / 0.04);
+  }
+
+  .app-cta-banner {
+    border-radius: 1rem;
+    border: 1px solid color-mix(in srgb, var(--bc-primary) 18%, transparent);
+    background: var(--bc-primary);
+    padding: 1rem 1.25rem;
+    text-align: center;
+    color: white;
+    box-shadow: 0 4px 22px rgb(80 88 60 / 0.1);
   }
 }
 
