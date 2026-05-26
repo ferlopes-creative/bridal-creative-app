@@ -1,11 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createServiceRoleClient } from "./auth-email-login-core";
+import { createServiceRoleClient, describeServiceRoleKey } from "./auth-email-login-core";
 
 describe("createServiceRoleClient", () => {
   const env = { ...process.env };
 
   afterEach(() => {
     process.env = { ...env };
+  });
+
+  it("describeServiceRoleKey flags publishable", () => {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "sb_publishable_test_key";
+    expect(describeServiceRoleKey()).toEqual({
+      configured: true,
+      valid: false,
+      kind: "publishable",
+    });
   });
 
   it("rejects publishable/anon key used as service role", () => {

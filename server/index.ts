@@ -8,6 +8,7 @@ import caktoWebhookHandler from "../api/cakto-webhook.js";
 loadEnvFromFile();
 import { processAdminLogin } from "../api/admin-login-serve.js";
 import { processAdminGrantPurchase } from "../api/admin-grant-purchase-serve.js";
+import { describeServiceRoleKey } from "../api/auth-email-login-core.js";
 import { processAuthEmailLogin } from "../api/auth-email-login-serve.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,10 +45,14 @@ async function startServer() {
   });
 
   app.get("/api/health", (_req, res) => {
+    const serviceKey = describeServiceRoleKey();
+    const supabase =
+      Boolean(process.env.SUPABASE_URL?.trim()) && serviceKey.configured && serviceKey.valid;
     res.json({
       ok: true,
       api: true,
-      supabase: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
+      supabase,
+      supabaseServiceKey: serviceKey.kind,
     });
   });
 

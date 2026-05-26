@@ -46,8 +46,16 @@ fi
 pm2 save 2>/dev/null || true
 
 sleep 1
-if ! curl -sf "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null; then
+health_url="http://127.0.0.1:${PORT:-3000}/api/health"
+health_json=$(curl -sf "$health_url" || true)
+if [ -z "$health_json" ]; then
   echo "ERRO: Node local não responde /api/health. Veja: pm2 logs bridal-app"
+  exit 1
+fi
+if ! echo "$health_json" | grep -q '"supabase":true'; then
+  echo "ERRO: /api/health — Supabase service key inválida ou ausente."
+  echo "$health_json"
+  echo "Corrija SUPABASE_SERVICE_ROLE_KEY no .env (sb_secret_... ou JWT service_role) e rode: pm2 restart bridal-app"
   exit 1
 fi
 

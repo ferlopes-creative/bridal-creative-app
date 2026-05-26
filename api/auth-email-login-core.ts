@@ -102,6 +102,31 @@ function jwtPayloadRole(key: string): string | null {
   }
 }
 
+/** Diagnóstico para /api/health (não expõe o valor da chave). */
+export function describeServiceRoleKey(): { configured: boolean; valid: boolean; kind: string } {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!serviceKey) {
+    return { configured: false, valid: false, kind: "missing" };
+  }
+  if (serviceKey.startsWith("sb_publishable_")) {
+    return { configured: true, valid: false, kind: "publishable" };
+  }
+  if (serviceKey.startsWith("sb_secret_")) {
+    return { configured: true, valid: true, kind: "secret" };
+  }
+  const role = jwtPayloadRole(serviceKey);
+  if (role === "service_role") {
+    return { configured: true, valid: true, kind: "jwt_service_role" };
+  }
+  if (role === "anon") {
+    return { configured: true, valid: false, kind: "jwt_anon" };
+  }
+  if (role) {
+    return { configured: true, valid: false, kind: `jwt_${role}` };
+  }
+  return { configured: true, valid: true, kind: "jwt" };
+}
+
 function assertServiceRoleKey(serviceKey: string): void {
   const trimmed = serviceKey.trim();
 
