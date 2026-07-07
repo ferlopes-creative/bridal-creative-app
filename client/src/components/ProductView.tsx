@@ -135,13 +135,13 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
 
       <div className="app-surface-soft w-full min-w-0 p-5 md:p-7">
         <h1
-          className="break-words text-2xl leading-[1.15] text-bc-primary md:text-[1.75rem]"
+          className="break-words text-[1.375rem] leading-[1.15] text-bc-primary md:text-[1.625rem]"
           style={{ fontFamily: "var(--font-display)", letterSpacing: "0.05em" }}
         >
           {title}
         </h1>
         <div
-          className="product-html mt-5 w-full min-w-0 max-w-full text-sm leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-xl [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:text-bc-primary [&_h3]:text-base [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          className="product-html mt-5 w-full min-w-0 max-w-full text-[0.8125rem] leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-base [&_h2]:text-bc-primary [&_h3]:text-sm [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
