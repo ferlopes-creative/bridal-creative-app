@@ -18,7 +18,8 @@ function createSafeClient(): SupabaseClient {
     {
       auth: {
         persistSession: isSupabaseConfigured,
-        autoRefreshToken: isSupabaseConfigured,
+        // Refresh manual em authSession.ts — evita loop de retry quando o host do Supabase falha.
+        autoRefreshToken: false,
       },
     }
   );

@@ -880,7 +880,7 @@ export default function AdminPage() {
           parts.push("descrição de entrega (migração description_delivery)");
         }
         if (!flags.includeExternalSalesId) {
-          parts.push("ID da loja Cakto (migração external_sales_id)");
+          parts.push("ID da loja (Cakto / Hotmart — migração external_sales_id)");
         }
         if (!flags.includeImageDeliveryUrl) {
           parts.push("imagem de entrega (migração image_delivery_url)");
@@ -1742,7 +1742,7 @@ export default function AdminPage() {
                     {sortedProducts.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name || p.title || p.id}
-                        {p.external_sales_id ? ` (Cakto: ${p.external_sales_id})` : ""}
+                        {p.external_sales_id ? ` (loja: ${p.external_sales_id})` : ""}
                       </option>
                     ))}
                   </select>
@@ -1772,7 +1772,7 @@ export default function AdminPage() {
             <p className="text-xs leading-relaxed text-zinc-600">
               Uma linha por compra: <code className="rounded bg-white px-1">email,product_id</code> (também aceita
               ponto-e-vírgula ou tab). O <code className="rounded bg-white px-1">product_id</code> é o UUID do produto
-              no catálogo ou o ID externo da Cakto (campo no cadastro do produto).
+              no catálogo ou o ID externo da Cakto/Hotmart (campo no cadastro do produto).
             </p>
             <textarea
               value={legacyBulkText}
@@ -2354,7 +2354,7 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">ID do produto na loja (Cakto / checkout)</label>
+                <label className="text-sm text-zinc-700">ID do produto na loja (Cakto / Hotmart)</label>
                 <input
                   type="text"
                   value={externalSalesId}
@@ -2363,7 +2363,7 @@ export default function AdminPage() {
                   className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                 />
                 <p className="text-[11px] text-zinc-500">
-                  Opcional. Use o mesmo valor que a plataforma de vendas envia em <code className="rounded bg-zinc-100 px-1">product.id</code> para
+                  Opcional. Use o mesmo valor que a Cakto ou Hotmart envia em <code className="rounded bg-zinc-100 px-1">product.id</code> para
                   casar a compra com este item.
                 </p>
               </div>
