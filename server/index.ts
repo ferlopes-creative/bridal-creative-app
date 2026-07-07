@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { loadEnvFromFile } from "./load-env.js";
 import caktoWebhookHandler from "../api/cakto-webhook.js";
+import hotmartWebhookHandler from "../api/hotmart-webhook.js";
 
 loadEnvFromFile();
 import { processAdminLogin } from "../api/admin-login-serve.js";
@@ -47,6 +48,10 @@ async function startServer() {
 
   app.post("/api/cakto-webhook", (req, res) => {
     void caktoWebhookHandler(req, res);
+  });
+
+  app.post("/api/hotmart-webhook", (req, res) => {
+    void hotmartWebhookHandler(req, res);
   });
 
   app.get("/api/health", (_req, res) => {

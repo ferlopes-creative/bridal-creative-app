@@ -1,11 +1,8 @@
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { resolveAuthenticatedSession } from "@/lib/authSession";
 
 export const LOGIN_PATH = "/login";
 
 export async function hasAuthenticatedSession(): Promise<boolean> {
-  if (!isSupabaseConfigured) return false;
-
-  const { data, error } = await supabase.auth.getSession();
-  if (error) return false;
-  return Boolean(data.session);
+  const session = await resolveAuthenticatedSession();
+  return Boolean(session);
 }

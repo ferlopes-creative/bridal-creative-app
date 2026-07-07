@@ -58,23 +58,25 @@ function ProductCard({
       onClick={onNavigate}
       className="w-full cursor-pointer justify-self-center overflow-hidden rounded-2xl bg-bc-banner p-1.5 shadow-[0_2px_14px_rgba(53,58,46,0.12)] transition-[transform,box-shadow] hover:scale-[1.01] hover:shadow-[0_4px_18px_rgba(53,58,46,0.14)] sm:p-2.5"
     >
-      <div className="relative overflow-hidden rounded-xl bg-bc-banner-light">
-        <img
-          src={imageSrc}
-          alt={product.name || "Produto"}
-          className="aspect-[3/4] w-full object-cover"
-        />
-        {showLockedOverlay ? (
-          <>
-            <div className="absolute inset-0 bg-black/20" aria-hidden />
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <Lock
-                className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
-                strokeWidth={2}
-              />
-            </div>
-          </>
-        ) : null}
+      <div className="overflow-hidden rounded-[10px] bg-bc-banner-light p-1 sm:rounded-[6px] sm:p-0.5">
+        <div className="relative overflow-hidden rounded-[6px] sm:rounded-[4px]">
+          <img
+            src={imageSrc}
+            alt={product.name || "Produto"}
+            className="aspect-[3/4] w-full object-cover"
+          />
+          {showLockedOverlay ? (
+            <>
+              <div className="absolute inset-0 bg-black/20" aria-hidden />
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <Lock
+                  className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
+                  strokeWidth={2}
+                />
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <h3
