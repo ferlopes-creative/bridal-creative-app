@@ -8,6 +8,7 @@ import ProductView from "@/components/ProductView";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
+import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { supabase } from "@/lib/supabase";
 
 type Product = {
@@ -27,6 +28,7 @@ type Product = {
   access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
+  is_hidden?: boolean | null;
 };
 
 export default function DashboardProduct() {
@@ -91,6 +93,7 @@ export default function DashboardProduct() {
           access_links: item.access_links,
           link_compra: (item.link_compra ?? item.link) as string | null | undefined,
           link: item.link as string | null | undefined,
+          is_hidden: item.is_hidden === true,
         });
       }
       setLoading(false);
@@ -100,6 +103,8 @@ export default function DashboardProduct() {
   }, [match, params?.id]);
 
   const canAccess = product ? canAccessProduct(product, purchasedIds, kitBonusRows) : false;
+  const productUnavailable =
+    product != null && !isVisibleInCatalog(product, canAccess);
 
   if (loading) {
     return (
@@ -114,7 +119,7 @@ export default function DashboardProduct() {
     );
   }
 
-  if (!product) {
+  if (!product || productUnavailable) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-bc-page-bg px-4">
         <p className="text-sm text-zinc-600">Produto não encontrado.</p>

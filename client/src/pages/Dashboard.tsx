@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bell, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
@@ -14,9 +14,11 @@ import {
   resolveAppPageBackground,
   resolveHeroBannerMobileUrls,
   resolveHeroBannerDesktopUrls,
+  type DashboardSectionId,
 } from "@/contexts/SiteSettingsContext";
 import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
+import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
 import WelcomePopup from "@/components/WelcomePopup";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
@@ -34,6 +36,7 @@ type Product = {
   thumbnail_url?: string | null;
   video_url?: string | null;
   link_compra?: string | null;
+  is_hidden?: boolean | null;
 };
 
 const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
@@ -208,6 +211,7 @@ export default function Dashboard() {
             thumbnail_url: item.thumbnail_url ?? null,
             video_url: item.video_url ?? item.video ?? null,
             link_compra: item.link_compra ?? item.link ?? null,
+            is_hidden: item.is_hidden === true,
           }))
         );
       }
@@ -243,20 +247,114 @@ export default function Dashboard() {
     () => products.filter((product) => getType(product) === "BON"),
     [products]
   );
-  const accessibleBonusProducts = useMemo(
-    () => bonusProducts.filter((product) => canAccessProduct(product, purchasedIds, kitBonusRows)),
-    [bonusProducts, purchasedIds, kitBonusRows]
-  );
+  const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
+
+  const visibleInCatalog = (product: Product) =>
+    isVisibleInCatalog(product, canAccess(product));
+
   const purchasedProducts = useMemo(
     () => nonBonusProducts.filter((product) => purchasedIds.has(product.id)),
     [nonBonusProducts, purchasedIds]
   );
   const suggestedProducts = useMemo(
-    () => nonBonusProducts.filter((product) => !purchasedIds.has(product.id)),
-    [nonBonusProducts, purchasedIds]
+    () =>
+      nonBonusProducts.filter(
+        (product) => !purchasedIds.has(product.id) && visibleInCatalog(product)
+      ),
+    [nonBonusProducts, purchasedIds, kitBonusRows]
+  );
+  const accessibleBonusProducts = useMemo(
+    () =>
+      bonusProducts.filter(
+        (product) => canAccessProduct(product, purchasedIds, kitBonusRows) && visibleInCatalog(product)
+      ),
+    [bonusProducts, purchasedIds, kitBonusRows]
+  );
+  const otherProducts = useMemo(
+    () => nonBonusProducts.filter((product) => visibleInCatalog(product)),
+    [nonBonusProducts, purchasedIds, kitBonusRows]
   );
 
-  const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
+  const sectionBlocks = useMemo(() => {
+    const blocks: Partial<Record<DashboardSectionId, ReactNode>> = {
+      owned: (
+        <section key="owned">
+          <h2 className="app-section-title">SEUS PRODUTOS</h2>
+          <ProductList products={purchasedProducts} keyPrefix="owned" showLocked={false} onOpen={openProduct} />
+          {purchasedProducts.length === 0 && (
+            <p className="text-sm text-bc-primary/75">Nenhum produto liberado no momento.</p>
+          )}
+        </section>
+      ),
+      suggested: (
+        <section key="suggested">
+          <h2 className="app-section-title">PENSADOS PARA VOCÊ</h2>
+          <ProductList products={suggestedProducts} keyPrefix="suggested" showLocked onOpen={openProduct} />
+          {suggestedProducts.length === 0 && (
+            <p className="text-sm text-bc-primary/75">Sem sugestões bloqueadas para agora.</p>
+          )}
+        </section>
+      ),
+      bonus:
+        accessibleBonusProducts.length > 0 ? (
+          <section key="bonus">
+            <h2 className="app-section-title">BÔNUS</h2>
+            <ProductList
+              products={accessibleBonusProducts}
+              keyPrefix="bonus"
+              showLocked={false}
+              onOpen={openProduct}
+            />
+          </section>
+        ) : null,
+      other: (
+        <section key="other">
+          <h2 className="app-section-title">OUTROS PRODUTOS</h2>
+          <ProductList
+            products={otherProducts}
+            keyPrefix="other"
+            showLocked={(product) => !canAccess(product)}
+            onOpen={openProduct}
+          />
+          {otherProducts.length === 0 && (
+            <p className="text-sm text-bc-primary/75">Nenhum outro produto disponível.</p>
+          )}
+        </section>
+      ),
+      whatsapp: whatsappUrl ? (
+        <section key="whatsapp" className="app-cta-banner">
+          <p
+            className="text-xs font-medium uppercase leading-snug tracking-[0.12em] md:text-sm"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Quer algo mais personalizado?
+          </p>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 inline-block text-sm tracking-[0.04em] underline underline-offset-[3px] opacity-95 transition-opacity hover:opacity-100"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
+            Chame nossa equipe.
+          </a>
+        </section>
+      ) : null,
+    };
+
+    return settings.dashboard_section_order
+      .map((id) => blocks[id])
+      .filter((block): block is ReactNode => block != null);
+  }, [
+    settings.dashboard_section_order,
+    purchasedProducts,
+    suggestedProducts,
+    accessibleBonusProducts,
+    otherProducts,
+    whatsappUrl,
+    purchasedIds,
+    kitBonusRows,
+  ]);
 
   if (loading) {
     return (
@@ -343,66 +441,11 @@ export default function Dashboard() {
       </section>
 
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-7 md:pt-9">
-        <section>
-          <h2 className="app-section-title">SEUS PRODUTOS</h2>
-          <ProductList products={purchasedProducts} keyPrefix="owned" showLocked={false} onOpen={openProduct} />
-          {purchasedProducts.length === 0 && (
-            <p className="text-sm text-bc-primary/75">Nenhum produto liberado no momento.</p>
-          )}
-        </section>
-
-        <section className="mt-10">
-          <h2 className="app-section-title">PENSADOS PARA VOCÊ</h2>
-          <ProductList products={suggestedProducts} keyPrefix="suggested" showLocked onOpen={openProduct} />
-          {suggestedProducts.length === 0 && (
-            <p className="text-sm text-bc-primary/75">Sem sugestões bloqueadas para agora.</p>
-          )}
-        </section>
-
-        {accessibleBonusProducts.length > 0 ? (
-          <section className="mt-10">
-            <h2 className="app-section-title">BÔNUS</h2>
-            <ProductList
-              products={accessibleBonusProducts}
-              keyPrefix="bonus"
-              showLocked={false}
-              onOpen={openProduct}
-            />
-          </section>
-        ) : null}
-
-        <section className="mt-10">
-          <h2 className="app-section-title">OUTROS PRODUTOS</h2>
-          <ProductList
-            products={nonBonusProducts}
-            keyPrefix="other"
-            showLocked={(product) => !canAccess(product)}
-            onOpen={openProduct}
-          />
-          {nonBonusProducts.length === 0 && (
-            <p className="text-sm text-bc-primary/75">Nenhum outro produto disponível.</p>
-          )}
-        </section>
-
-        {whatsappUrl ? (
-          <section className="app-cta-banner mt-10">
-            <p
-              className="text-xs font-medium uppercase leading-snug tracking-[0.12em] md:text-sm"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Quer algo mais personalizado?
-            </p>
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1.5 inline-block text-sm tracking-[0.04em] underline underline-offset-[3px] opacity-95 transition-opacity hover:opacity-100"
-              style={{ fontFamily: "var(--font-body)" }}
-            >
-              Chame nossa equipe.
-            </a>
-          </section>
-        ) : null}
+        {sectionBlocks.map((block, index) => (
+          <div key={index} className={index > 0 ? "mt-10" : undefined}>
+            {block}
+          </div>
+        ))}
       </div>
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />

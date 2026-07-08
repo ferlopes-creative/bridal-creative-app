@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from 
 import {
   Bell,
   ChevronDown,
+  ChevronUp,
+  EyeOff,
   LayoutGrid,
   LogOut,
   type LucideIcon,
@@ -9,6 +11,7 @@ import {
   Palette,
   Pencil,
   Plus,
+  Rows3,
   Save,
   Send,
   Trash2,
@@ -32,6 +35,7 @@ import {
 } from "@/lib/siteColors";
 import {
   fetchSiteSettingsRow,
+  isDashboardSectionOrderSchemaError,
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
@@ -39,6 +43,11 @@ import {
   isSiteColorsSchemaError,
   isWhatsappUrlSchemaError,
 } from "@/lib/siteSettingsRemote";
+import {
+  DASHBOARD_SECTION_LABELS,
+  DEFAULT_DASHBOARD_SECTION_ORDER,
+  type DashboardSectionId,
+} from "@/lib/dashboardSections";
 import {
   accessLinksEqual,
   accessLinksToFormRows,
@@ -71,6 +80,7 @@ type Product = {
   link_compra?: string | null;
   access_links?: unknown;
   external_sales_id?: string | null;
+  is_hidden?: boolean | null;
 };
 
 /** Texto visível do HTML; vazio se for só markup vazio (ex. `<p></p>` do TipTap ao abrir). */
@@ -133,6 +143,11 @@ function isMissingExternalSalesIdColumnError(err: unknown): boolean {
     (m.includes("column") && (m.includes("does not exist") || m.includes("schema cache"))) ||
     code === "PGRST204"
   );
+}
+
+function isMissingIsHiddenColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("is_hidden");
 }
 
 function looksLikeStorageError(err: unknown): boolean {
@@ -249,6 +264,7 @@ export default function AdminPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [clearVideo, setClearVideo] = useState(false);
   const [externalSalesId, setExternalSalesId] = useState("");
+  const [isHidden, setIsHidden] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -269,6 +285,10 @@ export default function AdminPage() {
   const [siteLoading, setSiteLoading] = useState(true);
   const [siteColors, setSiteColors] = useState<SiteColors>({ ...DEFAULT_SITE_COLORS });
   const [siteWhatsappUrl, setSiteWhatsappUrl] = useState("");
+  const [dashboardSectionOrder, setDashboardSectionOrder] = useState<DashboardSectionId[]>([
+    ...DEFAULT_DASHBOARD_SECTION_ORDER,
+  ]);
+  const [sectionOrderSaving, setSectionOrderSaving] = useState(false);
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
@@ -303,6 +323,7 @@ export default function AdminPage() {
     accessLinks: ReturnType<typeof formRowsToAccessLinks>;
     externalSalesId: string;
     type: "PRO" | "BON";
+    isHidden: boolean;
   };
 
   const emptyFormSnapshot: ProductFormSnapshot = {
@@ -313,6 +334,7 @@ export default function AdminPage() {
     accessLinks: [],
     externalSalesId: "",
     type: "PRO",
+    isHidden: false,
   };
 
   const [modalSnapshot, setModalSnapshot] = useState<ProductFormSnapshot>(emptyFormSnapshot);
@@ -345,6 +367,7 @@ export default function AdminPage() {
     setVideoFile(null);
     setClearVideo(false);
     setExternalSalesId("");
+    setIsHidden(false);
   };
 
   const closeModal = () => {
@@ -381,6 +404,7 @@ export default function AdminPage() {
     setDeliveryImageFile(null);
     setVideoFile(null);
     setExternalSalesId(product.external_sales_id?.trim() || "");
+    setIsHidden(product.is_hidden === true);
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
@@ -389,6 +413,7 @@ export default function AdminPage() {
       accessLinks: parsedAccessLinks,
       externalSalesId: product.external_sales_id?.trim() || "",
       type: product.type === "BON" ? "BON" : "PRO",
+      isHidden: product.is_hidden === true,
     });
     setIsModalOpen(true);
     requestAnimationFrame(() => setIsModalVisible(true));
@@ -402,6 +427,7 @@ export default function AdminPage() {
     setAccessLinkRows(accessLinksToFormRows(emptyFormSnapshot.accessLinks));
     setExternalSalesId(emptyFormSnapshot.externalSalesId);
     setType(emptyFormSnapshot.type);
+    setIsHidden(emptyFormSnapshot.isHidden);
     setImageFile(null);
     setDeliveryImageFile(null);
     setVideoFile(null);
@@ -434,6 +460,7 @@ export default function AdminPage() {
       accessLinksChanged ||
       externalSalesId.trim() !== modalSnapshot.externalSalesId.trim() ||
       type !== modalSnapshot.type ||
+      isHidden !== modalSnapshot.isHidden ||
       imageFile != null ||
       deliveryImageFile != null ||
       deliveryGalleryPendingFiles.length > 0 ||
@@ -449,6 +476,7 @@ export default function AdminPage() {
     accessLinkRows,
     externalSalesId,
     type,
+    isHidden,
     imageFile,
     deliveryImageFile,
     deliveryGalleryPendingFiles,
@@ -536,6 +564,7 @@ export default function AdminPage() {
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
         setSiteColors(row.colors);
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
+        setDashboardSectionOrder(row.dashboard_section_order);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -704,6 +733,7 @@ export default function AdminPage() {
         includeAccessLinks: boolean;
         includeImageDeliveryUrl: boolean;
         includeDeliveryGalleryUrls: boolean;
+        includeIsHidden: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -731,6 +761,9 @@ export default function AdminPage() {
       if (opts.includeDeliveryGalleryUrls) {
         payload.delivery_gallery_urls = galleryUrls;
       }
+      if (opts.includeIsHidden) {
+        payload.is_hidden = isHidden;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -750,11 +783,12 @@ export default function AdminPage() {
         includeAccessLinks: true,
         includeImageDeliveryUrl: true,
         includeDeliveryGalleryUrls: true,
+        includeIsHidden: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
 
-      for (let attempt = 0; attempt < 12; attempt++) {
+      for (let attempt = 0; attempt < 13; attempt++) {
         const result = await saveProductRow(imageUrl, videoUrl, deliveryImageUrl, galleryUrls, flags);
         dbError = result.error;
         if (!dbError) {
@@ -785,6 +819,10 @@ export default function AdminPage() {
         }
         if (isMissingDeliveryGalleryUrlsColumnError(dbError) && flags.includeDeliveryGalleryUrls) {
           flags.includeDeliveryGalleryUrls = false;
+          continue;
+        }
+        if (isMissingIsHiddenColumnError(dbError) && flags.includeIsHidden) {
+          flags.includeIsHidden = false;
           continue;
         }
         break;
@@ -865,7 +903,8 @@ export default function AdminPage() {
           !flags.includeVideoUrl ||
           !flags.includeAccessLinks ||
           !flags.includeImageDeliveryUrl ||
-          !flags.includeDeliveryGalleryUrls)
+          !flags.includeDeliveryGalleryUrls ||
+          !flags.includeIsHidden)
       ) {
         await fetchProducts();
         closeModal();
@@ -887,6 +926,9 @@ export default function AdminPage() {
         }
         if (!flags.includeDeliveryGalleryUrls) {
           parts.push("galeria de modelos (migração delivery_gallery_urls)");
+        }
+        if (!flags.includeIsHidden) {
+          parts.push("visibilidade no catálogo (migração is_hidden)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -923,6 +965,7 @@ export default function AdminPage() {
             if (!flags.includeExternalSalesId) parts.push("ID da loja");
             if (!flags.includeImageDeliveryUrl) parts.push("imagem de entrega");
             if (!flags.includeDeliveryGalleryUrls) parts.push("galeria de modelos");
+            if (!flags.includeIsHidden) parts.push("visibilidade no catálogo");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -955,6 +998,67 @@ export default function AdminPage() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleProductHidden = async (product: Product) => {
+    const nextHidden = !(product.is_hidden === true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_hidden: nextHidden })
+        .eq("id", product.id);
+      if (error && isMissingIsHiddenColumnError(error)) {
+        toast.error(
+          "Coluna is_hidden ausente. Execute a migração 20260707200000_product_hidden_dashboard_sections.sql no Supabase."
+        );
+        return;
+      }
+      if (error) throw error;
+      await fetchProducts(true);
+      toast.success(
+        nextHidden
+          ? "Produto oculto no catálogo (antes da compra)."
+          : "Produto visível no catálogo."
+      );
+    } catch (error) {
+      console.error("Erro ao alterar visibilidade:", error);
+      toast.error("Não foi possível alterar a visibilidade do produto.");
+    }
+  };
+
+  const moveDashboardSection = (index: number, direction: -1 | 1) => {
+    setDashboardSectionOrder((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const handleSaveSectionOrder = async () => {
+    setSectionOrderSaving(true);
+    try {
+      const { error } = await supabase.from("site_settings").upsert({
+        id: 1,
+        dashboard_section_order: dashboardSectionOrder,
+        updated_at: new Date().toISOString(),
+      });
+      if (error && isDashboardSectionOrderSchemaError(error.message)) {
+        toast.error(
+          "Coluna dashboard_section_order ausente. Execute a migração 20260707200000_product_hidden_dashboard_sections.sql no Supabase."
+        );
+        return;
+      }
+      if (error) throw error;
+      await refreshSiteSettings();
+      toast.success("Ordem das seções salva.");
+    } catch (error) {
+      console.error("Erro ao salvar ordem das seções:", error);
+      toast.error("Não foi possível salvar a ordem das seções.");
+    } finally {
+      setSectionOrderSaving(false);
     }
   };
 
@@ -1708,6 +1812,74 @@ export default function AdminPage() {
         </AdminSection>
 
         <AdminSection
+          id="dashboard-layout"
+          icon={Rows3}
+          title="Ordem das seções do app"
+          description="Define a ordem das seções na home do usuário (dashboard). O banner do topo permanece fixo. A seção Bônus só aparece quando há bônus liberados; o banner WhatsApp só quando o link estiver configurado."
+        >
+          {siteLoading ? (
+            <p className="text-sm text-zinc-500">Carregando…</p>
+          ) : (
+            <div className="space-y-4">
+              <ul className="space-y-2">
+                {dashboardSectionOrder.map((sectionId, index) => (
+                  <li
+                    key={sectionId}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#6B705C]/10 text-xs font-semibold text-[#6B705C]">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm font-medium text-zinc-800">
+                      {DASHBOARD_SECTION_LABELS[sectionId]}
+                    </span>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveDashboardSection(index, -1)}
+                        disabled={index === 0 || sectionOrderSaving}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
+                        aria-label={`Subir ${DASHBOARD_SECTION_LABELS[sectionId]}`}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveDashboardSection(index, 1)}
+                        disabled={index === dashboardSectionOrder.length - 1 || sectionOrderSaving}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
+                        aria-label={`Descer ${DASHBOARD_SECTION_LABELS[sectionId]}`}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => void handleSaveSectionOrder()}
+                disabled={sectionOrderSaving}
+                className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+                style={{ backgroundColor: "#6B705C" }}
+              >
+                {sectionOrderSaving ? (
+                  <>
+                    <Spinner className="size-4 text-white" />
+                    Salvando…
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Salvar ordem
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </AdminSection>
+
+        <AdminSection
           id="legacy-access"
           icon={UserCheck}
           title="Compradores antigos"
@@ -1953,7 +2125,7 @@ export default function AdminPage() {
           id="catalog"
           icon={LayoutGrid}
           title="Catálogo de produtos"
-          description='Edite ou exclua itens pelos botões em cada cartão. Use "Novo produto" no topo para criar.'
+          description='Edite, oculte ou exclua itens pelos botões em cada cartão. Produtos ocultos não aparecem no catálogo antes da compra, mas continuam visíveis para quem já tem acesso.'
           headerExtra={
             !loading ? (
               <span className="mr-1 inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
@@ -2009,18 +2181,41 @@ export default function AdminPage() {
               return (
                 <article
                   key={product.id}
-                  className="flex flex-col overflow-hidden rounded-2xl border border-zinc-200/95 bg-white shadow-sm ring-1 ring-black/[0.03] transition-shadow hover:shadow-md"
+                  className={`flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm ring-1 ring-black/[0.03] transition-shadow hover:shadow-md ${
+                    product.is_hidden ? "border-amber-200/90" : "border-zinc-200/95"
+                  }`}
                 >
-                  <img
-                    src={imageSrc}
-                    alt={product.name || "Produto"}
-                    className="aspect-[3/4] w-full object-cover"
-                  />
+                  <div className="relative">
+                    <img
+                      src={imageSrc}
+                      alt={product.name || "Produto"}
+                      className={`aspect-[3/4] w-full object-cover ${product.is_hidden ? "opacity-75" : ""}`}
+                    />
+                    {product.is_hidden ? (
+                      <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-600/95 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+                        <EyeOff className="h-3 w-3" />
+                        Oculto
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="flex flex-1 flex-col gap-2 p-3">
                     <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-zinc-900">
                       {product.name || product.title || "Sem nome"}
                     </p>
-                    <div className="mt-auto flex flex-col gap-2 sm:flex-row">
+                    <div className="mt-auto flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleProductHidden(product)}
+                        className={`inline-flex h-9 w-full items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium ${
+                          product.is_hidden
+                            ? "border-amber-300 text-amber-800 hover:bg-amber-50"
+                            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <EyeOff className="h-3.5 w-3.5" />
+                        {product.is_hidden ? "Mostrar no catálogo" : "Ocultar antes da compra"}
+                      </button>
+                      <div className="flex flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={() => openEditModal(product)}
@@ -2042,6 +2237,7 @@ export default function AdminPage() {
                         )}
                         {deletingId === product.id ? "Excluindo..." : "Excluir"}
                       </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -2382,6 +2578,26 @@ export default function AdminPage() {
                 {existingImageUrl && !imageFile && (
                   <p className="text-[11px] text-zinc-500">Imagem atual salva; envie outro arquivo só se quiser trocar.</p>
                 )}
+              </div>
+
+              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={isHidden}
+                    onChange={(e) => setIsHidden(e.target.checked)}
+                    disabled={saving}
+                    className="mt-0.5 rounded border-zinc-300"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-zinc-800">
+                      Ocultar no catálogo antes da compra
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">
+                      O produto não aparece para quem ainda não tem acesso. Quem já comprou continua vendo em &quot;Seus produtos&quot;.
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
