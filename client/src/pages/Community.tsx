@@ -747,10 +747,15 @@ export default function Community() {
                 <Lock className="h-5 w-5 text-bc-primary" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-[#4c4f46]">Chat bloqueado no momento</h2>
-                <p className="mt-1 text-sm text-bc-primary">
-                  A comunidade de noivas fica disponivel apos a primeira compra. Assim que voce virar cliente,
-                  o chat sera liberado automaticamente.
+                <h2
+                  className="text-base font-semibold leading-snug text-[#4c4f46]"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Conecte-se com noivas que vivem o mesmo momento que você!
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-bc-primary">
+                  Nossa comunidade é exclusiva para clientes Bridal Creative. Realize sua primeira compra e o
+                  acesso é liberado na hora.
                 </p>
               </div>
             </div>
