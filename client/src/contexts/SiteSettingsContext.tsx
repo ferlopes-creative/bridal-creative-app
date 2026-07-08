@@ -1,12 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { applySiteColorsToDocument, DEFAULT_SITE_COLORS, type SiteColors } from "@/lib/siteColors";
 import { readSiteSettingsCache, writeSiteSettingsCache } from "@/lib/siteSettingsCache";
+import { parseDashboardSectionOrder } from "@/lib/dashboardSections";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
+  DEFAULT_DASHBOARD_SECTION_ORDER,
   fetchSiteSettingsRow,
+  type DashboardSectionId,
 } from "@/lib/siteSettingsRemote";
 
 export { DEFAULT_SITE_COLORS, type SiteColors };
+export { DEFAULT_DASHBOARD_SECTION_ORDER, type DashboardSectionId };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
 
@@ -25,6 +29,7 @@ export type SiteSettings = {
   hero_banner_desktop_urls: string[];
   colors: SiteColors;
   whatsapp_url: string | null;
+  dashboard_section_order: DashboardSectionId[];
 };
 
 const defaultSettings: SiteSettings = {
@@ -38,6 +43,7 @@ const defaultSettings: SiteSettings = {
   hero_banner_desktop_urls: [],
   colors: { ...DEFAULT_SITE_COLORS },
   whatsapp_url: null,
+  dashboard_section_order: [...DEFAULT_DASHBOARD_SECTION_ORDER],
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -76,6 +82,7 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
       : defaultSettings.hero_banner_desktop_urls,
     whatsapp_url:
       typeof partial.whatsapp_url === "string" ? partial.whatsapp_url : defaultSettings.whatsapp_url,
+    dashboard_section_order: parseDashboardSectionOrder(partial.dashboard_section_order),
     colors: parsedColors,
   };
 }
@@ -159,6 +166,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         hero_banner_desktop_urls: row.hero_banner_desktop_urls,
         colors: row.colors,
         whatsapp_url: row.whatsapp_url,
+        dashboard_section_order: row.dashboard_section_order,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);

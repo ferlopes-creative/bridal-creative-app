@@ -1,4 +1,8 @@
 import { resolveSiteColors, type SiteColors } from "@/lib/siteColors";
+import {
+  parseDashboardSectionOrder,
+  type DashboardSectionId,
+} from "@/lib/dashboardSections";
 import { supabase } from "@/lib/supabase";
 
 /** Opacidade padrão da textura (~22 %; antes era 14 % fixo no CSS). */
@@ -15,6 +19,7 @@ export type SiteSettingsRow = {
   hero_banner_desktop_urls: string[];
   colors: SiteColors;
   whatsapp_url: string | null;
+  dashboard_section_order: DashboardSectionId[];
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -75,6 +80,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     hero_banner_desktop_urls,
     colors: resolveSiteColors(data),
     whatsapp_url: (data.whatsapp_url as string | null | undefined)?.trim() || null,
+    dashboard_section_order: parseDashboardSectionOrder(data.dashboard_section_order),
   };
 }
 
@@ -119,5 +125,8 @@ export function isWhatsappUrlSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("whatsapp_url");
 }
+
+export { isDashboardSectionOrderSchemaError } from "@/lib/dashboardSections";
+export { DEFAULT_DASHBOARD_SECTION_ORDER, type DashboardSectionId } from "@/lib/dashboardSections";
 
 export { isSiteColorsSchemaError } from "@/lib/siteColors";
