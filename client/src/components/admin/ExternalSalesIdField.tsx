@@ -1,4 +1,5 @@
-import AdminFieldHelp from "@/components/admin/AdminFieldHelp";
+import { useState } from "react";
+import { AdminFieldHelpButton, AdminFieldHelpPanel } from "@/components/admin/AdminFieldHelp";
 
 type ExternalSalesIdFieldProps = {
   value: string;
@@ -6,55 +7,68 @@ type ExternalSalesIdFieldProps = {
   disabled?: boolean;
 };
 
+const HELP_LABEL = "Como encontrar o ID na Cakto e na Hotmart";
+
 export default function ExternalSalesIdField({
   value,
   onChange,
   disabled = false,
 }: ExternalSalesIdFieldProps) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
         <label className="text-sm text-zinc-700">ID do produto na loja</label>
-        <AdminFieldHelp label="Como encontrar o ID na Cakto e na Hotmart">
-          <div className="space-y-3 text-xs leading-relaxed text-zinc-600">
-            <div>
-              <p className="font-medium text-zinc-800">Cakto</p>
-              <p className="mt-1">
-                Use o mesmo ID que aparece no webhook da Cakto, geralmente em{" "}
-                <code className="rounded bg-zinc-100 px-1">product.id</code> ou{" "}
-                <code className="rounded bg-zinc-100 px-1">product_id</code>. Cole esse valor aqui
-                para a compra liberar o produto certo automaticamente.
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-zinc-800">Hotmart</p>
-              <ol className="mt-1 list-decimal space-y-1 pl-4">
-                <li>
-                  Entre em <strong>Produtos</strong> no painel da Hotmart e abra o produto desejado.
-                </li>
-                <li>
-                  O número do produto costuma aparecer na URL ou nos detalhes — é um número como{" "}
-                  <code className="rounded bg-zinc-100 px-1">123456</code>. Esse é o valor de{" "}
-                  <code className="rounded bg-zinc-100 px-1">product.id</code> no webhook.
-                </li>
-                <li>
-                  Se você vende por <strong>oferta</strong> (e não pelo produto principal), use o{" "}
-                  <strong>código da oferta</strong> — o mesmo que a Hotmart envia em{" "}
-                  <code className="rounded bg-zinc-100 px-1">purchase.offer.code</code>.
-                </li>
-                <li>
-                  Cole exatamente o valor recebido no webhook (número ou código), sem espaços extras.
-                </li>
-              </ol>
-              <p className="mt-2 rounded-md bg-[#6B705C]/8 px-2.5 py-2 text-[11px] text-zinc-700">
-                Dica: faça uma compra de teste e confira o webhook em{" "}
-                <strong>Ferramentas → Webhooks (API 2.0)</strong>. O campo{" "}
-                <code className="rounded bg-white/80 px-1">data.product.id</code> é o mais comum.
-              </p>
-            </div>
-          </div>
-        </AdminFieldHelp>
+        <AdminFieldHelpButton label={HELP_LABEL} open={helpOpen} onOpenChange={setHelpOpen} />
       </div>
+
+      <AdminFieldHelpPanel label={HELP_LABEL} open={helpOpen} onOpenChange={setHelpOpen}>
+        <div className="space-y-3">
+          <div>
+            <p className="font-medium text-zinc-800">Cakto</p>
+            <p className="mt-1">
+              Use o mesmo ID que aparece no webhook da Cakto, geralmente em{" "}
+              <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-700">product.id</code>{" "}
+              ou{" "}
+              <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-700">product_id</code>.
+              Cole esse valor aqui para a compra liberar o produto certo automaticamente.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-zinc-800">Hotmart</p>
+            <ol className="mt-1 list-decimal space-y-1 pl-4">
+              <li>
+                Entre em <strong>Produtos</strong> no painel da Hotmart e abra o produto desejado.
+              </li>
+              <li>
+                O número do produto costuma aparecer na URL ou nos detalhes — é um número como{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-700">123456</code>.
+                Esse é o valor de{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-700">product.id</code>{" "}
+                no webhook.
+              </li>
+              <li>
+                Se você vende por <strong>oferta</strong> (e não pelo produto principal), use o{" "}
+                <strong>código da oferta</strong> — o mesmo que a Hotmart envia em{" "}
+                <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-700">
+                  purchase.offer.code
+                </code>
+                .
+              </li>
+              <li>
+                Cole exatamente o valor recebido no webhook (número ou código), sem espaços extras.
+              </li>
+            </ol>
+            <p className="mt-2 rounded-md border border-[#6B705C]/15 bg-white px-2.5 py-2 text-[11px] text-zinc-700">
+              Dica: faça uma compra de teste e confira o webhook em{" "}
+              <strong>Ferramentas → Webhooks (API 2.0)</strong>. O campo{" "}
+              <code className="rounded bg-zinc-100 px-1">data.product.id</code> é o mais comum.
+            </p>
+          </div>
+        </div>
+      </AdminFieldHelpPanel>
+
       <input
         type="text"
         value={value}

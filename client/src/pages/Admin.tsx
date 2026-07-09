@@ -182,6 +182,8 @@ const sectionH2 =
   "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
 const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
 
+const ADMIN_APP_VERSION = "v26.7.9";
+
 type AdminSectionProps = {
   id: string;
   icon: LucideIcon;
@@ -2195,6 +2197,13 @@ export default function AdminPage() {
             </div>
           )}
         </AdminSection>
+
+        <p
+          className="select-none pt-2 text-center text-[11px] tracking-wide text-zinc-400/45"
+          aria-label={`Versão ${ADMIN_APP_VERSION}`}
+        >
+          {ADMIN_APP_VERSION}
+        </p>
       </div>
 
       {isModalOpen && (
