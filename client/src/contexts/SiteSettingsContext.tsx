@@ -1,7 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { applySiteColorsToDocument, DEFAULT_SITE_COLORS, type SiteColors } from "@/lib/siteColors";
 import { readSiteSettingsCache, writeSiteSettingsCache } from "@/lib/siteSettingsCache";
-import { parseDashboardSectionOrder } from "@/lib/dashboardSections";
+import {
+  DEFAULT_DASHBOARD_SECTIONS_CONFIG,
+  parseDashboardSectionOrder,
+  parseDashboardSectionsConfig,
+  type DashboardSectionConfig,
+} from "@/lib/dashboardSections";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   DEFAULT_DASHBOARD_SECTION_ORDER,
@@ -10,7 +15,12 @@ import {
 } from "@/lib/siteSettingsRemote";
 
 export { DEFAULT_SITE_COLORS, type SiteColors };
-export { DEFAULT_DASHBOARD_SECTION_ORDER, type DashboardSectionId };
+export {
+  DEFAULT_DASHBOARD_SECTION_ORDER,
+  DEFAULT_DASHBOARD_SECTIONS_CONFIG,
+  type DashboardSectionConfig,
+  type DashboardSectionId,
+};
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
 
@@ -30,6 +40,7 @@ export type SiteSettings = {
   colors: SiteColors;
   whatsapp_url: string | null;
   dashboard_section_order: DashboardSectionId[];
+  dashboard_sections_config: DashboardSectionConfig[];
 };
 
 const defaultSettings: SiteSettings = {
@@ -44,6 +55,7 @@ const defaultSettings: SiteSettings = {
   colors: { ...DEFAULT_SITE_COLORS },
   whatsapp_url: null,
   dashboard_section_order: [...DEFAULT_DASHBOARD_SECTION_ORDER],
+  dashboard_sections_config: [...DEFAULT_DASHBOARD_SECTIONS_CONFIG],
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -83,6 +95,10 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
     whatsapp_url:
       typeof partial.whatsapp_url === "string" ? partial.whatsapp_url : defaultSettings.whatsapp_url,
     dashboard_section_order: parseDashboardSectionOrder(partial.dashboard_section_order),
+    dashboard_sections_config: parseDashboardSectionsConfig(
+      partial.dashboard_sections_config,
+      parseDashboardSectionOrder(partial.dashboard_section_order)
+    ),
     colors: parsedColors,
   };
 }
@@ -167,6 +183,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         colors: row.colors,
         whatsapp_url: row.whatsapp_url,
         dashboard_section_order: row.dashboard_section_order,
+        dashboard_sections_config: row.dashboard_sections_config,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);

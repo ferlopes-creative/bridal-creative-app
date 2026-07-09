@@ -681,7 +681,7 @@ export default function Community() {
             aria-label="Voltar"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span className="text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
               Chat
             </span>
           </button>

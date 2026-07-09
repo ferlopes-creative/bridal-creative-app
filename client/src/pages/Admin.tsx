@@ -21,6 +21,8 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
+import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
+import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
 import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -35,7 +37,7 @@ import {
 } from "@/lib/siteColors";
 import {
   fetchSiteSettingsRow,
-  isDashboardSectionOrderSchemaError,
+  isDashboardSectionsConfigSchemaError,
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
@@ -44,9 +46,9 @@ import {
   isWhatsappUrlSchemaError,
 } from "@/lib/siteSettingsRemote";
 import {
-  DASHBOARD_SECTION_LABELS,
-  DEFAULT_DASHBOARD_SECTION_ORDER,
-  type DashboardSectionId,
+  dashboardSectionsConfigToOrder,
+  DEFAULT_DASHBOARD_SECTIONS_CONFIG,
+  type DashboardSectionConfig,
 } from "@/lib/dashboardSections";
 import {
   accessLinksEqual,
@@ -180,6 +182,8 @@ const sectionH2 =
   "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
 const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
 
+const ADMIN_APP_VERSION = "v26.7.9";
+
 type AdminSectionProps = {
   id: string;
   icon: LucideIcon;
@@ -285,8 +289,8 @@ export default function AdminPage() {
   const [siteLoading, setSiteLoading] = useState(true);
   const [siteColors, setSiteColors] = useState<SiteColors>({ ...DEFAULT_SITE_COLORS });
   const [siteWhatsappUrl, setSiteWhatsappUrl] = useState("");
-  const [dashboardSectionOrder, setDashboardSectionOrder] = useState<DashboardSectionId[]>([
-    ...DEFAULT_DASHBOARD_SECTION_ORDER,
+  const [dashboardSectionsConfig, setDashboardSectionsConfig] = useState<DashboardSectionConfig[]>([
+    ...DEFAULT_DASHBOARD_SECTIONS_CONFIG,
   ]);
   const [sectionOrderSaving, setSectionOrderSaving] = useState(false);
 
@@ -564,7 +568,7 @@ export default function AdminPage() {
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
         setSiteColors(row.colors);
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
-        setDashboardSectionOrder(row.dashboard_section_order);
+        setDashboardSectionsConfig(row.dashboard_sections_config);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -1027,36 +1031,28 @@ export default function AdminPage() {
     }
   };
 
-  const moveDashboardSection = (index: number, direction: -1 | 1) => {
-    setDashboardSectionOrder((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
-
-  const handleSaveSectionOrder = async () => {
+  const handleSaveSectionsConfig = async () => {
     setSectionOrderSaving(true);
     try {
+      const dashboard_section_order = dashboardSectionsConfigToOrder(dashboardSectionsConfig);
       const { error } = await supabase.from("site_settings").upsert({
         id: 1,
-        dashboard_section_order: dashboardSectionOrder,
+        dashboard_sections_config: dashboardSectionsConfig,
+        dashboard_section_order,
         updated_at: new Date().toISOString(),
       });
-      if (error && isDashboardSectionOrderSchemaError(error.message)) {
+      if (error && isDashboardSectionsConfigSchemaError(error.message)) {
         toast.error(
-          "Coluna dashboard_section_order ausente. Execute a migração 20260707200000_product_hidden_dashboard_sections.sql no Supabase."
+          "Coluna dashboard_sections_config ausente. Execute a migração 20260709120000_dashboard_sections_config.sql no Supabase."
         );
         return;
       }
       if (error) throw error;
       await refreshSiteSettings();
-      toast.success("Ordem das seções salva.");
+      toast.success("Seções do dashboard salvas.");
     } catch (error) {
-      console.error("Erro ao salvar ordem das seções:", error);
-      toast.error("Não foi possível salvar a ordem das seções.");
+      console.error("Erro ao salvar seções do dashboard:", error);
+      toast.error("Não foi possível salvar as seções do dashboard.");
     } finally {
       setSectionOrderSaving(false);
     }
@@ -1814,68 +1810,23 @@ export default function AdminPage() {
         <AdminSection
           id="dashboard-layout"
           icon={Rows3}
-          title="Ordem das seções do app"
-          description="Define a ordem das seções na home do usuário (dashboard). O banner do topo permanece fixo. A seção Bônus só aparece quando há bônus liberados; o banner WhatsApp só quando o link estiver configurado."
+          title="Seções do dashboard"
+          description="Monte a home do app: renomeie blocos, escolha produtos, reordene ou remova seções. O carrossel do topo permanece fixo."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
-            <div className="space-y-4">
-              <ul className="space-y-2">
-                {dashboardSectionOrder.map((sectionId, index) => (
-                  <li
-                    key={sectionId}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5"
-                  >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#6B705C]/10 text-xs font-semibold text-[#6B705C]">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm font-medium text-zinc-800">
-                      {DASHBOARD_SECTION_LABELS[sectionId]}
-                    </span>
-                    <div className="flex shrink-0 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => moveDashboardSection(index, -1)}
-                        disabled={index === 0 || sectionOrderSaving}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-                        aria-label={`Subir ${DASHBOARD_SECTION_LABELS[sectionId]}`}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveDashboardSection(index, 1)}
-                        disabled={index === dashboardSectionOrder.length - 1 || sectionOrderSaving}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-                        aria-label={`Descer ${DASHBOARD_SECTION_LABELS[sectionId]}`}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() => void handleSaveSectionOrder()}
-                disabled={sectionOrderSaving}
-                className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: "#6B705C" }}
-              >
-                {sectionOrderSaving ? (
-                  <>
-                    <Spinner className="size-4 text-white" />
-                    Salvando…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    Salvar ordem
-                  </>
-                )}
-              </button>
-            </div>
+            <DashboardSectionsEditor
+              sections={dashboardSectionsConfig}
+              onChange={setDashboardSectionsConfig}
+              products={sortedProducts.map((product) => ({
+                id: product.id,
+                name: product.name,
+                type: product.type,
+              }))}
+              saving={sectionOrderSaving}
+              onSave={() => void handleSaveSectionsConfig()}
+            />
           )}
         </AdminSection>
 
@@ -2246,6 +2197,13 @@ export default function AdminPage() {
             </div>
           )}
         </AdminSection>
+
+        <p
+          className="select-none pt-2 text-center text-[11px] tracking-wide text-zinc-400/45"
+          aria-label={`Versão ${ADMIN_APP_VERSION}`}
+        >
+          {ADMIN_APP_VERSION}
+        </p>
       </div>
 
       {isModalOpen && (
@@ -2549,20 +2507,11 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">ID do produto na loja (Cakto / Hotmart)</label>
-                <input
-                  type="text"
-                  value={externalSalesId}
-                  onChange={(e) => setExternalSalesId(e.target.value)}
-                  placeholder="Deve bater com o ID enviado pelo webhook"
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                />
-                <p className="text-[11px] text-zinc-500">
-                  Opcional. Use o mesmo valor que a Cakto ou Hotmart envia em <code className="rounded bg-zinc-100 px-1">product.id</code> para
-                  casar a compra com este item.
-                </p>
-              </div>
+              <ExternalSalesIdField
+                value={externalSalesId}
+                onChange={setExternalSalesId}
+                disabled={saving}
+              />
 
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
