@@ -1,6 +1,8 @@
 import { resolveSiteColors, type SiteColors } from "@/lib/siteColors";
 import {
   parseDashboardSectionOrder,
+  parseDashboardSectionsConfig,
+  type DashboardSectionConfig,
   type DashboardSectionId,
 } from "@/lib/dashboardSections";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +22,7 @@ export type SiteSettingsRow = {
   colors: SiteColors;
   whatsapp_url: string | null;
   dashboard_section_order: DashboardSectionId[];
+  dashboard_sections_config: DashboardSectionConfig[];
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -81,6 +84,10 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     colors: resolveSiteColors(data),
     whatsapp_url: (data.whatsapp_url as string | null | undefined)?.trim() || null,
     dashboard_section_order: parseDashboardSectionOrder(data.dashboard_section_order),
+    dashboard_sections_config: parseDashboardSectionsConfig(
+      data.dashboard_sections_config,
+      parseDashboardSectionOrder(data.dashboard_section_order)
+    ),
   };
 }
 
@@ -126,7 +133,15 @@ export function isWhatsappUrlSchemaError(message: string | undefined): boolean {
   return m.includes("whatsapp_url");
 }
 
-export { isDashboardSectionOrderSchemaError } from "@/lib/dashboardSections";
-export { DEFAULT_DASHBOARD_SECTION_ORDER, type DashboardSectionId } from "@/lib/dashboardSections";
+export {
+  isDashboardSectionOrderSchemaError,
+  isDashboardSectionsConfigSchemaError,
+} from "@/lib/dashboardSections";
+export {
+  DEFAULT_DASHBOARD_SECTION_ORDER,
+  DEFAULT_DASHBOARD_SECTIONS_CONFIG,
+  type DashboardSectionConfig,
+  type DashboardSectionId,
+} from "@/lib/dashboardSections";
 
 export { isSiteColorsSchemaError } from "@/lib/siteColors";
