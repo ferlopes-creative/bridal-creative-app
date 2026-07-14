@@ -58,7 +58,7 @@ import {
   parseAccessLinks,
   type ProductAccessLinkRow,
 } from "@/lib/productAccessLinks";
-import { parseDeliveryGalleryUrls } from "@/lib/productDeliveryImages";
+import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { normalizeWhatsAppUrl } from "@/lib/whatsappUrl";
 import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
 import { parseLegacyPurchaseLines } from "@/lib/legacyPurchaseImport";
@@ -74,7 +74,9 @@ type Product = {
   type?: "PRO" | "BON" | string | null;
   image_url?: string | null;
   image_delivery_url?: string | null;
+  image_sales_url?: string | null;
   delivery_gallery_urls?: unknown;
+  sales_gallery_urls?: unknown;
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
@@ -82,6 +84,8 @@ type Product = {
   link_compra?: string | null;
   access_links?: unknown;
   external_sales_id?: string | null;
+  cakto_sales_id?: string | null;
+  hotmart_sales_id?: string | null;
   is_hidden?: boolean | null;
 };
 
@@ -135,21 +139,40 @@ function isMissingDeliveryGalleryUrlsColumnError(err: unknown): boolean {
   return m.includes("delivery_gallery_urls");
 }
 
-/** Banco sem migração da coluna `external_sales_id` — PostgREST / Postgres avisa no erro. */
-function isMissingExternalSalesIdColumnError(err: unknown): boolean {
+/** Banco sem migração das colunas de imagens de venda. */
+function isMissingImageSalesUrlColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
-  const code =
-    err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code ?? "") : "";
-  return (
-    m.includes("external_sales_id") ||
-    (m.includes("column") && (m.includes("does not exist") || m.includes("schema cache"))) ||
-    code === "PGRST204"
-  );
+  return m.includes("image_sales_url");
+}
+
+function isMissingSalesGalleryUrlsColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("sales_gallery_urls");
+}
+
+function isMissingCaktoSalesIdColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("cakto_sales_id");
+}
+
+function isMissingHotmartSalesIdColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("hotmart_sales_id");
 }
 
 function isMissingIsHiddenColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("is_hidden");
+}
+
+function productStoreIdsLabel(p: Product): string {
+  const parts: string[] = [];
+  if (p.hotmart_sales_id?.trim()) parts.push(`Hotmart: ${p.hotmart_sales_id.trim()}`);
+  if (p.cakto_sales_id?.trim()) parts.push(`Cakto: ${p.cakto_sales_id.trim()}`);
+  if (parts.length === 0 && p.external_sales_id?.trim()) {
+    parts.push(`loja: ${p.external_sales_id.trim()}`);
+  }
+  return parts.length ? ` (${parts.join(" · ")})` : "";
 }
 
 function looksLikeStorageError(err: unknown): boolean {
@@ -182,7 +205,7 @@ const sectionH2 =
   "font-serif text-lg font-semibold tracking-tight text-[#4e563f] md:text-xl";
 const sectionDesc = "mb-4 max-w-3xl text-sm leading-relaxed text-zinc-600";
 
-const ADMIN_APP_VERSION = "v26.7.9";
+const ADMIN_APP_VERSION = "v26.7.14";
 
 type AdminSectionProps = {
   id: string;
@@ -254,8 +277,11 @@ export default function AdminPage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [existingDeliveryImageUrl, setExistingDeliveryImageUrl] = useState<string | null>(null);
+  const [existingSalesImageUrl, setExistingSalesImageUrl] = useState<string | null>(null);
   const [deliveryGalleryUrls, setDeliveryGalleryUrls] = useState<string[]>([]);
   const [deliveryGalleryPendingFiles, setDeliveryGalleryPendingFiles] = useState<File[]>([]);
+  const [salesGalleryUrls, setSalesGalleryUrls] = useState<string[]>([]);
+  const [salesGalleryPendingFiles, setSalesGalleryPendingFiles] = useState<File[]>([]);
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -265,9 +291,12 @@ export default function AdminPage() {
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [deliveryImageFile, setDeliveryImageFile] = useState<File | null>(null);
+  const [salesImageFile, setSalesImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [clearVideo, setClearVideo] = useState(false);
-  const [externalSalesId, setExternalSalesId] = useState("");
+  const [hotmartSalesId, setHotmartSalesId] = useState("");
+  const [caktoSalesId, setCaktoSalesId] = useState("");
+  const [legacyExternalSalesId, setLegacyExternalSalesId] = useState<string | null>(null);
   const [isHidden, setIsHidden] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -325,7 +354,8 @@ export default function AdminPage() {
     descriptionDelivery: string;
     linkCompra: string;
     accessLinks: ReturnType<typeof formRowsToAccessLinks>;
-    externalSalesId: string;
+    hotmartSalesId: string;
+    caktoSalesId: string;
     type: "PRO" | "BON";
     isHidden: boolean;
   };
@@ -336,7 +366,8 @@ export default function AdminPage() {
     descriptionDelivery: "",
     linkCompra: "",
     accessLinks: [],
-    externalSalesId: "",
+    hotmartSalesId: "",
+    caktoSalesId: "",
     type: "PRO",
     isHidden: false,
   };
@@ -357,8 +388,11 @@ export default function AdminPage() {
     setEditingProductId(null);
     setExistingImageUrl(null);
     setExistingDeliveryImageUrl(null);
+    setExistingSalesImageUrl(null);
     setDeliveryGalleryUrls([]);
     setDeliveryGalleryPendingFiles([]);
+    setSalesGalleryUrls([]);
+    setSalesGalleryPendingFiles([]);
     setExistingVideoUrl(null);
     setName("");
     setDescription("");
@@ -368,9 +402,12 @@ export default function AdminPage() {
     setType("PRO");
     setImageFile(null);
     setDeliveryImageFile(null);
+    setSalesImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
-    setExternalSalesId("");
+    setHotmartSalesId("");
+    setCaktoSalesId("");
+    setLegacyExternalSalesId(null);
     setIsHidden(false);
   };
 
@@ -393,8 +430,11 @@ export default function AdminPage() {
     setEditingProductId(product.id);
     setExistingImageUrl(product.image_url || product.image || product.thumbnail_url || null);
     setExistingDeliveryImageUrl(product.image_delivery_url?.trim() || null);
-    setDeliveryGalleryUrls(parseDeliveryGalleryUrls(product.delivery_gallery_urls));
+    setExistingSalesImageUrl(product.image_sales_url?.trim() || null);
+    setDeliveryGalleryUrls(parseGalleryUrls(product.delivery_gallery_urls));
     setDeliveryGalleryPendingFiles([]);
+    setSalesGalleryUrls(parseGalleryUrls(product.sales_gallery_urls));
+    setSalesGalleryPendingFiles([]);
     setExistingVideoUrl(product.video_url || product.video || null);
     setClearVideo(false);
     setName(product.name || "");
@@ -406,8 +446,13 @@ export default function AdminPage() {
     setType(product.type === "BON" ? "BON" : "PRO");
     setImageFile(null);
     setDeliveryImageFile(null);
+    setSalesImageFile(null);
     setVideoFile(null);
-    setExternalSalesId(product.external_sales_id?.trim() || "");
+    const hotmartId = product.hotmart_sales_id?.trim() || "";
+    const caktoId = product.cakto_sales_id?.trim() || "";
+    setHotmartSalesId(hotmartId);
+    setCaktoSalesId(caktoId);
+    setLegacyExternalSalesId(product.external_sales_id?.trim() || null);
     setIsHidden(product.is_hidden === true);
     setModalSnapshot({
       name: product.name || "",
@@ -415,7 +460,8 @@ export default function AdminPage() {
       descriptionDelivery: product.description_delivery || "",
       linkCompra: product.link_compra || "",
       accessLinks: parsedAccessLinks,
-      externalSalesId: product.external_sales_id?.trim() || "",
+      hotmartSalesId: hotmartId,
+      caktoSalesId: caktoId,
       type: product.type === "BON" ? "BON" : "PRO",
       isHidden: product.is_hidden === true,
     });
@@ -429,19 +475,25 @@ export default function AdminPage() {
     setDescriptionDelivery(emptyFormSnapshot.descriptionDelivery);
     setLinkCompra(emptyFormSnapshot.linkCompra);
     setAccessLinkRows(accessLinksToFormRows(emptyFormSnapshot.accessLinks));
-    setExternalSalesId(emptyFormSnapshot.externalSalesId);
+    setHotmartSalesId(emptyFormSnapshot.hotmartSalesId);
+    setCaktoSalesId(emptyFormSnapshot.caktoSalesId);
     setType(emptyFormSnapshot.type);
     setIsHidden(emptyFormSnapshot.isHidden);
     setImageFile(null);
     setDeliveryImageFile(null);
+    setSalesImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
     if (!editingProductId) {
       setExistingImageUrl(null);
       setExistingDeliveryImageUrl(null);
+      setExistingSalesImageUrl(null);
       setDeliveryGalleryUrls([]);
       setDeliveryGalleryPendingFiles([]);
+      setSalesGalleryUrls([]);
+      setSalesGalleryPendingFiles([]);
       setExistingVideoUrl(null);
+      setLegacyExternalSalesId(null);
     }
     setModalSnapshot(emptyFormSnapshot);
   };
@@ -462,12 +514,15 @@ export default function AdminPage() {
       descDeliveryChanged ||
       linkCompra.trim() !== modalSnapshot.linkCompra.trim() ||
       accessLinksChanged ||
-      externalSalesId.trim() !== modalSnapshot.externalSalesId.trim() ||
+      hotmartSalesId.trim() !== modalSnapshot.hotmartSalesId.trim() ||
+      caktoSalesId.trim() !== modalSnapshot.caktoSalesId.trim() ||
       type !== modalSnapshot.type ||
       isHidden !== modalSnapshot.isHidden ||
       imageFile != null ||
       deliveryImageFile != null ||
+      salesImageFile != null ||
       deliveryGalleryPendingFiles.length > 0 ||
+      salesGalleryPendingFiles.length > 0 ||
       videoFile != null ||
       clearVideo
     );
@@ -478,12 +533,15 @@ export default function AdminPage() {
     descriptionDelivery,
     linkCompra,
     accessLinkRows,
-    externalSalesId,
+    hotmartSalesId,
+    caktoSalesId,
     type,
     isHidden,
     imageFile,
     deliveryImageFile,
+    salesImageFile,
     deliveryGalleryPendingFiles,
+    salesGalleryPendingFiles,
     videoFile,
     clearVideo,
     modalSnapshot,
@@ -723,20 +781,26 @@ export default function AdminPage() {
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
-    const extId = externalSalesId.trim();
+    const hotmartId = hotmartSalesId.trim();
+    const caktoId = caktoSalesId.trim();
 
     const saveProductRow = async (
       imageUrl: string | null,
       videoUrl: string | null,
       deliveryImageUrl: string | null,
       galleryUrls: string[],
+      salesImageUrl: string | null,
+      salesGallery: string[],
       opts: {
-        includeExternalSalesId: boolean;
+        includeCaktoSalesId: boolean;
+        includeHotmartSalesId: boolean;
         includeDescriptionDelivery: boolean;
         includeVideoUrl: boolean;
         includeAccessLinks: boolean;
         includeImageDeliveryUrl: boolean;
         includeDeliveryGalleryUrls: boolean;
+        includeImageSalesUrl: boolean;
+        includeSalesGalleryUrls: boolean;
         includeIsHidden: boolean;
       }
     ) => {
@@ -756,14 +820,23 @@ export default function AdminPage() {
       if (opts.includeAccessLinks) {
         payload.access_links = formRowsToAccessLinks(accessLinkRows);
       }
-      if (opts.includeExternalSalesId) {
-        payload.external_sales_id = extId.length ? extId : null;
+      if (opts.includeHotmartSalesId) {
+        payload.hotmart_sales_id = hotmartId.length ? hotmartId : null;
+      }
+      if (opts.includeCaktoSalesId) {
+        payload.cakto_sales_id = caktoId.length ? caktoId : null;
       }
       if (opts.includeImageDeliveryUrl) {
         payload.image_delivery_url = deliveryImageUrl;
       }
       if (opts.includeDeliveryGalleryUrls) {
         payload.delivery_gallery_urls = galleryUrls;
+      }
+      if (opts.includeImageSalesUrl) {
+        payload.image_sales_url = salesImageUrl;
+      }
+      if (opts.includeSalesGalleryUrls) {
+        payload.sales_gallery_urls = salesGallery;
       }
       if (opts.includeIsHidden) {
         payload.is_hidden = isHidden;
@@ -778,22 +851,35 @@ export default function AdminPage() {
       imageUrl: string | null,
       videoUrl: string | null,
       deliveryImageUrl: string | null,
-      galleryUrls: string[]
+      galleryUrls: string[],
+      salesImageUrl: string | null,
+      salesGallery: string[]
     ) => {
       const flags = {
-        includeExternalSalesId: true,
+        includeCaktoSalesId: true,
+        includeHotmartSalesId: true,
         includeDescriptionDelivery: true,
         includeVideoUrl: true,
         includeAccessLinks: true,
         includeImageDeliveryUrl: true,
         includeDeliveryGalleryUrls: true,
+        includeImageSalesUrl: true,
+        includeSalesGalleryUrls: true,
         includeIsHidden: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
 
-      for (let attempt = 0; attempt < 13; attempt++) {
-        const result = await saveProductRow(imageUrl, videoUrl, deliveryImageUrl, galleryUrls, flags);
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const result = await saveProductRow(
+          imageUrl,
+          videoUrl,
+          deliveryImageUrl,
+          galleryUrls,
+          salesImageUrl,
+          salesGallery,
+          flags
+        );
         dbError = result.error;
         if (!dbError) {
           if (!editingProductId && result.data && "id" in result.data) {
@@ -813,8 +899,12 @@ export default function AdminPage() {
           flags.includeDescriptionDelivery = false;
           continue;
         }
-        if (isMissingExternalSalesIdColumnError(dbError) && flags.includeExternalSalesId) {
-          flags.includeExternalSalesId = false;
+        if (isMissingHotmartSalesIdColumnError(dbError) && flags.includeHotmartSalesId) {
+          flags.includeHotmartSalesId = false;
+          continue;
+        }
+        if (isMissingCaktoSalesIdColumnError(dbError) && flags.includeCaktoSalesId) {
+          flags.includeCaktoSalesId = false;
           continue;
         }
         if (isMissingImageDeliveryUrlColumnError(dbError) && flags.includeImageDeliveryUrl) {
@@ -823,6 +913,14 @@ export default function AdminPage() {
         }
         if (isMissingDeliveryGalleryUrlsColumnError(dbError) && flags.includeDeliveryGalleryUrls) {
           flags.includeDeliveryGalleryUrls = false;
+          continue;
+        }
+        if (isMissingImageSalesUrlColumnError(dbError) && flags.includeImageSalesUrl) {
+          flags.includeImageSalesUrl = false;
+          continue;
+        }
+        if (isMissingSalesGalleryUrlsColumnError(dbError) && flags.includeSalesGalleryUrls) {
+          flags.includeSalesGalleryUrls = false;
           continue;
         }
         if (isMissingIsHiddenColumnError(dbError) && flags.includeIsHidden) {
@@ -838,6 +936,7 @@ export default function AdminPage() {
     try {
       let imageUrl = existingImageUrl;
       let deliveryImageUrl = existingDeliveryImageUrl;
+      let salesImageUrl = existingSalesImageUrl;
       let videoUrl = clearVideo ? null : existingVideoUrl;
       let pendingVideoFile: File | null = null;
 
@@ -849,11 +948,21 @@ export default function AdminPage() {
         deliveryImageUrl = await uploadFileToStorage(deliveryImageFile, IMAGE_BUCKET, "images");
       }
 
+      if (salesImageFile) {
+        salesImageUrl = await uploadFileToStorage(salesImageFile, IMAGE_BUCKET, "images");
+      }
+
       const uploadedGalleryUrls: string[] = [];
       for (const file of deliveryGalleryPendingFiles) {
         uploadedGalleryUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images"));
       }
       const galleryUrls = [...deliveryGalleryUrls, ...uploadedGalleryUrls];
+
+      const uploadedSalesGalleryUrls: string[] = [];
+      for (const file of salesGalleryPendingFiles) {
+        uploadedSalesGalleryUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images"));
+      }
+      const salesGallery = [...salesGalleryUrls, ...uploadedSalesGalleryUrls];
 
       if (videoFile && !clearVideo) {
         if (editingProductId) {
@@ -873,7 +982,9 @@ export default function AdminPage() {
         imageUrl,
         videoUrl,
         deliveryImageUrl,
-        galleryUrls
+        galleryUrls,
+        salesImageUrl,
+        salesGallery
       );
 
       if (!dbError && pendingVideoFile && insertedId) {
@@ -903,11 +1014,14 @@ export default function AdminPage() {
       if (
         !dbError &&
         (!flags.includeDescriptionDelivery ||
-          !flags.includeExternalSalesId ||
+          !flags.includeCaktoSalesId ||
+          !flags.includeHotmartSalesId ||
           !flags.includeVideoUrl ||
           !flags.includeAccessLinks ||
           !flags.includeImageDeliveryUrl ||
           !flags.includeDeliveryGalleryUrls ||
+          !flags.includeImageSalesUrl ||
+          !flags.includeSalesGalleryUrls ||
           !flags.includeIsHidden)
       ) {
         await fetchProducts();
@@ -922,14 +1036,23 @@ export default function AdminPage() {
         if (!flags.includeDescriptionDelivery) {
           parts.push("descrição de entrega (migração description_delivery)");
         }
-        if (!flags.includeExternalSalesId) {
-          parts.push("ID da loja (Cakto / Hotmart — migração external_sales_id)");
+        if (!flags.includeHotmartSalesId) {
+          parts.push("ID Hotmart (migração hotmart_sales_id)");
+        }
+        if (!flags.includeCaktoSalesId) {
+          parts.push("ID Cakto (migração cakto_sales_id)");
         }
         if (!flags.includeImageDeliveryUrl) {
           parts.push("imagem de entrega (migração image_delivery_url)");
         }
         if (!flags.includeDeliveryGalleryUrls) {
           parts.push("galeria de modelos (migração delivery_gallery_urls)");
+        }
+        if (!flags.includeImageSalesUrl) {
+          parts.push("imagem de venda (migração image_sales_url)");
+        }
+        if (!flags.includeSalesGalleryUrls) {
+          parts.push("galeria de venda (migração sales_gallery_urls)");
         }
         if (!flags.includeIsHidden) {
           parts.push("visibilidade no catálogo (migração is_hidden)");
@@ -957,7 +1080,9 @@ export default function AdminPage() {
             existingImageUrl,
             fallbackVideoUrl,
             existingDeliveryImageUrl,
-            deliveryGalleryUrls
+            deliveryGalleryUrls,
+            existingSalesImageUrl,
+            salesGalleryUrls
           );
           if (!fallbackError) {
             await fetchProducts();
@@ -966,9 +1091,12 @@ export default function AdminPage() {
             if (!flags.includeVideoUrl) parts.push("vídeo do produto");
             if (!flags.includeAccessLinks) parts.push("links de acesso");
             if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
-            if (!flags.includeExternalSalesId) parts.push("ID da loja");
+            if (!flags.includeHotmartSalesId) parts.push("ID Hotmart");
+            if (!flags.includeCaktoSalesId) parts.push("ID Cakto");
             if (!flags.includeImageDeliveryUrl) parts.push("imagem de entrega");
             if (!flags.includeDeliveryGalleryUrls) parts.push("galeria de modelos");
+            if (!flags.includeImageSalesUrl) parts.push("imagem de venda");
+            if (!flags.includeSalesGalleryUrls) parts.push("galeria de venda");
             if (!flags.includeIsHidden) parts.push("visibilidade no catálogo");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
@@ -1247,6 +1375,14 @@ export default function AdminPage() {
 
   const removeDeliveryGalleryPendingAt = (index: number) => {
     setDeliveryGalleryPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeSalesGalleryUrlAt = (index: number) => {
+    setSalesGalleryUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeSalesGalleryPendingAt = (index: number) => {
+    setSalesGalleryPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removeHeroDesktopUrlAt = (index: number) => {
@@ -1865,7 +2001,7 @@ export default function AdminPage() {
                     {sortedProducts.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name || p.title || p.id}
-                        {p.external_sales_id ? ` (loja: ${p.external_sales_id})` : ""}
+                        {productStoreIdsLabel(p)}
                       </option>
                     ))}
                   </select>
@@ -1894,8 +2030,8 @@ export default function AdminPage() {
             <p className="text-sm font-medium text-zinc-800">Importação em lote</p>
             <p className="text-xs leading-relaxed text-zinc-600">
               Uma linha por compra: <code className="rounded bg-white px-1">email,product_id</code> (também aceita
-              ponto-e-vírgula ou tab). O <code className="rounded bg-white px-1">product_id</code> é o UUID do produto
-              no catálogo ou o ID externo da Cakto/Hotmart (campo no cadastro do produto).
+              ponto-e-vírgula ou tab).               O <code className="rounded bg-white px-1">product_id</code> é o UUID do produto
+              no catálogo ou o ID Hotmart/Cakto (campos no cadastro do produto).
             </p>
             <textarea
               value={legacyBulkText}
@@ -2292,6 +2428,99 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-sm text-zinc-700">Imagem da página de venda</label>
+                <p className="text-xs text-zinc-500">
+                  Exibida antes da compra, em proporção completa (sem o recorte da capa do catálogo). Se
+                  vazio, usa a capa.
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSalesImageFile(e.target.files?.[0] ?? null)}
+                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                />
+                {existingSalesImageUrl && !salesImageFile && (
+                  <img
+                    src={existingSalesImageUrl}
+                    alt="Imagem de venda atual"
+                    className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
+                  />
+                )}
+                {existingSalesImageUrl && !salesImageFile && (
+                  <p className="text-[11px] text-zinc-500">
+                    Imagem de venda salva; envie outro arquivo só se quiser trocar.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <div>
+                  <label className="text-sm text-zinc-700">Galeria de modelos (venda)</label>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode
+                    enviar várias de uma vez.
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const next = Array.from(e.target.files ?? []);
+                    if (next.length) setSalesGalleryPendingFiles((prev) => [...prev, ...next]);
+                    e.target.value = "";
+                  }}
+                  className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                  disabled={saving}
+                />
+                {salesGalleryUrls.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    {salesGalleryUrls.map((url, i) => (
+                      <li
+                        key={`sg-${url}-${i}`}
+                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                      >
+                        <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                          {url.slice(0, 72)}
+                          {url.length > 72 ? "…" : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSalesGalleryUrlAt(i)}
+                          disabled={saving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {salesGalleryPendingFiles.length > 0 && (
+                  <ul className="space-y-1.5 text-xs">
+                    <li className="text-zinc-500">A enviar ao salvar:</li>
+                    {salesGalleryPendingFiles.map((file, i) => (
+                      <li
+                        key={`sgp-${file.name}-${i}`}
+                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSalesGalleryPendingAt(i)}
+                          disabled={saving}
+                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem da página de entrega</label>
                 <p className="text-xs text-zinc-500">
                   Exibida após a compra, em proporção completa (sem o recorte da capa do catálogo). Se vazio, usa a capa.
@@ -2508,15 +2737,19 @@ export default function AdminPage() {
               </div>
 
               <ExternalSalesIdField
-                value={externalSalesId}
-                onChange={setExternalSalesId}
+                hotmartValue={hotmartSalesId}
+                caktoValue={caktoSalesId}
+                onHotmartChange={setHotmartSalesId}
+                onCaktoChange={setCaktoSalesId}
+                legacyExternalSalesId={legacyExternalSalesId}
                 disabled={saving}
               />
 
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
                 <p className="text-xs text-zinc-500">
-                  Usada no dashboard e na página de compra (antes do acesso). Proporção retrato, com recorte.
+                  Usada no dashboard/catálogo. Na página de compra só quando não houver imagem de venda.
+                  Proporção retrato, com recorte.
                 </p>
                 <input
                   type="file"

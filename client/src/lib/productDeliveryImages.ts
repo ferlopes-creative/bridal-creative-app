@@ -4,8 +4,8 @@ function urlFromValue(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/** Normaliza `delivery_gallery_urls` (jsonb ou string JSON) para lista de URLs. */
-export function parseDeliveryGalleryUrls(raw: unknown): string[] {
+/** Normaliza galerias JSON (jsonb ou string JSON) para lista de URLs. */
+export function parseGalleryUrls(raw: unknown): string[] {
   if (Array.isArray(raw)) {
     return raw.map(urlFromValue).filter((u): u is string => Boolean(u));
   }
@@ -21,4 +21,9 @@ export function parseDeliveryGalleryUrls(raw: unknown): string[] {
     }
   }
   return [];
+}
+
+/** @deprecated Use parseGalleryUrls — mantido para imports existentes. */
+export function parseDeliveryGalleryUrls(raw: unknown): string[] {
+  return parseGalleryUrls(raw);
 }

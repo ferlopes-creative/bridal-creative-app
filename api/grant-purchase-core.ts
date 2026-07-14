@@ -106,7 +106,9 @@ async function resolveProductId(
   const { data: rows, error } = await supabase
     .from("products")
     .select("id")
-    .or(`id.eq.${pid},external_sales_id.eq.${pid}`)
+    .or(
+      `id.eq.${pid},cakto_sales_id.eq.${pid},hotmart_sales_id.eq.${pid},external_sales_id.eq.${pid}`
+    )
     .limit(1);
 
   if (error) {

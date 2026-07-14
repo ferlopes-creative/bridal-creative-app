@@ -79,7 +79,7 @@ export default async function handler(req: any, res: any) {
     const { data: matchRows, error: matchError } = await supabase
       .from("products")
       .select("id")
-      .or(`id.eq.${pid},external_sales_id.eq.${pid}`)
+      .or(`id.eq.${pid},cakto_sales_id.eq.${pid},external_sales_id.eq.${pid}`)
       .limit(1);
 
     if (matchError) {
