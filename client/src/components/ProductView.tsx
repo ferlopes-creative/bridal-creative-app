@@ -1,7 +1,7 @@
 import { ExternalLink, Lock, PlayCircle } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
-import { parseDeliveryGalleryUrls } from "@/lib/productDeliveryImages";
+import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 
 type ProductViewData = {
@@ -16,7 +16,9 @@ type ProductViewData = {
   image_url?: string | null;
   image?: string | null;
   image_delivery_url?: string | null;
+  image_sales_url?: string | null;
   delivery_gallery_urls?: unknown;
+  sales_gallery_urls?: unknown;
   thumbnail_url?: string | null;
   video_url?: string | null;
   video?: string | null;
@@ -35,6 +37,10 @@ const PURIFY = {
   ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3"],
   ALLOWED_ATTR: ["href", "target", "rel", "class"],
 };
+
+const HERO_CONTAIN =
+  "mx-auto max-h-[min(70vh,560px)] w-full object-contain bg-[#f4f5ef]";
+const HERO_COVER = "h-[200px] w-full object-cover md:h-[260px]";
 
 /** Plain text / legacy descriptions without tags → wrap in <p> so wrapping CSS applies consistently */
 function escapePlainForHtml(text: string) {
@@ -68,9 +74,15 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     product.image ||
     product.thumbnail_url ||
     "https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1600&auto=format&fit=crop";
+  const salesHero = product.image_sales_url?.trim() || "";
   const deliveryHeroSrc = product.image_delivery_url?.trim() || coverSrc;
-  const heroSrc = canAccess ? deliveryHeroSrc : coverSrc;
-  const galleryUrls = canAccess ? parseDeliveryGalleryUrls(product.delivery_gallery_urls) : [];
+  const salesHeroSrc = salesHero || coverSrc;
+  const heroSrc = canAccess ? deliveryHeroSrc : salesHeroSrc;
+  const useContainHero = canAccess || Boolean(salesHero);
+  const galleryUrls = canAccess
+    ? parseGalleryUrls(product.delivery_gallery_urls)
+    : parseGalleryUrls(product.sales_gallery_urls);
+  const galleryTitle = canAccess ? "Modelos incluídos" : "Prévia dos modelos";
   const purchaseLink = (product.link_compra || product.link || "").trim() || null;
   const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
   const videoSrc = (product.video_url || product.video || "").trim() || null;
@@ -88,18 +100,14 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
       <div className="app-surface overflow-hidden">
         <img
           src={heroSrc}
-          alt={canAccess ? `Entrega — ${title}` : `Capa ilustrativa — ${title}`}
-          className={
-            canAccess
-              ? "mx-auto max-h-[min(70vh,560px)] w-full object-contain bg-[#f4f5ef]"
-              : "h-[200px] w-full object-cover md:h-[260px]"
-          }
+          alt={canAccess ? `Entrega — ${title}` : `Página de venda — ${title}`}
+          className={useContainHero ? HERO_CONTAIN : HERO_COVER}
         />
       </div>
 
       {galleryUrls.length > 0 ? (
         <div className="space-y-3">
-          <h2 className="app-section-title">Modelos incluídos</h2>
+          <h2 className="app-section-title">{galleryTitle}</h2>
           <div className="md:hidden">
             <HorizontalScrollRow contentKey={galleryUrls.join()}>
               {galleryUrls.map((url, index) => (
