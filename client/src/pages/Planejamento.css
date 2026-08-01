@@ -710,7 +710,9 @@
 .wp-page .wp-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(51, 58, 34, 0.45);
+  background: rgba(51, 58, 34, 0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;

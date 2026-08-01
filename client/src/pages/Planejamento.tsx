@@ -575,15 +575,6 @@ export default function Planejamento() {
     return <GuestEmailGate onDone={() => void init()} />;
   }
 
-  if (showOnboarding) {
-    return (
-      <div className="wp-page">
-        <div className="wp-wrap" />
-        <OnboardingQuiz onFinish={(a) => void finishOnboarding(a)} />
-      </div>
-    );
-  }
-
   return (
     <div className="wp-page">
       {view === "dashboard" ? (
@@ -998,6 +989,9 @@ export default function Planejamento() {
           </button>
         </div>
       </Modal>
+
+      {/* QUIZ DE ONBOARDING — sobre o dashboard, na 1ª vez */}
+      {showOnboarding ? <OnboardingQuiz onFinish={(a) => void finishOnboarding(a)} /> : null}
 
       <BottomAppNav />
     </div>
