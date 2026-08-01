@@ -15,7 +15,8 @@
   --wp-line: #e5e0d8;
   --wp-radius: 14px;
 
-  background: var(--wp-paper);
+  position: relative;
+  background: var(--bc-page-bg, var(--wp-paper));
   color: var(--wp-ink);
   font-family: "Montserrat", sans-serif;
   -webkit-font-smoothing: antialiased;

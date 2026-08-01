@@ -1,0 +1,19 @@
+{
+  "name": "Bridal Creative",
+  "short_name": "Bridal Creative",
+  "description": "Área de membros Bridal Creative",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBFAF6",
+  "theme_color": "#6B705C",
+  "icons": [
+    {
+      "src": "/icon-1080.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

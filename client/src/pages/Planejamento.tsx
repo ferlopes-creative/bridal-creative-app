@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import { PageLoading } from "@/components/PageLoading";
+import PageBackgroundTexture from "@/components/PageBackgroundTexture";
+import { resolveAppPageBackground, useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { LOGIN_PATH } from "@/lib/authGuard";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
@@ -288,6 +290,8 @@ function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, strin
 /* ============================================================ PÁGINA PRINCIPAL ============================================================ */
 export default function Planejamento() {
   const [, setLocation] = useLocation();
+  const { settings } = useSiteSettings();
+  const pageBgUrl = resolveAppPageBackground(settings);
   const [phase, setPhase] = useState<Phase>("loading");
   const [userId, setUserId] = useState<string | null>(null);
   const [view, setView] = useState<DashView>("dashboard");
@@ -571,6 +575,7 @@ export default function Planejamento() {
 
   return (
     <div className="wp-page">
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} backgroundColor={settings.colors.pageBg} />
       {view === "dashboard" ? (
         <div className="wp-wrap">
           <div className="wp-page-header">
