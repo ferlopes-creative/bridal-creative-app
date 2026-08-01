@@ -17,6 +17,7 @@ import AdminNew from "./pages/AdminNew";
 import RequireAdminAuth from "./components/RequireAdminAuth";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
+import Planejamento from "./pages/Planejamento";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
 function Router() {
@@ -43,6 +44,11 @@ function Router() {
       <Route path="/profile">
         <RequireAppAccess>
           <Profile />
+        </RequireAppAccess>
+      </Route>
+      <Route path="/planejamento">
+        <RequireAppAccess>
+          <Planejamento />
         </RequireAppAccess>
       </Route>
       <Route path="/notifications">

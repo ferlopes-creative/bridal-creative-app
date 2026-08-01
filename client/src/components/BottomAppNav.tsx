@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Home, Lock, MessageCircle, User } from "lucide-react";
+import { CalendarHeart, Home, Lock, MessageCircle, User } from "lucide-react";
 import { useLocation } from "wouter";
 import { hasCommunityAccess } from "@/lib/communityAccess";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +9,7 @@ export default function BottomAppNav() {
   const [canOpenCommunity, setCanOpenCommunity] = useState(false);
   const onDashboard =
     location === "/dashboard" || location.startsWith("/dashboard/");
+  const onPlanning = location.startsWith("/planejamento");
   const onCommunity = location.startsWith("/community");
   const onProfile = location === "/profile";
 
@@ -65,6 +66,19 @@ export default function BottomAppNav() {
             strokeWidth={onDashboard ? strokeActive : strokeInactive}
           />
           <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Início</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocation("/planejamento")}
+          className={`${baseBtn} ${onPlanning ? active : inactive}`}
+          aria-current={onPlanning ? "page" : undefined}
+          aria-label="Planejamento"
+        >
+          <CalendarHeart
+            className={`${iconClass} ${onPlanning ? "opacity-100" : "opacity-90"}`}
+            strokeWidth={onPlanning ? strokeActive : strokeInactive}
+          />
+          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Planejamento</span>
         </button>
         <button
           type="button"
