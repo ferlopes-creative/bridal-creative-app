@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { applySiteColorsToDocument, DEFAULT_SITE_COLORS, type SiteColors } from "@/lib/siteColors";
+import { applyFaviconToDocument } from "@/lib/favicon";
 import { readSiteSettingsCache, writeSiteSettingsCache } from "@/lib/siteSettingsCache";
 import {
   DEFAULT_DASHBOARD_SECTIONS_CONFIG,
@@ -26,6 +27,7 @@ export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
 
 export type SiteSettings = {
   logo_url: string | null;
+  favicon_url: string | null;
   /** Legado: fallback se login/app específicos estiverem vazios */
   page_background_image_url: string | null;
   page_background_login_url: string | null;
@@ -45,6 +47,7 @@ export type SiteSettings = {
 
 const defaultSettings: SiteSettings = {
   logo_url: null,
+  favicon_url: null,
   page_background_image_url: null,
   page_background_login_url: null,
   page_background_app_url: null,
@@ -68,6 +71,8 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
   return {
     ...defaultSettings,
     logo_url: typeof partial.logo_url === "string" ? partial.logo_url : defaultSettings.logo_url,
+    favicon_url:
+      typeof partial.favicon_url === "string" ? partial.favicon_url : defaultSettings.favicon_url,
     page_background_image_url:
       typeof partial.page_background_image_url === "string"
         ? partial.page_background_image_url
@@ -173,6 +178,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     if (row) {
       const next: SiteSettings = {
         logo_url: row.logo_url,
+        favicon_url: row.favicon_url,
         page_background_image_url: row.page_background_image_url,
         page_background_login_url: row.page_background_login_url,
         page_background_app_url: row.page_background_app_url,
@@ -199,6 +205,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     applySiteColorsToDocument(settings.colors);
     document.body.style.backgroundColor = settings.colors.pageBg;
   }, [settings.colors]);
+
+  useEffect(() => {
+    applyFaviconToDocument(settings.favicon_url);
+  }, [settings.favicon_url]);
 
   const value = useMemo(() => ({ settings, loading, refresh }), [settings, loading, refresh]);
 

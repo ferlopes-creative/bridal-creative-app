@@ -12,6 +12,7 @@ export const DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT = 22;
 
 export type SiteSettingsRow = {
   logo_url: string | null;
+  favicon_url: string | null;
   page_background_image_url: string | null;
   page_background_login_url: string | null;
   page_background_app_url: string | null;
@@ -74,6 +75,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
   );
   return {
     logo_url: (data.logo_url as string | null | undefined) ?? null,
+    favicon_url: (data.favicon_url as string | null | undefined) ?? null,
     page_background_image_url: (data.page_background_image_url as string | null | undefined) ?? null,
     page_background_login_url: (data.page_background_login_url as string | null | undefined) ?? null,
     page_background_app_url: (data.page_background_app_url as string | null | undefined) ?? null,
@@ -131,6 +133,11 @@ export function isPageBackgroundOpacityError(message: string | undefined): boole
 export function isWhatsappUrlSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("whatsapp_url");
+}
+
+export function isFaviconUrlSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("favicon_url");
 }
 
 export {

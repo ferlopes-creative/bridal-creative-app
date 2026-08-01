@@ -39,6 +39,7 @@ import {
 import {
   fetchSiteSettingsRow,
   isDashboardSectionsConfigSchemaError,
+  isFaviconUrlSchemaError,
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
@@ -453,6 +454,7 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
+  const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
   const [siteLoginBgUrl, setSiteLoginBgUrl] = useState<string | null>(null);
   const [siteAppBgUrl, setSiteAppBgUrl] = useState<string | null>(null);
   const [siteBgOpacityPercent, setSiteBgOpacityPercent] = useState(
@@ -463,6 +465,7 @@ export default function AdminPage() {
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [heroDesktopPendingFiles, setHeroDesktopPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [faviconFile, setFaviconFile] = useState<File | null>(null);
   const [bgLoginFile, setBgLoginFile] = useState<File | null>(null);
   const [bgAppFile, setBgAppFile] = useState<File | null>(null);
   const [siteSaving, setSiteSaving] = useState(false);
@@ -475,6 +478,7 @@ export default function AdminPage() {
   const [sectionOrderSaving, setSectionOrderSaving] = useState(false);
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const faviconFileInputRef = useRef<HTMLInputElement>(null);
   const bgLoginFileInputRef = useRef<HTMLInputElement>(null);
   const bgAppFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
@@ -768,6 +772,7 @@ export default function AdminPage() {
       if (row) {
         const legacy = row.page_background_image_url;
         setSiteLogoUrl(row.logo_url);
+        setSiteFaviconUrl(row.favicon_url);
         setSiteLoginBgUrl(row.page_background_login_url ?? legacy);
         setSiteAppBgUrl(row.page_background_app_url ?? legacy);
         setSiteBgOpacityPercent(row.page_background_opacity_percent);
@@ -1340,10 +1345,14 @@ export default function AdminPage() {
     setSiteSaving(true);
     try {
       let logoUrl = siteLogoUrl;
+      let faviconUrl = siteFaviconUrl;
       let loginBgUrl = siteLoginBgUrl?.trim() || null;
       let appBgUrl = siteAppBgUrl?.trim() || null;
       if (logoFile) {
         logoUrl = await uploadFileToStorage(logoFile, IMAGE_BUCKET, "images", "site");
+      }
+      if (faviconFile) {
+        faviconUrl = await uploadFileToStorage(faviconFile, IMAGE_BUCKET, "images", "site");
       }
       if (bgLoginFile) {
         loginBgUrl = await uploadFileToStorage(bgLoginFile, IMAGE_BUCKET, "images", "site");
@@ -1379,6 +1388,7 @@ export default function AdminPage() {
         id: 1 as const,
         hero_headline: null as string | null,
         logo_url: logoUrl ?? null,
+        favicon_url: faviconUrl ?? null,
         whatsapp_url: siteWhatsappUrl.trim() || null,
         page_background_image_url: legacyBgMirror,
         page_background_login_url: loginBgUrl,
@@ -1418,6 +1428,7 @@ export default function AdminPage() {
 
       let siteColorsDropped = false;
       let whatsappUrlDropped = false;
+      let faviconUrlDropped = false;
 
       let error = await upsertSiteSettings(baseRow);
       if (error && isSiteColorsSchemaError(error.message)) {
@@ -1449,8 +1460,14 @@ export default function AdminPage() {
         const { whatsapp_url: _wa, ...withoutWhatsapp } = baseRow;
         error = await upsertSiteSettings(withoutWhatsapp);
       }
+      if (error && isFaviconUrlSchemaError(error.message)) {
+        faviconUrlDropped = true;
+        const { favicon_url: _fv, ...withoutFavicon } = baseRow;
+        error = await upsertSiteSettings(withoutFavicon);
+      }
       if (error) throw error;
       setSiteLogoUrl(logoUrl ?? null);
+      setSiteFaviconUrl(faviconUrl ?? null);
       setSiteLoginBgUrl(loginBgUrl);
       setSiteAppBgUrl(appBgUrl);
       setSiteHeroUrls(bannerUrls);
@@ -1460,6 +1477,8 @@ export default function AdminPage() {
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
       if (heroDesktopFileInputRef.current) heroDesktopFileInputRef.current.value = "";
       setLogoFile(null);
+      setFaviconFile(null);
+      if (faviconFileInputRef.current) faviconFileInputRef.current.value = "";
       setBgLoginFile(null);
       setBgAppFile(null);
       if (bgLoginFileInputRef.current) bgLoginFileInputRef.current.value = "";
@@ -1481,6 +1500,10 @@ export default function AdminPage() {
         toast.warning(
           "Salvo, mas o link do WhatsApp não foi gravado. Execute a migração site_settings_whatsapp no Supabase."
         );
+      } else if (faviconUrlDropped) {
+        toast.warning(
+          "Salvo, mas o ícone não foi gravado. Execute a migração site_favicon no Supabase."
+        );
       } else {
         toast.success("Aparência atualizada.");
       }
@@ -1496,6 +1519,12 @@ export default function AdminPage() {
     setSiteLogoUrl(null);
     setLogoFile(null);
     if (logoFileInputRef.current) logoFileInputRef.current.value = "";
+  };
+
+  const clearSiteFavicon = () => {
+    setSiteFaviconUrl(null);
+    setFaviconFile(null);
+    if (faviconFileInputRef.current) faviconFileInputRef.current.value = "";
   };
 
   const clearSiteLoginBackground = () => {
@@ -1719,6 +1748,37 @@ export default function AdminPage() {
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden />
                       Remover logo
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm text-zinc-700">Ícone do app (favicon)</label>
+                  <input
+                    ref={faviconFileInputRef}
+                    type="file"
+                    accept="image/png,image/x-icon,image/svg+xml,image/jpeg"
+                    onChange={(e) => setFaviconFile(e.target.files?.[0] ?? null)}
+                    className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                    disabled={siteSaving}
+                  />
+                  <p className="text-[11px] text-zinc-500">
+                    Aparece na aba do navegador e como ícone ao adicionar o app à tela inicial. Use uma
+                    imagem quadrada (ex: 512×512px).
+                  </p>
+                  {siteFaviconUrl && (
+                    <p className="truncate text-[10px] text-zinc-400" title={siteFaviconUrl}>
+                      Atual: {siteFaviconUrl.slice(0, 48)}…
+                    </p>
+                  )}
+                  {(siteFaviconUrl || faviconFile) && (
+                    <button
+                      type="button"
+                      onClick={clearSiteFavicon}
+                      disabled={siteSaving}
+                      className="mt-1 inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      Remover ícone
                     </button>
                   )}
                 </div>
