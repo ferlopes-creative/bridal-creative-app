@@ -9,6 +9,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import { PageLoading } from "./components/PageLoading";
 import RequireAuth from "./components/RequireAuth";
 import RequireAppAccess from "./components/RequireAppAccess";
+import { CommunityAccessProvider } from "./contexts/CommunityAccessContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -89,13 +90,15 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <SiteSettingsProvider>
-          <TooltipProvider>
-            <div className="min-h-screen w-full bg-background">
-              <Router />
-              <Toaster />
-              <InstallPrompt />
-            </div>
-          </TooltipProvider>
+          <CommunityAccessProvider>
+            <TooltipProvider>
+              <div className="min-h-screen w-full bg-background">
+                <Router />
+                <Toaster />
+                <InstallPrompt />
+              </div>
+            </TooltipProvider>
+          </CommunityAccessProvider>
         </SiteSettingsProvider>
       </ThemeProvider>
     </ErrorBoundary>

@@ -397,7 +397,7 @@ export default function Dashboard() {
 
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-7 md:pt-9">
         {sectionBlocks.map((block, index) => (
-          <div key={index} className={index > 0 ? "mt-10" : undefined}>
+          <div key={index} className={index > 0 ? "mt-6 md:mt-10" : undefined}>
             {block}
           </div>
         ))}

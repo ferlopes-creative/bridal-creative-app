@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
-import { CalendarHeart, Home, Lock, MessageCircle, User } from "lucide-react";
 import { useLocation } from "wouter";
-import { hasCommunityAccess } from "@/lib/communityAccess";
-import { supabase } from "@/lib/supabase";
+import { CalendarHeart, Home, Lock, MessageCircle, User } from "lucide-react";
+import { useCommunityAccess } from "@/contexts/CommunityAccessContext";
 
 export default function BottomAppNav() {
   const [location, setLocation] = useLocation();
-  const [canOpenCommunity, setCanOpenCommunity] = useState(false);
+  const { canOpenCommunity } = useCommunityAccess();
   const onDashboard =
     location === "/dashboard" || location.startsWith("/dashboard/");
   const onPlanning = location.startsWith("/planejamento");
@@ -21,32 +19,6 @@ export default function BottomAppNav() {
     "relative flex flex-1 max-w-[108px] flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40";
   const active = "bg-white/12 text-white shadow-inner";
   const inactive = "text-white/80 hover:bg-white/8 hover:text-white";
-
-  useEffect(() => {
-    const loadCommunityAccess = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        setCanOpenCommunity(false);
-        return;
-      }
-
-      const { data: purchasesData, error } = await supabase
-        .from("purchases")
-        .select("product_id, status")
-        .eq("user_id", data.user.id)
-        .eq("status", "active");
-
-      if (error || !purchasesData) {
-        setCanOpenCommunity(false);
-        return;
-      }
-
-      const purchasedIds = new Set(purchasesData.map((item) => String(item.product_id)));
-      setCanOpenCommunity(hasCommunityAccess(purchasedIds));
-    };
-
-    void loadCommunityAccess();
-  }, []);
 
   return (
     <nav
