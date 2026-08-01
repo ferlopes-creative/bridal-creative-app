@@ -152,34 +152,32 @@ function GuestEmailGate({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="wp-page" style={{ background: "transparent", minHeight: 0 }}>
-      <Modal open>
-        <h3 style={{ fontSize: 19, marginBottom: 6 }}>Antes de continuar</h3>
-        <p className="wp-modal-sub">
-          Seus dados de planejamento ficam salvos na sua conta. Informe seu e-mail pra criar (ou entrar
-          na) sua conta — sem senha, sem complicação.
-        </p>
-        <div className="wp-field">
-          <label>E-mail</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submit();
-            }}
-            placeholder="seuemail@exemplo.com"
-            autoFocus
-          />
-        </div>
-        {error ? <p style={{ color: "#A1493F", fontSize: 12.5, marginBottom: 10 }}>{error}</p> : null}
-        <div className="wp-modal-actions">
-          <button className="wp-btn" onClick={() => void submit()} disabled={busy}>
-            {busy ? "Entrando..." : "Continuar"}
-          </button>
-        </div>
-      </Modal>
-    </div>
+    <Modal open>
+      <h3 style={{ fontSize: 19, marginBottom: 6 }}>Antes de continuar</h3>
+      <p className="wp-modal-sub">
+        Seus dados de planejamento ficam salvos na sua conta. Informe seu e-mail pra criar (ou entrar
+        na) sua conta — sem senha, sem complicação.
+      </p>
+      <div className="wp-field">
+        <label>E-mail</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void submit();
+          }}
+          placeholder="seuemail@exemplo.com"
+          autoFocus
+        />
+      </div>
+      {error ? <p style={{ color: "#A1493F", fontSize: 12.5, marginBottom: 10 }}>{error}</p> : null}
+      <div className="wp-modal-actions">
+        <button className="wp-btn" onClick={() => void submit()} disabled={busy}>
+          {busy ? "Entrando..." : "Continuar"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -569,10 +567,6 @@ export default function Planejamento() {
   /* ============================================================ RENDER ============================================================ */
   if (phase === "loading") {
     return <PageLoading label="Carregando seu planejamento..." className="min-h-screen" />;
-  }
-
-  if (phase === "guest-email") {
-    return <GuestEmailGate onDone={() => void init()} />;
   }
 
   return (
@@ -989,6 +983,9 @@ export default function Planejamento() {
           </button>
         </div>
       </Modal>
+
+      {/* GATE DE E-MAIL — convidada, sobre o dashboard (vazio) */}
+      {phase === "guest-email" ? <GuestEmailGate onDone={() => void init()} /> : null}
 
       {/* QUIZ DE ONBOARDING — sobre o dashboard, na 1ª vez */}
       {showOnboarding ? <OnboardingQuiz onFinish={(a) => void finishOnboarding(a)} /> : null}
