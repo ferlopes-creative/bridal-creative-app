@@ -219,6 +219,11 @@
   border: 1px solid var(--wp-line);
   border-radius: var(--wp-radius);
   padding: 22px;
+  /* Isola o card em sua própria camada — evita que o backdrop-filter de
+     outros elementos da tela (menu inferior, modais) "vaze" visualmente
+     por trás de cantos arredondados, bug conhecido do Safari/iOS. */
+  isolation: isolate;
+  transform: translateZ(0);
 }
 .wp-page .wp-card h3 {
   font-size: 16px;
