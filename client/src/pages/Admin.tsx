@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
+  CalendarHeart,
   ChevronDown,
   ChevronUp,
   EyeOff,
@@ -269,6 +270,150 @@ function AdminSection({
   );
 }
 
+const wpInputClass =
+  "h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60";
+
+/** Configura, num só lugar, qual produto (link de compra + IDs Hotmart/Cakto)
+ * libera o Premium da seção Planejamento — é sempre no máximo 1 produto,
+ * marcado via products.is_wedding_planning_premium. */
+function WeddingPlanningPremiumSection({
+  products,
+  onSaved,
+}: {
+  products: Product[];
+  onSaved: () => void;
+}) {
+  const existing = products.find((p) => p.is_wedding_planning_premium === true) || null;
+  const duplicates = products.filter((p) => p.is_wedding_planning_premium === true);
+
+  const [name, setName] = useState(existing?.name || "Planejamento Premium");
+  const [linkCompra, setLinkCompra] = useState(existing?.link_compra || "");
+  const [hotmartSalesId, setHotmartSalesId] = useState(existing?.hotmart_sales_id || "");
+  const [caktoSalesId, setCaktoSalesId] = useState(existing?.cakto_sales_id || "");
+  const [saving, setSaving] = useState(false);
+  const [syncedFor, setSyncedFor] = useState<string>("__init__");
+
+  const existingKey = existing?.id || "none";
+  if (syncedFor !== existingKey) {
+    setSyncedFor(existingKey);
+    setName(existing?.name || "Planejamento Premium");
+    setLinkCompra(existing?.link_compra || "");
+    setHotmartSalesId(existing?.hotmart_sales_id || "");
+    setCaktoSalesId(existing?.cakto_sales_id || "");
+  }
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast.error("Dê um nome pro produto (ex: Planejamento Premium).");
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      name: name.trim(),
+      link_compra: linkCompra.trim(),
+      hotmart_sales_id: hotmartSalesId.trim() || null,
+      cakto_sales_id: caktoSalesId.trim() || null,
+      is_wedding_planning_premium: true,
+      is_hidden: true,
+      type: "PRO",
+    };
+
+    const result = existing
+      ? await supabase.from("products").update(payload).eq("id", existing.id)
+      : await supabase.from("products").insert(payload);
+
+    setSaving(false);
+
+    if (result.error) {
+      if (isMissingWeddingPlanningPremiumColumnError(result.error)) {
+        toast.error(
+          "Coluna is_wedding_planning_premium ausente. Execute a migração 20260801120000_wedding_planning.sql no Supabase."
+        );
+        return;
+      }
+      toast.error(`Não foi possível salvar: ${getErrorMessage(result.error).slice(0, 200)}`);
+      return;
+    }
+
+    toast.success("Configuração do Planejamento Premium salva.");
+    onSaved();
+  };
+
+  return (
+    <AdminSection
+      id="wedding-planning"
+      icon={CalendarHeart}
+      title="Planejamento de Casamento"
+      description="Configure o produto que libera o Premium da seção Planejamento no app: link de compra e os IDs usados pelos webhooks da Hotmart/Cakto para identificar a compra automaticamente. Esse produto fica oculto do catálogo — ele só existe pra controlar o acesso."
+    >
+      <div className="space-y-4">
+        {duplicates.length > 1 ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] leading-relaxed text-red-800">
+            Atenção: {duplicates.length} produtos estão marcados como Premium do Planejamento
+            ({duplicates.map((p) => p.name || p.id).join(", ")}). Deveria haver só um — corrija direto no
+            banco (deixe <code className="rounded bg-white px-1">is_wedding_planning_premium = true</code>{" "}
+            em apenas um deles).
+          </p>
+        ) : null}
+
+        <div className="space-y-1.5">
+          <label className="text-sm text-zinc-700">Nome do produto</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Planejamento Premium"
+            disabled={saving}
+            className={wpInputClass}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm text-zinc-700">Link de compra (checkout)</label>
+          <input
+            type="url"
+            value={linkCompra}
+            onChange={(e) => setLinkCompra(e.target.value)}
+            placeholder="https://pay.hotmart.com/... ou https://pay.cakto.com.br/..."
+            disabled={saving}
+            className={wpInputClass}
+          />
+          <p className="text-[11px] text-zinc-500">
+            É pra onde o botão "Desbloquear acesso" leva quem ainda não é Premium.
+          </p>
+        </div>
+
+        <ExternalSalesIdField
+          hotmartValue={hotmartSalesId}
+          caktoValue={caktoSalesId}
+          onHotmartChange={setHotmartSalesId}
+          onCaktoChange={setCaktoSalesId}
+          disabled={saving}
+        />
+
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+          style={{ backgroundColor: "#6B705C" }}
+        >
+          {saving ? (
+            <>
+              <Spinner className="size-4 text-white" />
+              Salvando…
+            </>
+          ) : existing ? (
+            "Atualizar configuração"
+          ) : (
+            "Salvar configuração"
+          )}
+        </button>
+      </div>
+    </AdminSection>
+  );
+}
+
 export default function AdminPage() {
   const [, setLocation] = useLocation();
   const { refresh: refreshSiteSettings } = useSiteSettings();
@@ -304,7 +449,6 @@ export default function AdminPage() {
   const [caktoSalesId, setCaktoSalesId] = useState("");
   const [legacyExternalSalesId, setLegacyExternalSalesId] = useState<string | null>(null);
   const [isHidden, setIsHidden] = useState(false);
-  const [isWeddingPlanningPremium, setIsWeddingPlanningPremium] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -365,7 +509,6 @@ export default function AdminPage() {
     caktoSalesId: string;
     type: "PRO" | "BON";
     isHidden: boolean;
-    isWeddingPlanningPremium: boolean;
   };
 
   const emptyFormSnapshot: ProductFormSnapshot = {
@@ -378,18 +521,15 @@ export default function AdminPage() {
     caktoSalesId: "",
     type: "PRO",
     isHidden: false,
-    isWeddingPlanningPremium: false,
   };
 
   const [modalSnapshot, setModalSnapshot] = useState<ProductFormSnapshot>(emptyFormSnapshot);
 
   const sortedProducts = useMemo(
     () =>
-      [...products].sort((a, b) =>
-        (a.name || "").localeCompare(b.name || "", "pt-BR", {
-          sensitivity: "base",
-        })
-      ),
+      products
+        .filter((product) => product.is_wedding_planning_premium !== true)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" })),
     [products]
   );
 
@@ -418,7 +558,6 @@ export default function AdminPage() {
     setCaktoSalesId("");
     setLegacyExternalSalesId(null);
     setIsHidden(false);
-    setIsWeddingPlanningPremium(false);
   };
 
   const closeModal = () => {
@@ -464,7 +603,6 @@ export default function AdminPage() {
     setCaktoSalesId(caktoId);
     setLegacyExternalSalesId(product.external_sales_id?.trim() || null);
     setIsHidden(product.is_hidden === true);
-    setIsWeddingPlanningPremium(product.is_wedding_planning_premium === true);
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
@@ -475,7 +613,6 @@ export default function AdminPage() {
       caktoSalesId: caktoId,
       type: product.type === "BON" ? "BON" : "PRO",
       isHidden: product.is_hidden === true,
-      isWeddingPlanningPremium: product.is_wedding_planning_premium === true,
     });
     setIsModalOpen(true);
     requestAnimationFrame(() => setIsModalVisible(true));
@@ -491,7 +628,6 @@ export default function AdminPage() {
     setCaktoSalesId(emptyFormSnapshot.caktoSalesId);
     setType(emptyFormSnapshot.type);
     setIsHidden(emptyFormSnapshot.isHidden);
-    setIsWeddingPlanningPremium(emptyFormSnapshot.isWeddingPlanningPremium);
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
@@ -531,7 +667,6 @@ export default function AdminPage() {
       caktoSalesId.trim() !== modalSnapshot.caktoSalesId.trim() ||
       type !== modalSnapshot.type ||
       isHidden !== modalSnapshot.isHidden ||
-      isWeddingPlanningPremium !== modalSnapshot.isWeddingPlanningPremium ||
       imageFile != null ||
       deliveryImageFile != null ||
       salesImageFile != null ||
@@ -551,7 +686,6 @@ export default function AdminPage() {
     caktoSalesId,
     type,
     isHidden,
-    isWeddingPlanningPremium,
     imageFile,
     deliveryImageFile,
     salesImageFile,
@@ -817,7 +951,6 @@ export default function AdminPage() {
         includeImageSalesUrl: boolean;
         includeSalesGalleryUrls: boolean;
         includeIsHidden: boolean;
-        includeIsWeddingPlanningPremium: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -857,9 +990,6 @@ export default function AdminPage() {
       if (opts.includeIsHidden) {
         payload.is_hidden = isHidden;
       }
-      if (opts.includeIsWeddingPlanningPremium) {
-        payload.is_wedding_planning_premium = isWeddingPlanningPremium;
-      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -885,7 +1015,6 @@ export default function AdminPage() {
         includeImageSalesUrl: true,
         includeSalesGalleryUrls: true,
         includeIsHidden: true,
-        includeIsWeddingPlanningPremium: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -945,10 +1074,6 @@ export default function AdminPage() {
         }
         if (isMissingIsHiddenColumnError(dbError) && flags.includeIsHidden) {
           flags.includeIsHidden = false;
-          continue;
-        }
-        if (isMissingWeddingPlanningPremiumColumnError(dbError) && flags.includeIsWeddingPlanningPremium) {
-          flags.includeIsWeddingPlanningPremium = false;
           continue;
         }
         break;
@@ -1046,8 +1171,7 @@ export default function AdminPage() {
           !flags.includeDeliveryGalleryUrls ||
           !flags.includeImageSalesUrl ||
           !flags.includeSalesGalleryUrls ||
-          !flags.includeIsHidden ||
-          !flags.includeIsWeddingPlanningPremium)
+          !flags.includeIsHidden)
       ) {
         await fetchProducts();
         closeModal();
@@ -1081,9 +1205,6 @@ export default function AdminPage() {
         }
         if (!flags.includeIsHidden) {
           parts.push("visibilidade no catálogo (migração is_hidden)");
-        }
-        if (!flags.includeIsWeddingPlanningPremium) {
-          parts.push("marcação de Premium do Planejamento (migração is_wedding_planning_premium)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -1126,7 +1247,6 @@ export default function AdminPage() {
             if (!flags.includeImageSalesUrl) parts.push("imagem de venda");
             if (!flags.includeSalesGalleryUrls) parts.push("galeria de venda");
             if (!flags.includeIsHidden) parts.push("visibilidade no catálogo");
-            if (!flags.includeIsWeddingPlanningPremium) parts.push("marcação de Premium do Planejamento");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -1995,6 +2115,8 @@ export default function AdminPage() {
           )}
         </AdminSection>
 
+        <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
+
         <AdminSection
           id="legacy-access"
           icon={UserCheck}
@@ -2806,27 +2928,6 @@ export default function AdminPage() {
                     </span>
                     <span className="mt-0.5 block text-xs text-zinc-500">
                       O produto não aparece para quem ainda não tem acesso. Quem já comprou continua vendo em &quot;Seus produtos&quot;.
-                    </span>
-                  </span>
-                </label>
-              </div>
-
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <label className="flex cursor-pointer items-start gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={isWeddingPlanningPremium}
-                    onChange={(e) => setIsWeddingPlanningPremium(e.target.checked)}
-                    disabled={saving}
-                    className="mt-0.5 rounded border-zinc-300"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-zinc-800">
-                      Produto Premium do Planejamento de Casamento
-                    </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">
-                      Marque só neste produto: comprá-lo (Cakto/Hotmart) libera o Premium da seção
-                      &quot;Planejamento&quot; pra quem comprar. Deve haver no máximo um produto marcado.
                     </span>
                   </span>
                 </label>
