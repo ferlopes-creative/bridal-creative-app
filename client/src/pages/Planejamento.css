@@ -711,8 +711,8 @@
   position: fixed;
   inset: 0;
   background: rgba(51, 58, 34, 0.3);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
