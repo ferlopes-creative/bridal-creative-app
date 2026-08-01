@@ -718,6 +718,9 @@
   justify-content: center;
   z-index: 200;
   padding: 20px;
+  /* menu inferior fica acima (z-[210]) e continua clicável; reserva espaço
+     pra ele nunca cobrir o rodapé do modal em telas pequenas */
+  padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 88px));
   overflow-y: auto;
 }
 .wp-page .wp-modal {

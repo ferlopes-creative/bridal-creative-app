@@ -17,6 +17,7 @@ import {
   Send,
   Trash2,
   UserCheck,
+  Users,
   X,
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -411,6 +412,86 @@ function WeddingPlanningPremiumSection({
           )}
         </button>
       </div>
+    </AdminSection>
+  );
+}
+
+/** Contagem de contas no app: total (auth.users, via RPC restrita a admin)
+ * e quantas têm ao menos 1 compra ativa (purchases, já legível pelo admin). */
+function RegisteredUsersSection() {
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [activeCustomers, setActiveCustomers] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    const [totalRes, purchasesRes] = await Promise.all([
+      supabase.rpc("count_registered_users"),
+      supabase.from("purchases").select("user_id").eq("status", "active"),
+    ]);
+
+    if (totalRes.error) {
+      const msg = getErrorMessage(totalRes.error).toLowerCase();
+      setError(
+        msg.includes("count_registered_users") || msg.includes("does not exist")
+          ? "Execute a migração 20260802130000_count_registered_users.sql no Supabase pra ver o total de contas."
+          : `Não foi possível contar as contas: ${getErrorMessage(totalRes.error).slice(0, 160)}`
+      );
+      setTotalUsers(null);
+    } else {
+      setTotalUsers(typeof totalRes.data === "number" ? totalRes.data : null);
+    }
+
+    if (!purchasesRes.error && purchasesRes.data) {
+      setActiveCustomers(new Set(purchasesRes.data.map((p) => String(p.user_id))).size);
+    } else {
+      setActiveCustomers(null);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  return (
+    <AdminSection
+      id="registered-users"
+      icon={Users}
+      title="Usuárias cadastradas"
+      description="Quantas contas existem no app hoje e quantas têm pelo menos uma compra ativa."
+    >
+      {loading ? (
+        <p className="text-sm text-zinc-500">Carregando…</p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-4">
+              <p className="text-2xl font-semibold text-zinc-800">{totalUsers ?? "—"}</p>
+              <p className="text-xs text-zinc-500">Contas cadastradas no total</p>
+            </div>
+            <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-4">
+              <p className="text-2xl font-semibold text-zinc-800">{activeCustomers ?? "—"}</p>
+              <p className="text-xs text-zinc-500">Com pelo menos 1 compra ativa</p>
+            </div>
+          </div>
+          {error ? (
+            <p className="rounded-md border border-amber-200/80 bg-amber-50/70 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900/90">
+              {error}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="text-xs font-medium text-[#6B705C] hover:underline"
+          >
+            Atualizar
+          </button>
+        </div>
+      )}
     </AdminSection>
   );
 }
@@ -2174,6 +2255,8 @@ export default function AdminPage() {
             />
           )}
         </AdminSection>
+
+        <RegisteredUsersSection />
 
         <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
 
