@@ -27,7 +27,7 @@ import "./Planejamento.css";
 
 /* ============================================================ TIPOS DE TELA ============================================================ */
 type Phase = "loading" | "guest-email" | "app";
-type DashView = "dashboard" | "guests";
+type DashView = "dashboard" | "guests" | "vendors" | "checklist" | "budget" | "vows";
 
 /* ============================================================ MODAL BASE ============================================================ */
 function Modal({
@@ -304,7 +304,6 @@ export default function Planejamento() {
   const [isPremium, setIsPremium] = useState(false);
   const [premiumLink, setPremiumLink] = useState<string | null>(null);
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [premiumModal, setPremiumModal] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
   const [editCoupleOpen, setEditCoupleOpen] = useState(false);
   const [vendorModal, setVendorModal] = useState<{ open: boolean; vendor: Vendor | null }>({
@@ -563,10 +562,7 @@ export default function Planejamento() {
   }, [checklist]);
   const guestConfirmed = guests.filter((g) => g.status === "confirmado").length;
   const guestPending = guests.filter((g) => g.status === "pendente").length;
-
-  function toggleSection(name: string) {
-    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
-  }
+  const upcomingTasks = useMemo(() => checklist.filter((c) => !c.done).slice(0, 5), [checklist]);
 
   /* ============================================================ RENDER ============================================================ */
   if (phase === "loading") {
@@ -608,18 +604,250 @@ export default function Planejamento() {
             </div>
           </div>
 
-          <div className="wp-grid">
+          <div className="wp-pair-grid">
             <div className="wp-card">
               <h3>Fornecedores</h3>
               <div className="wp-sub">Contratados até agora</div>
               <div className="wp-stat">{vendors.length}</div>
               <div className="wp-stat-label">fornecedores</div>
+              <button className="wp-card-link" onClick={() => setView("vendors")}>
+                Ver fornecedores →
+              </button>
             </div>
             <div className="wp-card">
               <h3>Checklist</h3>
               <div className="wp-sub">Progresso geral das tarefas</div>
               <div className="wp-stat">{checklistPct}%</div>
               <div className="wp-stat-label">concluído</div>
+              <button className="wp-card-link" onClick={() => setView("checklist")}>
+                Ver checklist completo →
+              </button>
+            </div>
+          </div>
+
+          <div className="wp-shortcut-row">
+            <button className="wp-shortcut-btn" onClick={() => setView("budget")}>
+              Orçamento
+            </button>
+            <button className="wp-shortcut-btn" onClick={() => setView("vows")}>
+              Votos
+            </button>
+            <button className="wp-shortcut-btn" onClick={goToGuestPage}>
+              Convidados
+            </button>
+          </div>
+
+          <div className="wp-section">
+            <div className="wp-section-head">
+              <div className="wp-section-head-left">
+                <h2>Próximas tarefas</h2>
+              </div>
+              <div className="wp-section-head-right">
+                <button className="wp-btn-ghost" onClick={() => setView("checklist")}>
+                  Ver tudo
+                </button>
+              </div>
+            </div>
+            <div className="wp-card">
+              {upcomingTasks.length === 0 ? (
+                <p className="wp-sub" style={{ marginBottom: 0 }}>
+                  Tudo em dia por aqui — nenhuma tarefa pendente 🎉
+                </p>
+              ) : (
+                upcomingTasks.map((item) => (
+                  <div className="wp-check-item" key={item.id}>
+                    <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
+                    <label>{item.title}</label>
+                    <span className="wp-task-phase">{item.phase}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : view === "vendors" ? (
+        <div className="wp-wrap">
+          <button className="wp-back-link" onClick={() => setView("dashboard")}>
+            ← Voltar ao dashboard
+          </button>
+          <div className="wp-page-header">
+            <h1 style={{ fontSize: 24 }}>Fornecedores</h1>
+          </div>
+
+          <div className="wp-section">
+            <div className="wp-section-head">
+              <div className="wp-section-head-left">
+                <span className="wp-badge-free">Grátis</span>
+              </div>
+              <div className="wp-section-head-right">
+                <button className="wp-btn" onClick={() => setVendorModal({ open: true, vendor: null })}>
+                  + Adicionar fornecedor
+                </button>
+              </div>
+            </div>
+            <div className="wp-table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fornecedor</th>
+                    <th>Categoria</th>
+                    <th>Contato</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendors.length === 0 ? (
+                    <tr className="wp-empty-row">
+                      <td colSpan={4}>Nenhum fornecedor cadastrado ainda. Clique em "+ Adicionar fornecedor" pra começar.</td>
+                    </tr>
+                  ) : (
+                    vendors.map((v) => (
+                      <tr key={v.id}>
+                        <td>{v.name}</td>
+                        <td>{v.category || "—"}</td>
+                        <td>{v.contact || "—"}</td>
+                        <td>
+                          <button className="wp-row-btn" onClick={() => editVendor(v)} title="Editar">
+                            ✎
+                          </button>
+                          <button className="wp-row-btn wp-danger" onClick={() => void deleteVendor(v.id)} title="Remover">
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="wp-section">
+            <div className="wp-section-head">
+              <div className="wp-section-head-left">
+                <h2>Controle financeiro por fornecedor</h2>
+                <span className="wp-badge-premium">Premium</span>
+              </div>
+            </div>
+            <div
+              className={`wp-card ${!isPremium ? "wp-locked" : ""}`}
+              style={{ padding: 0 }}
+              onClick={() =>
+                handleLockedClick(
+                  "Veja o controle financeiro completo por fornecedor — valores, % pago, datas de fechamento e pagamento final, e como cada pagamento foi combinado."
+                )
+              }
+            >
+              <div className="wp-locked-content wp-table-scroll">
+                <table style={{ border: "none", borderRadius: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Fornecedor</th>
+                      <th>Contratado</th>
+                      <th>Pago</th>
+                      <th>Restante</th>
+                      <th>%</th>
+                      <th>Fechamento</th>
+                      <th>Pagto. final</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendors.length === 0 ? (
+                      <tr className="wp-empty-row">
+                        <td colSpan={8}>Nenhum fornecedor cadastrado ainda.</td>
+                      </tr>
+                    ) : (
+                      vendors.map((v) => {
+                        const remaining = v.contracted_value - v.paid_value;
+                        const pct = v.contracted_value > 0 ? Math.round((v.paid_value / v.contracted_value) * 100) : 0;
+                        return (
+                          <tr key={v.id}>
+                            <td>{v.name}</td>
+                            <td className="wp-mono">{moneyBR(v.contracted_value)}</td>
+                            <td className="wp-mono">{moneyBR(v.paid_value)}</td>
+                            <td className="wp-mono">{moneyBR(remaining)}</td>
+                            <td>
+                              <span className="wp-pct-pill">{pct}%</span>
+                            </td>
+                            <td className="wp-mono">{formatDateShortBR(v.closing_date)}</td>
+                            <td className="wp-mono">{formatDateShortBR(v.final_payment_date)}</td>
+                            <td>
+                              <button className="wp-row-btn" onClick={() => editVendor(v)} title="Editar">
+                                ✎
+                              </button>
+                              <button className="wp-row-btn wp-danger" onClick={() => void deleteVendor(v.id)} title="Remover">
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <LockOverlay />
+            </div>
+          </div>
+        </div>
+      ) : view === "checklist" ? (
+        <div className="wp-wrap">
+          <button className="wp-back-link" onClick={() => setView("dashboard")}>
+            ← Voltar ao dashboard
+          </button>
+          <div className="wp-page-header">
+            <h1 style={{ fontSize: 24 }}>Checklist de planejamento</h1>
+          </div>
+          <div className="wp-section">
+            <div className="wp-section-head">
+              <div className="wp-section-head-left">
+                <span className="wp-badge-free">Itens padrão grátis</span>
+              </div>
+              <div className="wp-section-head-right">
+                <button className="wp-btn-ghost" onClick={() => void handleAddPhase()}>
+                  + Nova fase
+                </button>
+              </div>
+            </div>
+            <div className="wp-card">
+              {checklistGroups.map(([phaseName, items]) => (
+                <div className="wp-checklist-group" key={phaseName}>
+                  <h4>{phaseName}</h4>
+                  {items.map((item) => (
+                    <div className={`wp-check-item ${item.done ? "wp-done" : ""}`} key={item.id}>
+                      <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
+                      <label>{item.title}</label>
+                      <button className="wp-mini-x" onClick={() => void handleRemoveTask(item)} title="Remover">
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button className="wp-add-task-link" onClick={() => void handleAddTask(phaseName)}>
+                    + Adicionar tarefa
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : view === "budget" ? (
+        <div className="wp-wrap">
+          <button className="wp-back-link" onClick={() => setView("dashboard")}>
+            ← Voltar ao dashboard
+          </button>
+          <div className="wp-page-header">
+            <h1 style={{ fontSize: 24 }}>Orçamento</h1>
+          </div>
+
+          <div className="wp-pair-grid" style={{ marginBottom: 20 }}>
+            <div className="wp-card">
+              <h3>Orçamento total</h3>
+              <div className="wp-sub">{budgetPct}% já pago</div>
+              <div className="wp-stat">{moneyBR(details?.budget_total)}</div>
+              <div className="wp-bar-track" style={{ marginTop: 10 }}>
+                <div className="wp-bar-fill" style={{ width: `${budgetPct}%`, background: "linear-gradient(90deg, var(--wp-accent), var(--wp-gold))" }} />
+              </div>
             </div>
             <div
               className={`wp-card ${!isPremium ? "wp-locked" : ""}`}
@@ -637,283 +865,48 @@ export default function Planejamento() {
             </div>
           </div>
 
-          {/* FORNECEDORES (GRÁTIS) */}
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Fornecedores</h2>
-                <span className="wp-badge-free">Grátis</span>
-              </div>
-              <div className="wp-section-head-right">
-                <button className="wp-btn" onClick={() => setVendorModal({ open: true, vendor: null })}>
-                  + Adicionar fornecedor
-                </button>
-                <button
-                  className={`wp-chevron-btn ${collapsed.vendors ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("vendors")}
-                >
-                  ⌄
-                </button>
-              </div>
-            </div>
-            {!collapsed.vendors ? (
-              <div className="wp-table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Fornecedor</th>
-                      <th>Categoria</th>
-                      <th>Contato</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vendors.length === 0 ? (
-                      <tr className="wp-empty-row">
-                        <td colSpan={4}>Nenhum fornecedor cadastrado ainda. Clique em "+ Adicionar fornecedor" pra começar.</td>
-                      </tr>
-                    ) : (
-                      vendors.map((v) => (
-                        <tr key={v.id}>
-                          <td>{v.name}</td>
-                          <td>{v.category || "—"}</td>
-                          <td>{v.contact || "—"}</td>
-                          <td>
-                            <button className="wp-row-btn wp-danger" onClick={() => void deleteVendor(v.id)} title="Remover">
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : null}
-          </div>
-
-          {/* FINANCEIRO POR FORNECEDOR (PREMIUM) */}
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Controle financeiro por fornecedor</h2>
-                <span className="wp-badge-premium">Premium</span>
-              </div>
-              <div className="wp-section-head-right">
-                <button
-                  className={`wp-chevron-btn ${collapsed.financeiro ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("financeiro")}
-                >
-                  ⌄
-                </button>
-              </div>
-            </div>
-            {!collapsed.financeiro ? (
-              <div
-                className={`wp-card ${!isPremium ? "wp-locked" : ""}`}
-                style={{ padding: 0 }}
-                onClick={() =>
-                  handleLockedClick(
-                    "Veja o controle financeiro completo por fornecedor — valores, % pago, datas de fechamento e pagamento final, e como cada pagamento foi combinado."
-                  )
-                }
-              >
-                <div className="wp-locked-content wp-table-scroll">
-                  <table style={{ border: "none", borderRadius: 0 }}>
-                    <thead>
-                      <tr>
-                        <th>Fornecedor</th>
-                        <th>Contratado</th>
-                        <th>Pago</th>
-                        <th>Restante</th>
-                        <th>%</th>
-                        <th>Fechamento</th>
-                        <th>Pagto. final</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vendors.length === 0 ? (
-                        <tr className="wp-empty-row">
-                          <td colSpan={8}>Nenhum fornecedor cadastrado ainda.</td>
-                        </tr>
-                      ) : (
-                        vendors.map((v) => {
-                          const remaining = v.contracted_value - v.paid_value;
-                          const pct = v.contracted_value > 0 ? Math.round((v.paid_value / v.contracted_value) * 100) : 0;
-                          return (
-                            <tr key={v.id}>
-                              <td>{v.name}</td>
-                              <td className="wp-mono">{moneyBR(v.contracted_value)}</td>
-                              <td className="wp-mono">{moneyBR(v.paid_value)}</td>
-                              <td className="wp-mono">{moneyBR(remaining)}</td>
-                              <td>
-                                <span className="wp-pct-pill">{pct}%</span>
-                              </td>
-                              <td className="wp-mono">{formatDateShortBR(v.closing_date)}</td>
-                              <td className="wp-mono">{formatDateShortBR(v.final_payment_date)}</td>
-                              <td>
-                                <button className="wp-row-btn" onClick={() => editVendor(v)} title="Editar">
-                                  ✎
-                                </button>
-                                <button className="wp-row-btn wp-danger" onClick={() => void deleteVendor(v.id)} title="Remover">
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <LockOverlay />
-              </div>
-            ) : null}
-          </div>
-
-          {/* ORÇAMENTO POR ÁREA (PREMIUM) */}
           <div className="wp-section">
             <div className="wp-section-head">
               <div className="wp-section-head-left">
                 <h2>Orçamento por área</h2>
                 <span className="wp-badge-premium">Premium</span>
               </div>
-              <div className="wp-section-head-right">
-                <button
-                  className={`wp-chevron-btn ${collapsed.pie ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("pie")}
-                >
-                  ⌄
-                </button>
-              </div>
             </div>
-            {!collapsed.pie ? (
-              <div
-                className={`wp-card ${!isPremium ? "wp-locked" : ""}`}
-                onClick={() =>
-                  handleLockedClick("Escolha a categoria de cada fornecedor e veja, num gráfico, quanto do seu orçamento está em cada área.")
-                }
-              >
-                <div className="wp-locked-content">
-                  <BudgetPie vendors={vendors} />
-                </div>
-                <LockOverlay />
+            <div
+              className={`wp-card ${!isPremium ? "wp-locked" : ""}`}
+              onClick={() =>
+                handleLockedClick("Escolha a categoria de cada fornecedor e veja, num gráfico, quanto do seu orçamento está em cada área.")
+              }
+            >
+              <div className="wp-locked-content">
+                <BudgetPie vendors={vendors} />
               </div>
-            ) : null}
+              <LockOverlay />
+            </div>
           </div>
-
-          {/* CHECKLIST */}
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Checklist de planejamento</h2>
-                <span className="wp-badge-free">Itens padrão grátis</span>
-              </div>
-              <div className="wp-section-head-right">
-                <button className="wp-btn-ghost" onClick={() => void handleAddPhase()}>
-                  + Nova fase
-                </button>
-                <button
-                  className={`wp-chevron-btn ${collapsed.checklist ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("checklist")}
-                >
-                  ⌄
-                </button>
-              </div>
-            </div>
-            {!collapsed.checklist ? (
-              <div className="wp-card">
-                {checklistGroups.map(([phaseName, items]) => (
-                  <div className="wp-checklist-group" key={phaseName}>
-                    <h4>{phaseName}</h4>
-                    {items.map((item) => (
-                      <div className={`wp-check-item ${item.done ? "wp-done" : ""}`} key={item.id}>
-                        <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
-                        <label>{item.title}</label>
-                        <button className="wp-mini-x" onClick={() => void handleRemoveTask(item)} title="Remover">
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    <button className="wp-add-task-link" onClick={() => void handleAddTask(phaseName)}>
-                      + Adicionar tarefa
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+        </div>
+      ) : view === "vows" ? (
+        <div className="wp-wrap">
+          <button className="wp-back-link" onClick={() => setView("dashboard")}>
+            ← Voltar ao dashboard
+          </button>
+          <div className="wp-page-header">
+            <h1 style={{ fontSize: 24 }}>Seus votos</h1>
           </div>
-
-          {/* CONVIDADOS (TEASER — PREMIUM) */}
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Lista de convidados</h2>
-                <span className="wp-badge-premium">Premium</span>
-              </div>
-              <div className="wp-section-head-right">
-                <button
-                  className={`wp-chevron-btn ${collapsed.guestteaser ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("guestteaser")}
-                >
-                  ⌄
-                </button>
-              </div>
+          <div className="wp-card">
+            <div className="wp-sub" style={{ marginBottom: 12 }}>
+              Um espaço só seu pra rascunhar e guardar o que você quer dizer no altar.
             </div>
-            {!collapsed.guestteaser ? (
-              <div
-                className="wp-card"
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}
-              >
-                <div>
-                  <div className="wp-sub" style={{ marginBottom: 2 }}>
-                    Organize quem foi convidado, de qual lado e o status de confirmação.
-                  </div>
-                  <div className="wp-stat" style={{ fontSize: 20 }}>
-                    {guests.length} convidados adicionados
-                  </div>
-                </div>
-                <button className="wp-btn" onClick={goToGuestPage}>
-                  Abrir lista completa
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          {/* VOTOS (GRÁTIS) */}
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Seus votos</h2>
-                <span className="wp-badge-free">Grátis</span>
-              </div>
-              <div className="wp-section-head-right">
-                <button
-                  className={`wp-chevron-btn ${collapsed.vows ? "wp-collapsed" : ""}`}
-                  onClick={() => toggleSection("vows")}
-                >
-                  ⌄
-                </button>
-              </div>
+            <textarea
+              value={vowsDraft}
+              onChange={(e) => setVowsDraft(e.target.value)}
+              placeholder="Comece a escrever seus votos aqui..."
+            />
+            <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+              <button className="wp-btn" onClick={() => void saveVows()}>
+                Salvar
+              </button>
             </div>
-            {!collapsed.vows ? (
-              <div className="wp-card">
-                <div className="wp-sub" style={{ marginBottom: 12 }}>
-                  Um espaço só seu pra rascunhar e guardar o que você quer dizer no altar.
-                </div>
-                <textarea
-                  value={vowsDraft}
-                  onChange={(e) => setVowsDraft(e.target.value)}
-                  placeholder="Comece a escrever seus votos aqui..."
-                />
-                <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-                  <button className="wp-btn" onClick={() => void saveVows()}>
-                    Salvar
-                  </button>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       ) : (
