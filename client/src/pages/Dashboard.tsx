@@ -337,6 +337,23 @@ export default function Dashboard() {
     [settings.product_categories_config]
   );
 
+  const colecoesCategory = useMemo(
+    () =>
+      settings.product_categories_config.find(
+        (category) => category.visible && category.name.trim().toLowerCase() === "coleções"
+      ) ?? null,
+    [settings.product_categories_config]
+  );
+
+  const colecoesProducts = useMemo(() => {
+    if (!colecoesCategory) return [];
+    const byId = new Map(products.map((product) => [product.id, product]));
+    return colecoesCategory.product_ids
+      .map((id) => byId.get(id))
+      .filter((product): product is Product => product != null)
+      .slice(0, 4);
+  }, [colecoesCategory, products]);
+
   const visibleTestimonials = useMemo(
     () => settings.testimonials_config.filter((testimonial) => testimonial.visible),
     [settings.testimonials_config]
@@ -408,7 +425,10 @@ export default function Dashboard() {
           <section key={isPurchasedSection ? undefined : section.id}>
             {isSuggestedSection ? (
               <div className="mb-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs">
+                <p
+                  className="text-[11px] font-normal uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
                   {section.title.toUpperCase()}
                 </p>
                 <h2
@@ -444,6 +464,38 @@ export default function Dashboard() {
             )}
           </section>
         );
+
+        if (isSuggestedSection) {
+          return (
+            <Fragment key={section.id}>
+              {sectionNode}
+              {colecoesCategory && colecoesProducts.length > 0 ? (
+                <section className="mt-6 md:mt-9">
+                  <h2
+                    className="mb-3 text-sm text-bc-primary sm:text-lg"
+                    style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+                  >
+                    {colecoesCategory.name.toUpperCase()}
+                  </h2>
+                  <SuggestedProductsGrid
+                    products={colecoesProducts}
+                    showLocked={(product) => !canAccess(product)}
+                    onOpen={openProduct}
+                  />
+                  <div className="mt-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setLocation(`/dashboard/categoria/${colecoesCategory.id}`)}
+                      className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
+                    >
+                      Ver todas as coleções →
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+            </Fragment>
+          );
+        }
 
         if (!isPurchasedSection) {
           return sectionNode;
@@ -525,6 +577,8 @@ export default function Dashboard() {
     visibleCategories,
     visibleTestimonials,
     settings.testimonials_banner_url,
+    colecoesCategory,
+    colecoesProducts,
     setLocation,
   ]);
 
