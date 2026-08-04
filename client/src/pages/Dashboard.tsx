@@ -149,6 +149,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [weddingName, setWeddingName] = useState<string | null>(null);
+  const [weddingDaysLeft, setWeddingDaysLeft] = useState<number | null>(null);
   const guestMode = isGuestMode();
 
   const pageBgUrl = resolveAppPageBackground(settings);
@@ -186,8 +188,27 @@ export default function Dashboard() {
         if (purchasesData) {
           setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
         }
+
+        const { data: weddingData } = await supabase
+          .from("wedding_details")
+          .select("bride_name, wedding_date")
+          .eq("user_id", userData.user.id)
+          .maybeSingle();
+
+        setWeddingName(weddingData?.bride_name?.trim() || null);
+        if (weddingData?.wedding_date) {
+          const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
+          const target = new Date(y, m - 1, d);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
+        } else {
+          setWeddingDaysLeft(null);
+        }
       } else {
         setPurchasedIds(new Set());
+        setWeddingName(null);
+        setWeddingDaysLeft(null);
       }
 
       const { data: kbData } = await supabase
@@ -394,6 +415,46 @@ export default function Dashboard() {
           </header>
         </div>
       </section>
+
+      <div className="mx-auto w-full max-w-6xl px-4 pt-6 md:pt-8">
+        <div className="border-b border-bc-primary/15 pb-3">
+          <p
+            className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bc-primary sm:text-xs"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Bem-vinda(o){weddingName ? `, ${weddingName}` : ""}!
+          </p>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <h1
+            className="text-xl leading-snug text-bc-primary sm:text-2xl"
+            style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+          >
+            Um grande amor,
+            <br />
+            merece um
+            <br />
+            <span className="text-3xl leading-tight sm:text-4xl" style={{ fontFamily: "var(--font-script)" }}>
+              Grande dia
+            </span>
+          </h1>
+          <div className="shrink-0 rounded-2xl bg-bc-primary px-4 py-3 text-center text-white sm:px-6 sm:py-4">
+            <p className="text-[10px] uppercase tracking-[0.1em] text-white/75 sm:text-[11px]">Faltam</p>
+            <p className="text-lg font-semibold whitespace-nowrap sm:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+              {weddingDaysLeft !== null ? `${weddingDaysLeft} dias` : "--"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 text-right">
+          <button
+            type="button"
+            onClick={() => setLocation("/planejamento")}
+            className="text-xs font-medium text-bc-primary hover:underline sm:text-sm"
+          >
+            Ver planejamento →
+          </button>
+        </div>
+      </div>
 
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-7 md:pt-9">
         {sectionBlocks.map((block, index) => (
