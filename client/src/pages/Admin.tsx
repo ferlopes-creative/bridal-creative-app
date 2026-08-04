@@ -295,6 +295,36 @@ function WeddingPlanningPremiumSection({
   const [saving, setSaving] = useState(false);
   const [syncedFor, setSyncedFor] = useState<string>("__init__");
 
+  const [usage, setUsage] = useState<{
+    started: number;
+    with_vendor: number;
+    with_checklist_done: number;
+    with_guests: number;
+  } | null>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const [usageLoading, setUsageLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUsage = async () => {
+      setUsageLoading(true);
+      const { data, error } = await supabase.rpc("wedding_planning_usage_stats");
+      if (error) {
+        const msg = getErrorMessage(error).toLowerCase();
+        setUsageError(
+          msg.includes("wedding_planning_usage_stats") || msg.includes("does not exist")
+            ? "Execute a migração 20260803000000_wedding_planning_usage_stats.sql no Supabase pra ver o uso."
+            : `Não foi possível carregar o uso: ${getErrorMessage(error).slice(0, 160)}`
+        );
+        setUsage(null);
+      } else {
+        setUsageError(null);
+        setUsage(data as typeof usage);
+      }
+      setUsageLoading(false);
+    };
+    void loadUsage();
+  }, []);
+
   const existingKey = existing?.id || "none";
   if (syncedFor !== existingKey) {
     setSyncedFor(existingKey);
@@ -349,6 +379,37 @@ function WeddingPlanningPremiumSection({
       description="Configure o produto que libera o Premium da seção Planejamento no app: link de compra e os IDs usados pelos webhooks da Hotmart/Cakto para identificar a compra automaticamente. Esse produto fica oculto do catálogo — ele só existe pra controlar o acesso."
     >
       <div className="space-y-4">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-zinc-800">Quem está usando</p>
+          {usageLoading ? (
+            <p className="text-sm text-zinc-500">Carregando…</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <p className="text-xl font-semibold text-zinc-800">{usage?.started ?? "—"}</p>
+                <p className="text-[11px] text-zinc-500">Iniciaram o planejamento</p>
+              </div>
+              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <p className="text-xl font-semibold text-zinc-800">{usage?.with_vendor ?? "—"}</p>
+                <p className="text-[11px] text-zinc-500">Cadastraram fornecedor</p>
+              </div>
+              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <p className="text-xl font-semibold text-zinc-800">{usage?.with_checklist_done ?? "—"}</p>
+                <p className="text-[11px] text-zinc-500">Concluíram alguma tarefa</p>
+              </div>
+              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                <p className="text-xl font-semibold text-zinc-800">{usage?.with_guests ?? "—"}</p>
+                <p className="text-[11px] text-zinc-500">Adicionaram convidados</p>
+              </div>
+            </div>
+          )}
+          {usageError ? (
+            <p className="rounded-md border border-amber-200/80 bg-amber-50/70 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900/90">
+              {usageError}
+            </p>
+          ) : null}
+        </div>
+
         {duplicates.length > 1 ? (
           <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] leading-relaxed text-red-800">
             Atenção: {duplicates.length} produtos estão marcados como Premium do Planejamento
