@@ -138,7 +138,7 @@ function SuggestedProductCard({
         ) : null}
       </div>
       <p
-        className="mt-2 text-xs font-semibold uppercase leading-snug tracking-[0.04em] text-bc-primary"
+        className="mt-2 text-[11px] font-normal uppercase leading-snug tracking-[0.04em] text-bc-primary"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {product.name || "Produto"}
@@ -376,21 +376,30 @@ export default function Dashboard() {
         if (section.kind === "whatsapp") {
           if (!shouldRenderDashboardSection(section, 0, whatsappUrl)) return null;
           return (
-            <section key={section.id} className="app-cta-banner">
-              <p
-                className="text-xs font-medium uppercase leading-snug tracking-[0.12em] md:text-sm"
-                style={{ fontFamily: "var(--font-display)" }}
+            <section key={section.id} className="mt-10 py-6 text-center md:mt-14">
+              <h2
+                className="mx-auto max-w-xs text-xl leading-snug text-bc-primary sm:max-w-sm sm:text-2xl"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
               >
                 {section.title}
-              </p>
+              </h2>
               <a
                 href={whatsappUrl!}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1.5 inline-block text-sm tracking-[0.04em] underline underline-offset-[3px] opacity-95 transition-opacity hover:opacity-100"
-                style={{ fontFamily: "var(--font-body)" }}
+                className="mt-5 inline-flex items-center gap-2 rounded-full border border-bc-primary px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-bc-primary transition-colors hover:bg-bc-primary hover:text-white"
               >
-                Chame nossa equipe.
+                <svg viewBox="0 0 32 32" className="h-4 w-4 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path
+                    d="M10.9 9.9c.3-.67.62-.68.9-.7h.77c.23 0 .55.08.84.65.3.57 1.02 1.97 1.12 2.12.1.15.16.33.03.54-.13.2-.2.33-.38.52-.18.2-.38.44-.54.58-.18.15-.36.3-.15.6.21.3.94 1.55 2.03 2.5 1.4 1.22 2.58 1.6 2.95 1.78.36.18.58.15.8-.09.2-.24.87-1.01 1.1-1.36.24-.35.47-.29.8-.18.33.12 2.06.97 2.42 1.15.35.18.58.27.67.42.09.15.09.88-.2 1.74-.29.86-1.72 1.65-2.4 1.73-.62.08-1.4.12-2.27-.15-.53-.17-1.22-.4-2.1-.78-3.7-1.6-6.1-5.34-6.28-5.6-.18-.27-1.5-2-.1-3.84Z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M16 3C8.82 3 3 8.82 3 16c0 2.3.6 4.55 1.75 6.53L3 29l6.66-1.73A12.96 12.96 0 0 0 16 29c7.18 0 13-5.82 13-13S23.18 3 16 3Zm0 2c6.08 0 11 4.92 11 11s-4.92 11-11 11a10.96 10.96 0 0 1-5.6-1.53l-.4-.24-3.95 1.03 1.05-3.85-.26-.4A10.96 10.96 0 0 1 5 16C5 9.92 9.92 5 16 5Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                Fale com nossa equipe
               </a>
             </section>
           );
