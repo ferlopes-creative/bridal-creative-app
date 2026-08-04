@@ -44,6 +44,7 @@ type Product = {
 };
 
 const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
+const cardWrapLarge = "min-w-[136px] w-[36vw] max-w-[160px] shrink-0 snap-start";
 
 function ProductCard({
   product,
@@ -132,6 +133,7 @@ function ProductList({
   showTitle = true,
   showFrame = true,
   imageAspectClass,
+  large = false,
   onOpen,
 }: {
   products: Product[];
@@ -140,6 +142,7 @@ function ProductList({
   showTitle?: boolean;
   showFrame?: boolean;
   imageAspectClass?: string;
+  large?: boolean;
   onOpen: (id: string) => void;
 }) {
   const locked = (product: Product) =>
@@ -150,7 +153,7 @@ function ProductList({
       <div className="md:hidden">
         <HorizontalScrollRow contentKey={products.map((p) => p.id).join()}>
           {products.map((product) => (
-            <div key={`${keyPrefix}-m-${product.id}`} className={cardWrap}>
+            <div key={`${keyPrefix}-m-${product.id}`} className={large ? cardWrapLarge : cardWrap}>
               <ProductCard
                 product={product}
                 showLockedOverlay={locked(product)}
@@ -163,7 +166,7 @@ function ProductList({
           ))}
         </HorizontalScrollRow>
       </div>
-      <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
+      <div className={`hidden grid-cols-2 gap-3 sm:gap-4 md:grid ${large ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
         {products.map((product) => (
           <ProductCard
             key={`${keyPrefix}-${product.id}`}
@@ -385,6 +388,7 @@ export default function Dashboard() {
               showTitle={!isPurchasedSection}
               showFrame={!isPurchasedSection}
               imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
+              large={isPurchasedSection}
               onOpen={openProduct}
             />
             {sectionProducts.length === 0 && (
@@ -475,7 +479,7 @@ export default function Dashboard() {
       <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-9 md:pt-10">
         <div className="border-b border-bc-primary/15 pb-3">
           <p
-            className="text-[10px] font-semibold tracking-[0.06em] text-bc-primary sm:text-xs sm:tracking-[0.1em]"
+            className="text-sm font-bold tracking-[0.06em] text-bc-primary sm:text-base sm:tracking-[0.1em]"
             style={{ fontFamily: "var(--font-display)" }}
           >
             Bem-vinda(o){weddingName ? `, ${weddingName}` : ""}!
@@ -484,7 +488,7 @@ export default function Dashboard() {
         <div className="mt-4 flex items-start justify-between gap-4">
           <h1
             className="text-base leading-snug text-bc-primary sm:text-xl"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+            style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
           >
             Um grande amor,
             <br />
@@ -507,7 +511,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setLocation("/planejamento")}
-              className="text-xs font-medium text-bc-primary hover:underline sm:text-sm"
+              className="text-[11px] font-normal text-bc-primary hover:underline sm:text-xs"
             >
               Ver planejamento →
             </button>
