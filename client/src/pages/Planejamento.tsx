@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
+import { Calculator, CheckSquare, ChevronRight, Heart, Store, Users } from "lucide-react";
 import BottomAppNav from "@/components/BottomAppNav";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
@@ -605,34 +606,60 @@ export default function Planejamento() {
           </div>
 
           <div className="wp-pair-grid">
-            <div className="wp-card">
-              <h3>Fornecedores</h3>
-              <div className="wp-sub">Contratados até agora</div>
+            <div className="wp-card wp-stat-card">
+              <div className="wp-stat-card-head">
+                <span className="wp-stat-card-icon">
+                  <Store size={16} strokeWidth={1.8} />
+                </span>
+                <div>
+                  <h3>Fornecedores</h3>
+                  <div className="wp-sub">Contratados até agora</div>
+                </div>
+              </div>
               <div className="wp-stat">{vendors.length}</div>
-              <div className="wp-stat-label">fornecedores</div>
-              <button className="wp-card-link" onClick={() => setView("vendors")}>
-                Ver fornecedores →
+              <div className="wp-stat-label">fornecedor{vendors.length === 1 ? "" : "es"}</div>
+              <button className="wp-card-footer" onClick={() => setView("vendors")}>
+                Ver todos
+                <ChevronRight size={14} strokeWidth={2} />
               </button>
             </div>
-            <div className="wp-card">
-              <h3>Checklist</h3>
-              <div className="wp-sub">Progresso geral das tarefas</div>
+            <div className="wp-card wp-stat-card">
+              <div className="wp-stat-card-head">
+                <span className="wp-stat-card-icon">
+                  <CheckSquare size={16} strokeWidth={1.8} />
+                </span>
+                <div>
+                  <h3>Checklist</h3>
+                  <div className="wp-sub">Progresso geral das tarefas</div>
+                </div>
+              </div>
               <div className="wp-stat">{checklistPct}%</div>
               <div className="wp-stat-label">concluído</div>
-              <button className="wp-card-link" onClick={() => setView("checklist")}>
-                Ver checklist completo →
+              <button className="wp-card-footer" onClick={() => setView("checklist")}>
+                Ver checklist
+                <ChevronRight size={14} strokeWidth={2} />
               </button>
             </div>
           </div>
 
+          <p className="wp-quick-access-label">Acesso rápido</p>
           <div className="wp-shortcut-row">
             <button className="wp-shortcut-btn" onClick={() => setView("budget")}>
+              <span className="wp-shortcut-icon">
+                <Calculator size={18} strokeWidth={1.8} />
+              </span>
               Orçamento
             </button>
             <button className="wp-shortcut-btn" onClick={() => setView("vows")}>
+              <span className="wp-shortcut-icon">
+                <Heart size={18} strokeWidth={1.8} />
+              </span>
               Votos
             </button>
             <button className="wp-shortcut-btn" onClick={goToGuestPage}>
+              <span className="wp-shortcut-icon">
+                <Users size={18} strokeWidth={1.8} />
+              </span>
               Convidados
             </button>
           </div>
