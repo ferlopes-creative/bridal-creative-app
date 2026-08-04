@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 
 const SHOWN_KEY = "bridal_intro_shown";
-const FADE_MS = 700;
+const FADE_MS = 900;
+/** Começa a esmaecer um pouco antes do vídeo acabar, pra dissolver em vez de cortar. */
+const FADE_LEAD_S = 0.6;
 const MAX_WAIT_MS = 8000;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
-/** Vídeo de abertura na primeira vez que o app abre nesta sessão; funde pra fora no final. */
-export default function SplashVideo() {
+export default function SplashVideo({ onFinished }: { onFinished?: () => void }) {
   const [visible, setVisible] = useState(() => {
     if (prefersReducedMotion()) return false;
     try {
@@ -20,34 +21,65 @@ export default function SplashVideo() {
   });
   const [fadingOut, setFadingOut] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const finishedRef = useRef(false);
+
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setFadingOut(true);
+  };
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      onFinished?.();
+      return;
+    }
     try {
       sessionStorage.setItem(SHOWN_KEY, "1");
     } catch {
       /* ignore */
     }
 
-    const finish = () => setFadingOut(true);
-    const timeout = window.setTimeout(finish, MAX_WAIT_MS);
-
     const video = videoRef.current;
-    video?.addEventListener("ended", finish);
-    video?.addEventListener("error", finish);
+    if (!video) {
+      finish();
+      return;
+    }
+
+    // Alguns navegadores só respeitam autoplay se `muted` for setado via propriedade, não só o atributo.
+    video.muted = true;
+    video.play().catch(() => {
+      // Autoplay bloqueado (ex: sem interação prévia) — não trava a pessoa numa tela parada.
+      finish();
+    });
+
+    const onTimeUpdate = () => {
+      if (video.duration && video.currentTime >= video.duration - FADE_LEAD_S) {
+        finish();
+      }
+    };
+
+    const timeout = window.setTimeout(finish, MAX_WAIT_MS);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("ended", finish);
+    video.addEventListener("error", finish);
 
     return () => {
       window.clearTimeout(timeout);
-      video?.removeEventListener("ended", finish);
-      video?.removeEventListener("error", finish);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("ended", finish);
+      video.removeEventListener("error", finish);
     };
-  }, [visible]);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!fadingOut) return;
-    const timeout = window.setTimeout(() => setVisible(false), FADE_MS);
+    const timeout = window.setTimeout(() => {
+      setVisible(false);
+      onFinished?.();
+    }, FADE_MS);
     return () => window.clearTimeout(timeout);
-  }, [fadingOut]);
+  }, [fadingOut]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible) return null;
 

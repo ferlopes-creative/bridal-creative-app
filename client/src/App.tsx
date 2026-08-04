@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -35,27 +35,26 @@ const Notifications = lazy(loadNotifications);
 const Profile = lazy(loadProfile);
 const Planejamento = lazy(loadPlanejamento);
 
-/** Busca os chunks das outras páginas em segundo plano depois do 1º carregamento,
- * pra troca de aba dentro do app não mostrar tela de carregamento de novo. */
-function usePrefetchRoutes() {
-  useEffect(() => {
-    const prefetch = () => {
-      void loadDashboardProduct();
-      void loadCommunity();
-      void loadNotifications();
-      void loadProfile();
-      void loadPlanejamento();
-      // Admin/AdminNew ficam de fora: só quem administra usa, não vale a banda de todo mundo.
-    };
+/** Busca os chunks das outras páginas em segundo plano, pra troca de aba dentro
+ * do app não mostrar tela de carregamento de novo. Chamada só depois que o vídeo
+ * de abertura termina, pra não competir com ele pela banda no primeiro carregamento. */
+function prefetchRoutes() {
+  const run = () => {
+    void loadDashboardProduct();
+    void loadCommunity();
+    void loadNotifications();
+    void loadProfile();
+    void loadPlanejamento();
+    // Admin/AdminNew ficam de fora: só quem administra usa, não vale a banda de todo mundo.
+  };
 
-    const ric = (window as typeof window & { requestIdleCallback?: (cb: () => void) => number })
-      .requestIdleCallback;
-    if (ric) {
-      ric(prefetch);
-    } else {
-      window.setTimeout(prefetch, 1500);
-    }
-  }, []);
+  const ric = (window as typeof window & { requestIdleCallback?: (cb: () => void) => number })
+    .requestIdleCallback;
+  if (ric) {
+    ric(run);
+  } else {
+    window.setTimeout(run, 300);
+  }
 }
 
 function Router() {
@@ -118,8 +117,6 @@ function Router() {
 }
 
 function App() {
-  usePrefetchRoutes();
-
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
@@ -130,7 +127,7 @@ function App() {
                 <Router />
                 <Toaster />
                 <InstallPrompt />
-                <SplashVideo />
+                <SplashVideo onFinished={prefetchRoutes} />
               </div>
             </TooltipProvider>
           </CommunityAccessProvider>
