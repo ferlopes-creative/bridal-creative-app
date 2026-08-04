@@ -166,7 +166,7 @@ function ProductList({
           ))}
         </HorizontalScrollRow>
       </div>
-      <div className={`hidden grid-cols-2 gap-3 sm:gap-4 md:grid ${large ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
+      <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
         {products.map((product) => (
           <ProductCard
             key={`${keyPrefix}-${product.id}`}
@@ -498,7 +498,7 @@ export default function Dashboard() {
               Grande dia!
             </span>
           </h1>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="flex shrink-0 flex-col items-end gap-2">
             <div
               className="rounded-[3px] px-4 py-2 text-center text-white sm:px-6 sm:py-2.5"
               style={{ backgroundColor: "var(--bc-primary)" }}
@@ -511,7 +511,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setLocation("/planejamento")}
-              className="text-[11px] font-normal text-bc-primary hover:underline sm:text-xs"
+              className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
             >
               Ver planejamento →
             </button>
@@ -519,7 +519,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-7 md:pt-9">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-10 md:pt-12">
         {sectionBlocks.map((block, index) => (
           <div key={index} className={index > 0 ? "mt-6 md:mt-10" : undefined}>
             {block}
