@@ -61,6 +61,20 @@ function ProductCard({
   imageAspectClass?: string;
   onNavigate: () => void;
 }) {
+  const [pressed, setPressed] = useState(false);
+  const pressHandlers = {
+    onPointerDown: () => setPressed(true),
+    onPointerUp: () => setPressed(false),
+    onPointerCancel: () => setPressed(false),
+    onPointerLeave: () => setPressed(false),
+  };
+  const liftStyle = pressed
+    ? {
+        transform: "translateY(-5px) rotate(-1.1deg) scale(1.02)",
+        boxShadow: "0 10px 22px rgba(53,58,46,0.22)",
+      }
+    : undefined;
+
   const imageSrc =
     product.image_url ||
     product.image ||
@@ -92,7 +106,9 @@ function ProductCard({
     return (
       <article
         onClick={onNavigate}
-        className="relative w-full cursor-pointer justify-self-center overflow-hidden rounded-[2px] transition-transform hover:scale-[1.01]"
+        {...pressHandlers}
+        style={liftStyle}
+        className="relative w-full cursor-pointer touch-manipulation justify-self-center overflow-hidden rounded-[2px] transition-transform duration-150 ease-out hover:scale-[1.01]"
       >
         <img
           src={imageSrc}
@@ -108,7 +124,9 @@ function ProductCard({
   return (
     <article
       onClick={onNavigate}
-      className="w-full cursor-pointer justify-self-center overflow-hidden rounded-2xl bg-bc-banner p-1.5 shadow-[0_2px_14px_rgba(53,58,46,0.12)] transition-[transform,box-shadow] hover:scale-[1.01] hover:shadow-[0_4px_18px_rgba(53,58,46,0.14)] sm:p-2.5"
+      {...pressHandlers}
+      style={liftStyle}
+      className="w-full cursor-pointer touch-manipulation justify-self-center overflow-hidden rounded-2xl bg-bc-banner p-1.5 shadow-[0_2px_14px_rgba(53,58,46,0.12)] transition-[transform,box-shadow] duration-150 ease-out hover:scale-[1.01] hover:shadow-[0_4px_18px_rgba(53,58,46,0.14)] sm:p-2.5"
     >
       <div className="overflow-hidden rounded-[10px] bg-bc-banner-light p-1 sm:rounded-[6px] sm:p-0.5">
         <div className="relative overflow-hidden rounded-[6px] sm:rounded-[4px]">

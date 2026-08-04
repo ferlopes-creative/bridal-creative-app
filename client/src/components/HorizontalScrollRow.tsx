@@ -1,19 +1,18 @@
+import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type Metrics = { show: boolean; thumbW: number; thumbLeft: number };
+type Metrics = { scrollable: boolean; atEnd: boolean };
 
-const initialMetrics: Metrics = { show: false, thumbW: 100, thumbLeft: 0 };
+const initialMetrics: Metrics = { scrollable: false, atEnd: false };
 
 export function HorizontalScrollRow({
   children,
   contentKey,
   className,
-  indicatorMaxWidthClass = "max-w-[min(11rem,88vw)]",
 }: {
   children: React.ReactNode;
   contentKey?: string | number;
   className?: string;
-  indicatorMaxWidthClass?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [metrics, setMetrics] = useState<Metrics>(initialMetrics);
@@ -24,13 +23,11 @@ export function HorizontalScrollRow({
     const { scrollLeft, scrollWidth, clientWidth } = el;
     const scrollable = scrollWidth > clientWidth + 2;
     if (!scrollable) {
-      setMetrics((prev) => (prev.show ? initialMetrics : prev));
+      setMetrics((prev) => (prev.scrollable ? initialMetrics : prev));
       return;
     }
     const maxScroll = scrollWidth - clientWidth;
-    const thumbW = (clientWidth / scrollWidth) * 100;
-    const thumbLeft = maxScroll > 0 ? (scrollLeft / maxScroll) * (100 - thumbW) : 0;
-    setMetrics({ show: true, thumbW, thumbLeft });
+    setMetrics({ scrollable: true, atEnd: scrollLeft >= maxScroll - 4 });
   }, []);
 
   useEffect(() => {
@@ -47,7 +44,7 @@ export function HorizontalScrollRow({
   }, [update, contentKey]);
 
   return (
-    <div className={className}>
+    <div className={`relative ${className ?? ""}`}>
       <div
         ref={ref}
         className="-mx-0.5 flex gap-3 overflow-x-auto overscroll-x-contain px-0.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -55,19 +52,13 @@ export function HorizontalScrollRow({
       >
         {children}
       </div>
-      {metrics.show ? (
+      {metrics.scrollable ? (
         <div
-          className={`relative mx-auto mt-3 h-2 ${indicatorMaxWidthClass} w-full`}
+          className="bc-drag-hint pointer-events-none absolute top-1/2 right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-bc-primary/60 shadow-[0_1px_6px_rgba(53,58,46,0.14)] backdrop-blur-sm transition-opacity duration-300"
+          style={{ opacity: metrics.atEnd ? 0 : 1 }}
           aria-hidden
         >
-          <div className="absolute inset-0 rounded-full bg-[#e8e6df] shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]" />
-          <div
-            className="absolute top-0 h-full rounded-full bg-bc-primary shadow-sm transition-[left,width] duration-100 ease-out"
-            style={{
-              width: `${metrics.thumbW}%`,
-              left: `${metrics.thumbLeft}%`,
-            }}
-          />
+          <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.25} />
         </div>
       ) : null}
     </div>

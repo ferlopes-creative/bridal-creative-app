@@ -160,6 +160,10 @@
     color: var(--bc-primary);
     animation: bc-splash-text-in 600ms ease-out 1100ms both;
   }
+
+  .bc-drag-hint {
+    animation: bc-drag-hint-nudge 2.2s ease-in-out infinite;
+  }
 }
 
 @keyframes bc-splash-logo-in {
@@ -192,6 +196,15 @@
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes bc-drag-hint-nudge {
+  0%, 100% {
+    transform: translate(0, -50%);
+  }
+  50% {
+    transform: translate(3px, -50%);
   }
 }
 
