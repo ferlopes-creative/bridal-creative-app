@@ -8,6 +8,7 @@ import {
   parseDashboardSectionsConfig,
   type DashboardSectionConfig,
 } from "@/lib/dashboardSections";
+import { parseProductCategoriesConfig, type ProductCategoryConfig } from "@/lib/productCategories";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   DEFAULT_DASHBOARD_SECTION_ORDER,
@@ -21,6 +22,7 @@ export {
   DEFAULT_DASHBOARD_SECTIONS_CONFIG,
   type DashboardSectionConfig,
   type DashboardSectionId,
+  type ProductCategoryConfig,
 };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
@@ -43,6 +45,7 @@ export type SiteSettings = {
   whatsapp_url: string | null;
   dashboard_section_order: DashboardSectionId[];
   dashboard_sections_config: DashboardSectionConfig[];
+  product_categories_config: ProductCategoryConfig[];
 };
 
 const defaultSettings: SiteSettings = {
@@ -59,6 +62,7 @@ const defaultSettings: SiteSettings = {
   whatsapp_url: null,
   dashboard_section_order: [...DEFAULT_DASHBOARD_SECTION_ORDER],
   dashboard_sections_config: [...DEFAULT_DASHBOARD_SECTIONS_CONFIG],
+  product_categories_config: [],
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -104,6 +108,7 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
       partial.dashboard_sections_config,
       parseDashboardSectionOrder(partial.dashboard_section_order)
     ),
+    product_categories_config: parseProductCategoriesConfig(partial.product_categories_config),
     colors: parsedColors,
   };
 }
@@ -190,6 +195,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         whatsapp_url: row.whatsapp_url,
         dashboard_section_order: row.dashboard_section_order,
         dashboard_sections_config: row.dashboard_sections_config,
+        product_categories_config: row.product_categories_config,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);

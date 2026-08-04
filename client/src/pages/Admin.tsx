@@ -4,6 +4,7 @@ import {
   CalendarHeart,
   ChevronDown,
   ChevronUp,
+  Compass,
   EyeOff,
   LayoutGrid,
   LogOut,
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
 import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
+import ProductCategoriesEditor from "@/components/admin/ProductCategoriesEditor";
 import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -53,6 +55,12 @@ import {
   DEFAULT_DASHBOARD_SECTIONS_CONFIG,
   type DashboardSectionConfig,
 } from "@/lib/dashboardSections";
+import {
+  assignProductToCategory,
+  findCategoryIdForProduct,
+  isProductCategoriesConfigSchemaError,
+  type ProductCategoryConfig,
+} from "@/lib/productCategories";
 import {
   accessLinksEqual,
   accessLinksToFormRows,
@@ -618,6 +626,9 @@ export default function AdminPage() {
     ...DEFAULT_DASHBOARD_SECTIONS_CONFIG,
   ]);
   const [sectionOrderSaving, setSectionOrderSaving] = useState(false);
+  const [productCategoriesConfig, setProductCategoriesConfig] = useState<ProductCategoryConfig[]>([]);
+  const [categoriesSaving, setCategoriesSaving] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
@@ -704,6 +715,7 @@ export default function AdminPage() {
     setCaktoSalesId("");
     setLegacyExternalSalesId(null);
     setIsHidden(false);
+    setSelectedCategoryId("");
   };
 
   const closeModal = () => {
@@ -749,6 +761,7 @@ export default function AdminPage() {
     setCaktoSalesId(caktoId);
     setLegacyExternalSalesId(product.external_sales_id?.trim() || null);
     setIsHidden(product.is_hidden === true);
+    setSelectedCategoryId(findCategoryIdForProduct(productCategoriesConfig, product.id));
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
@@ -774,6 +787,7 @@ export default function AdminPage() {
     setCaktoSalesId(emptyFormSnapshot.caktoSalesId);
     setType(emptyFormSnapshot.type);
     setIsHidden(emptyFormSnapshot.isHidden);
+    setSelectedCategoryId("");
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
@@ -923,6 +937,7 @@ export default function AdminPage() {
         setSiteColors(row.colors);
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
         setDashboardSectionsConfig(row.dashboard_sections_config);
+        setProductCategoriesConfig(row.product_categories_config);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -1283,6 +1298,10 @@ export default function AdminPage() {
         salesGallery
       );
 
+      if (!dbError && insertedId) {
+        await syncProductCategoryAssignment(insertedId);
+      }
+
       if (!dbError && pendingVideoFile && insertedId) {
         const uploadedUrl = await uploadFileToStorage(
           pendingVideoFile,
@@ -1452,6 +1471,52 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Erro ao alterar visibilidade:", error);
       toast.error("Não foi possível alterar a visibilidade do produto.");
+    }
+  };
+
+  /** Move o produto salvo para a categoria escolhida no formulário (best-effort: não bloqueia o salvamento do produto). */
+  const syncProductCategoryAssignment = async (productId: string) => {
+    const currentCategoryId = findCategoryIdForProduct(productCategoriesConfig, productId);
+    if (currentCategoryId === selectedCategoryId) return;
+
+    const nextCategories = assignProductToCategory(productCategoriesConfig, productId, selectedCategoryId);
+    const { error } = await supabase.from("site_settings").upsert({
+      id: 1,
+      product_categories_config: nextCategories,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error("Erro ao atualizar categoria do produto:", error);
+      if (!isProductCategoriesConfigSchemaError(error.message)) {
+        toast.error("Produto salvo, mas não foi possível atualizar a categoria/atalho.");
+      }
+      return;
+    }
+    setProductCategoriesConfig(nextCategories);
+  };
+
+  const handleSaveProductCategories = async () => {
+    setCategoriesSaving(true);
+    try {
+      const { error } = await supabase.from("site_settings").upsert({
+        id: 1,
+        product_categories_config: productCategoriesConfig,
+        updated_at: new Date().toISOString(),
+      });
+      if (error && isProductCategoriesConfigSchemaError(error.message)) {
+        toast.error(
+          "Coluna product_categories_config ausente. Execute a migração 20260804120000_product_categories_config.sql no Supabase."
+        );
+        return;
+      }
+      if (error) throw error;
+      await refreshSiteSettings();
+      toast.success("Atalhos salvos.");
+    } catch (error) {
+      console.error("Erro ao salvar atalhos de produtos:", error);
+      toast.error("Não foi possível salvar os atalhos.");
+    } finally {
+      setCategoriesSaving(false);
     }
   };
 
@@ -2317,6 +2382,30 @@ export default function AdminPage() {
           )}
         </AdminSection>
 
+        <AdminSection
+          id="product-categories"
+          icon={Compass}
+          title="Atalhos da Início (Explore)"
+          description="Ícones circulares logo abaixo de Meus produtos: nome, foto e quais produtos aparecem ao tocar."
+        >
+          {siteLoading ? (
+            <p className="text-sm text-zinc-500">Carregando…</p>
+          ) : (
+            <ProductCategoriesEditor
+              categories={productCategoriesConfig}
+              onChange={setProductCategoriesConfig}
+              products={sortedProducts.map((product) => ({
+                id: product.id,
+                name: product.name,
+                type: product.type,
+              }))}
+              saving={categoriesSaving}
+              onSave={() => void handleSaveProductCategories()}
+              onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "categories")}
+            />
+          )}
+        </AdminSection>
+
         <RegisteredUsersSection />
 
         <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
@@ -3135,6 +3224,22 @@ export default function AdminPage() {
                     </span>
                   </span>
                 </label>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-zinc-700">Categoria (atalho &quot;Explore&quot;)</label>
+                <select
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                >
+                  <option value="">Nenhuma</option>
+                  {productCategoriesConfig.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name || "Sem nome"}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">

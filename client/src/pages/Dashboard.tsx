@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Bell, Lock } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Bell } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
-import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
+import { ProductList, type Product } from "@/components/ProductGrid";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
@@ -29,177 +29,6 @@ import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { isGuestMode } from "@/lib/guestMode";
 import { supabase } from "@/lib/supabase";
 import { consumeWelcomePopupPending } from "@/lib/welcomePopup";
-
-type Product = {
-  id: string;
-  name?: string | null;
-  description?: string | null;
-  type: "PRO" | "BON" | string;
-  image_url?: string | null;
-  image?: string | null;
-  thumbnail_url?: string | null;
-  video_url?: string | null;
-  link_compra?: string | null;
-  is_hidden?: boolean | null;
-};
-
-const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
-const cardWrapLarge = "min-w-[136px] w-[36vw] max-w-[160px] shrink-0 snap-start";
-
-function ProductCard({
-  product,
-  showLockedOverlay = false,
-  showTitle = true,
-  showFrame = true,
-  imageAspectClass = "aspect-[3/4]",
-  onNavigate,
-}: {
-  product: Product;
-  showLockedOverlay?: boolean;
-  showTitle?: boolean;
-  showFrame?: boolean;
-  imageAspectClass?: string;
-  onNavigate: () => void;
-}) {
-  const [pressed, setPressed] = useState(false);
-  const pressHandlers = {
-    onPointerDown: () => setPressed(true),
-    onPointerUp: () => setPressed(false),
-    onPointerCancel: () => setPressed(false),
-    onPointerLeave: () => setPressed(false),
-  };
-  const liftStyle = pressed
-    ? {
-        transform: "translateY(-5px) rotate(-1.1deg) scale(1.02)",
-        boxShadow: "0 10px 22px rgba(53,58,46,0.22)",
-      }
-    : undefined;
-
-  const imageSrc =
-    product.image_url ||
-    product.image ||
-    product.thumbnail_url ||
-    "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
-
-  const lockOverlay = showLockedOverlay ? (
-    <>
-      <div className="absolute inset-0 bg-black/20" aria-hidden />
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <Lock
-          className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
-          strokeWidth={2}
-        />
-      </div>
-    </>
-  ) : null;
-
-  const title = showTitle ? (
-    <h3
-      className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
-      style={{ fontFamily: "var(--font-display)" }}
-    >
-      {product.name || "Produto"}
-    </h3>
-  ) : null;
-
-  if (!showFrame) {
-    return (
-      <article
-        onClick={onNavigate}
-        {...pressHandlers}
-        style={liftStyle}
-        className="relative w-full cursor-pointer touch-manipulation justify-self-center overflow-hidden rounded-[2px] transition-transform duration-150 ease-out hover:scale-[1.01]"
-      >
-        <img
-          src={imageSrc}
-          alt={product.name || "Produto"}
-          className={`${imageAspectClass} w-full object-cover`}
-        />
-        {lockOverlay}
-        {title}
-      </article>
-    );
-  }
-
-  return (
-    <article
-      onClick={onNavigate}
-      {...pressHandlers}
-      style={liftStyle}
-      className="w-full cursor-pointer touch-manipulation justify-self-center overflow-hidden rounded-2xl bg-bc-banner p-1.5 shadow-[0_2px_14px_rgba(53,58,46,0.12)] transition-[transform,box-shadow] duration-150 ease-out hover:scale-[1.01] hover:shadow-[0_4px_18px_rgba(53,58,46,0.14)] sm:p-2.5"
-    >
-      <div className="overflow-hidden rounded-[10px] bg-bc-banner-light p-1 sm:rounded-[6px] sm:p-0.5">
-        <div className="relative overflow-hidden rounded-[6px] sm:rounded-[4px]">
-          <img
-            src={imageSrc}
-            alt={product.name || "Produto"}
-            className={`${imageAspectClass} w-full object-cover`}
-          />
-          {lockOverlay}
-        </div>
-      </div>
-
-      {title}
-    </article>
-  );
-}
-
-function ProductList({
-  products,
-  keyPrefix,
-  showLocked,
-  showTitle = true,
-  showFrame = true,
-  imageAspectClass,
-  large = false,
-  onOpen,
-}: {
-  products: Product[];
-  keyPrefix: string;
-  showLocked: boolean | ((product: Product) => boolean);
-  showTitle?: boolean;
-  showFrame?: boolean;
-  imageAspectClass?: string;
-  large?: boolean;
-  onOpen: (id: string) => void;
-}) {
-  const locked = (product: Product) =>
-    typeof showLocked === "function" ? showLocked(product) : showLocked;
-
-  return (
-    <>
-      <div className="md:hidden">
-        <HorizontalScrollRow contentKey={products.map((p) => p.id).join()}>
-          {products.map((product) => (
-            <div key={`${keyPrefix}-m-${product.id}`} className={large ? cardWrapLarge : cardWrap}>
-              <ProductCard
-                product={product}
-                showLockedOverlay={locked(product)}
-                showTitle={showTitle}
-                showFrame={showFrame}
-                imageAspectClass={imageAspectClass}
-                onNavigate={() => onOpen(product.id)}
-              />
-            </div>
-          ))}
-        </HorizontalScrollRow>
-      </div>
-      <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 md:grid">
-        {products.map((product) => (
-          <ProductCard
-            key={`${keyPrefix}-${product.id}`}
-            product={product}
-            showLockedOverlay={locked(product)}
-            showTitle={showTitle}
-            showFrame={showFrame}
-            imageAspectClass={imageAspectClass}
-            onNavigate={() => onOpen(product.id)}
-          />
-        ))}
-      </div>
-    </>
-  );
-}
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -338,6 +167,14 @@ export default function Dashboard() {
     [purchasedIds, kitBonusRows, products]
   );
 
+  const visibleCategories = useMemo(
+    () =>
+      settings.product_categories_config.filter(
+        (category) => category.visible && category.product_ids.length > 0
+      ),
+    [settings.product_categories_config]
+  );
+
   const sectionBlocks = useMemo(() => {
     // "Bônus" some como fileira própria — os itens entram na mesma fileira de "Meus produtos".
     const bonusProducts = resolveSectionProducts(
@@ -396,8 +233,8 @@ export default function Dashboard() {
               ? "Sem sugestões bloqueadas para agora."
               : "Nenhum produto nesta seção.";
 
-        return (
-          <section key={section.id}>
+        const sectionNode = (
+          <section key={isPurchasedSection ? undefined : section.id}>
             <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
             <ProductList
               products={sectionProducts}
@@ -414,9 +251,59 @@ export default function Dashboard() {
             )}
           </section>
         );
+
+        if (!isPurchasedSection) {
+          return sectionNode;
+        }
+
+        return (
+          <Fragment key={section.id}>
+            {sectionNode}
+            {visibleCategories.length > 0 ? (
+              <section className="mt-6 md:mt-9">
+                <h2 className="app-section-title">EXPLORE</h2>
+                <div className="flex gap-5 overflow-x-auto pb-1 sm:gap-8">
+                  {visibleCategories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
+                      className="flex shrink-0 flex-col items-center gap-2"
+                    >
+                      <span className="h-16 w-16 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-20 sm:w-20">
+                        {category.photo_url ? (
+                          <img
+                            src={category.photo_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : null}
+                      </span>
+                      <span
+                        className="max-w-[76px] text-center text-[11px] leading-tight text-bc-primary sm:max-w-[92px] sm:text-xs"
+                        style={{ fontFamily: "var(--font-display)" }}
+                      >
+                        {category.name || "Sem nome"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </Fragment>
+        );
       })
       .filter((block) => block != null);
-  }, [settings.dashboard_sections_config, products, sectionCtx, whatsappUrl, purchasedIds, kitBonusRows]);
+  }, [
+    settings.dashboard_sections_config,
+    products,
+    sectionCtx,
+    whatsappUrl,
+    purchasedIds,
+    kitBonusRows,
+    visibleCategories,
+    setLocation,
+  ]);
 
   if (loading) {
     return (
