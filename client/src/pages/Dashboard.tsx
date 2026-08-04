@@ -358,7 +358,7 @@ export default function Dashboard() {
         settings={settings}
         backgroundColor={settings.colors.pageBg}
       />
-      <section className="relative min-h-[240px] overflow-hidden md:min-h-[320px]">
+      <section className="relative min-h-[240px] overflow-hidden rounded-b-2xl md:min-h-[320px]">
         <div className="absolute inset-0 bg-bc-primary">
           {showHero ? (
             <SiteBannerCarousel
