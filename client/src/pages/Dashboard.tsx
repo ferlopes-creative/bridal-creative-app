@@ -335,18 +335,14 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-bc-page-bg">
-        <PageBackgroundTexture
-          imageUrl={pageBgUrl}
-          settings={settings}
-          backgroundColor={settings.colors.pageBg}
-        />
+        <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
         <PageLoading label="Carregando seus produtos..." className="relative min-h-screen flex-1" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
+    <div className="relative min-h-screen overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <div
         className={`fixed top-0 right-0 left-0 z-40 bg-bc-page-bg/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
           showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
@@ -374,11 +370,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <PageBackgroundTexture
-        imageUrl={pageBgUrl}
-        settings={settings}
-        backgroundColor={settings.colors.pageBg}
-      />
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <section className="relative min-h-[240px] overflow-hidden rounded-b-2xl md:min-h-[320px]">
         <div className="absolute inset-0 bg-bc-primary">
           {showHero ? (

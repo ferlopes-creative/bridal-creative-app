@@ -167,23 +167,15 @@ export default function Profile() {
   if (loading) {
     return (
       <div className="relative min-h-screen bg-bc-page-bg">
-        <PageBackgroundTexture
-          imageUrl={pageBgUrl}
-          settings={settings}
-          backgroundColor={settings.colors.pageBg}
-        />
+        <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
         <PageLoading label="Carregando perfil..." className="relative min-h-screen flex-1" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
-      <PageBackgroundTexture
-        imageUrl={pageBgUrl}
-        settings={settings}
-        backgroundColor={settings.colors.pageBg}
-      />
+    <div className="relative min-h-screen overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
 
       <header className="relative border-b border-bc-primary/12 bg-bc-page-bg/96 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between">

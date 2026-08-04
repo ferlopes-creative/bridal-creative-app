@@ -575,7 +575,7 @@ export default function Planejamento() {
 
   return (
     <div className="wp-page">
-      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} backgroundColor={settings.colors.pageBg} />
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       {view === "dashboard" ? (
         <div className="wp-wrap">
           <div className="wp-page-header">
