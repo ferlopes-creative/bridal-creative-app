@@ -48,10 +48,14 @@ const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
 function ProductCard({
   product,
   showLockedOverlay = false,
+  showTitle = true,
+  imageAspectClass = "aspect-[3/4]",
   onNavigate,
 }: {
   product: Product;
   showLockedOverlay?: boolean;
+  showTitle?: boolean;
+  imageAspectClass?: string;
   onNavigate: () => void;
 }) {
   const imageSrc =
@@ -70,7 +74,7 @@ function ProductCard({
           <img
             src={imageSrc}
             alt={product.name || "Produto"}
-            className="aspect-[3/4] w-full object-cover"
+            className={`${imageAspectClass} w-full object-cover`}
           />
           {showLockedOverlay ? (
             <>
@@ -86,12 +90,14 @@ function ProductCard({
         </div>
       </div>
 
-      <h3
-        className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        {product.name || "Produto"}
-      </h3>
+      {showTitle ? (
+        <h3
+          className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {product.name || "Produto"}
+        </h3>
+      ) : null}
     </article>
   );
 }
@@ -100,11 +106,15 @@ function ProductList({
   products,
   keyPrefix,
   showLocked,
+  showTitle = true,
+  imageAspectClass,
   onOpen,
 }: {
   products: Product[];
   keyPrefix: string;
   showLocked: boolean | ((product: Product) => boolean);
+  showTitle?: boolean;
+  imageAspectClass?: string;
   onOpen: (id: string) => void;
 }) {
   const locked = (product: Product) =>
@@ -119,6 +129,8 @@ function ProductList({
               <ProductCard
                 product={product}
                 showLockedOverlay={locked(product)}
+                showTitle={showTitle}
+                imageAspectClass={imageAspectClass}
                 onNavigate={() => onOpen(product.id)}
               />
             </div>
@@ -131,6 +143,8 @@ function ProductList({
             key={`${keyPrefix}-${product.id}`}
             product={product}
             showLockedOverlay={locked(product)}
+            showTitle={showTitle}
+            imageAspectClass={imageAspectClass}
             onNavigate={() => onOpen(product.id)}
           />
         ))}
@@ -277,8 +291,19 @@ export default function Dashboard() {
   );
 
   const sectionBlocks = useMemo(() => {
+    // "Bônus" some como fileira própria — os itens entram na mesma fileira de "Meus produtos".
+    const bonusProducts = resolveSectionProducts(
+      { id: "__bonus_merge__", title: "", kind: "products", mode: "automatic", auto_rule: "bonus" },
+      products,
+      sectionCtx
+    );
+
     return settings.dashboard_sections_config
       .map((section) => {
+        if (section.mode === "automatic" && section.auto_rule === "bonus") {
+          return null;
+        }
+
         if (section.kind === "whatsapp") {
           if (!shouldRenderDashboardSection(section, 0, whatsappUrl)) return null;
           return (
@@ -302,7 +327,16 @@ export default function Dashboard() {
           );
         }
 
-        const sectionProducts = resolveSectionProducts(section, products, sectionCtx);
+        const isPurchasedSection = section.mode === "automatic" && section.auto_rule === "purchased";
+        let sectionProducts = resolveSectionProducts(section, products, sectionCtx);
+        if (isPurchasedSection && bonusProducts.length > 0) {
+          const existingIds = new Set(sectionProducts.map((p) => p.id));
+          sectionProducts = [
+            ...sectionProducts,
+            ...bonusProducts.filter((p) => !existingIds.has(p.id)),
+          ];
+        }
+
         if (!shouldRenderDashboardSection(section, sectionProducts.length, whatsappUrl)) {
           return null;
         }
@@ -321,6 +355,8 @@ export default function Dashboard() {
               products={sectionProducts}
               keyPrefix={section.id}
               showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
+              showTitle={!isPurchasedSection}
+              imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
               onOpen={openProduct}
             />
             {sectionProducts.length === 0 && (
