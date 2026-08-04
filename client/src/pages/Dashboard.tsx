@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Bell } from "lucide-react";
+import { Bell, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { ProductList, type Product } from "@/components/ProductGrid";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
+import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import {
@@ -29,6 +31,72 @@ import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { isGuestMode } from "@/lib/guestMode";
 import { supabase } from "@/lib/supabase";
 import { consumeWelcomePopupPending } from "@/lib/welcomePopup";
+
+function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
+  const [expanded, setExpanded] = useState(false);
+  const initial = (testimonial.author_name || "?").trim().charAt(0).toUpperCase();
+
+  return (
+    <div className="flex h-full w-[240px] shrink-0 flex-col rounded-xl bg-white p-4 shadow-[0_2px_14px_rgba(53,58,46,0.08)] sm:w-[260px]">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bc-primary/15 text-sm font-semibold text-bc-primary">
+          {testimonial.photo_url ? (
+            <img src={testimonial.photo_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
+        </span>
+        <div className="min-w-0">
+          <p
+            className="truncate text-sm font-semibold text-bc-primary"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {testimonial.author_name || "Anônimo"}
+          </p>
+          {testimonial.submitted_at ? (
+            <p className="text-[10px] text-bc-primary/60">
+              Enviado em {formatTestimonialDate(testimonial.submitted_at)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-center gap-1.5">
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <Star
+              key={value}
+              className={`h-3.5 w-3.5 ${
+                value <= testimonial.rating ? "fill-amber-400 text-amber-400" : "text-zinc-300"
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-xs font-medium text-bc-primary/70">
+          {testimonial.rating.toFixed(1)}
+        </span>
+      </div>
+
+      <p
+        className={`mt-2.5 flex-1 text-sm leading-snug text-bc-primary/85 ${
+          expanded ? "" : "line-clamp-3"
+        }`}
+      >
+        {testimonial.text}
+      </p>
+
+      {testimonial.text.length > 90 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="mt-1.5 self-start text-xs font-medium text-bc-primary underline underline-offset-2"
+        >
+          {expanded ? "Ler menos" : "Ler mais"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -175,6 +243,11 @@ export default function Dashboard() {
     [settings.product_categories_config]
   );
 
+  const visibleTestimonials = useMemo(
+    () => settings.testimonials_config.filter((testimonial) => testimonial.visible),
+    [settings.testimonials_config]
+  );
+
   const sectionBlocks = useMemo(() => {
     // "Bônus" some como fileira própria — os itens entram na mesma fileira de "Meus produtos".
     const bonusProducts = resolveSectionProducts(
@@ -290,6 +363,28 @@ export default function Dashboard() {
                 </div>
               </section>
             ) : null}
+            {visibleTestimonials.length > 0 ? (
+              <section className="mt-6 md:mt-9">
+                {settings.testimonials_banner_url ? (
+                  <img
+                    src={settings.testimonials_banner_url}
+                    alt=""
+                    className="mb-4 h-40 w-full rounded-2xl object-cover sm:h-52"
+                  />
+                ) : null}
+                <h2
+                  className="mb-3 text-lg italic text-bc-primary sm:text-xl"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+                >
+                  O que as noivas dizem…
+                </h2>
+                <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
+                  {visibleTestimonials.map((testimonial) => (
+                    <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+                  ))}
+                </HorizontalScrollRow>
+              </section>
+            ) : null}
           </Fragment>
         );
       })
@@ -302,6 +397,8 @@ export default function Dashboard() {
     purchasedIds,
     kitBonusRows,
     visibleCategories,
+    visibleTestimonials,
+    settings.testimonials_banner_url,
     setLocation,
   ]);
 

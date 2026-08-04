@@ -9,6 +9,7 @@ import {
   type DashboardSectionConfig,
 } from "@/lib/dashboardSections";
 import { parseProductCategoriesConfig, type ProductCategoryConfig } from "@/lib/productCategories";
+import { parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   DEFAULT_DASHBOARD_SECTION_ORDER,
@@ -23,6 +24,7 @@ export {
   type DashboardSectionConfig,
   type DashboardSectionId,
   type ProductCategoryConfig,
+  type TestimonialConfig,
 };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
@@ -46,6 +48,8 @@ export type SiteSettings = {
   dashboard_section_order: DashboardSectionId[];
   dashboard_sections_config: DashboardSectionConfig[];
   product_categories_config: ProductCategoryConfig[];
+  testimonials_config: TestimonialConfig[];
+  testimonials_banner_url: string | null;
 };
 
 const defaultSettings: SiteSettings = {
@@ -63,6 +67,8 @@ const defaultSettings: SiteSettings = {
   dashboard_section_order: [...DEFAULT_DASHBOARD_SECTION_ORDER],
   dashboard_sections_config: [...DEFAULT_DASHBOARD_SECTIONS_CONFIG],
   product_categories_config: [],
+  testimonials_config: [],
+  testimonials_banner_url: null,
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -109,6 +115,11 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
       parseDashboardSectionOrder(partial.dashboard_section_order)
     ),
     product_categories_config: parseProductCategoriesConfig(partial.product_categories_config),
+    testimonials_config: parseTestimonialsConfig(partial.testimonials_config),
+    testimonials_banner_url:
+      typeof partial.testimonials_banner_url === "string"
+        ? partial.testimonials_banner_url
+        : defaultSettings.testimonials_banner_url,
     colors: parsedColors,
   };
 }
@@ -196,6 +207,8 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         dashboard_section_order: row.dashboard_section_order,
         dashboard_sections_config: row.dashboard_sections_config,
         product_categories_config: row.product_categories_config,
+        testimonials_config: row.testimonials_config,
+        testimonials_banner_url: row.testimonials_banner_url,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);

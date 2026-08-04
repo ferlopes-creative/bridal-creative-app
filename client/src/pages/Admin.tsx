@@ -13,6 +13,7 @@ import {
   Palette,
   Pencil,
   Plus,
+  Quote,
   Rows3,
   Save,
   Send,
@@ -27,6 +28,7 @@ import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
 import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
 import ProductCategoriesEditor from "@/components/admin/ProductCategoriesEditor";
+import TestimonialsEditor from "@/components/admin/TestimonialsEditor";
 import BrandLogo from "@/components/BrandLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -61,6 +63,11 @@ import {
   isProductCategoriesConfigSchemaError,
   type ProductCategoryConfig,
 } from "@/lib/productCategories";
+import {
+  isTestimonialsBannerUrlSchemaError,
+  isTestimonialsConfigSchemaError,
+  type TestimonialConfig,
+} from "@/lib/testimonials";
 import {
   accessLinksEqual,
   accessLinksToFormRows,
@@ -629,6 +636,9 @@ export default function AdminPage() {
   const [productCategoriesConfig, setProductCategoriesConfig] = useState<ProductCategoryConfig[]>([]);
   const [categoriesSaving, setCategoriesSaving] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [testimonialsConfig, setTestimonialsConfig] = useState<TestimonialConfig[]>([]);
+  const [testimonialsBannerUrl, setTestimonialsBannerUrl] = useState<string | null>(null);
+  const [testimonialsSaving, setTestimonialsSaving] = useState(false);
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
@@ -938,6 +948,8 @@ export default function AdminPage() {
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
         setDashboardSectionsConfig(row.dashboard_sections_config);
         setProductCategoriesConfig(row.product_categories_config);
+        setTestimonialsConfig(row.testimonials_config);
+        setTestimonialsBannerUrl(row.testimonials_banner_url);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -1517,6 +1529,36 @@ export default function AdminPage() {
       toast.error("Não foi possível salvar os atalhos.");
     } finally {
       setCategoriesSaving(false);
+    }
+  };
+
+  const handleSaveTestimonials = async () => {
+    setTestimonialsSaving(true);
+    try {
+      const { error } = await supabase.from("site_settings").upsert({
+        id: 1,
+        testimonials_config: testimonialsConfig,
+        testimonials_banner_url: testimonialsBannerUrl,
+        updated_at: new Date().toISOString(),
+      });
+      if (
+        error &&
+        (isTestimonialsConfigSchemaError(error.message) ||
+          isTestimonialsBannerUrlSchemaError(error.message))
+      ) {
+        toast.error(
+          "Colunas de depoimentos ausentes. Execute a migração 20260804130000_testimonials.sql no Supabase."
+        );
+        return;
+      }
+      if (error) throw error;
+      await refreshSiteSettings();
+      toast.success("Depoimentos salvos.");
+    } catch (error) {
+      console.error("Erro ao salvar depoimentos:", error);
+      toast.error("Não foi possível salvar os depoimentos.");
+    } finally {
+      setTestimonialsSaving(false);
     }
   };
 
@@ -2402,6 +2444,27 @@ export default function AdminPage() {
               saving={categoriesSaving}
               onSave={() => void handleSaveProductCategories()}
               onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "categories")}
+            />
+          )}
+        </AdminSection>
+
+        <AdminSection
+          id="testimonials"
+          icon={Quote}
+          title="Depoimentos (O que as noivas dizem)"
+          description="Foto de topo e depoimentos com foto, nota e texto, numa fileira arrastável abaixo do Explore."
+        >
+          {siteLoading ? (
+            <p className="text-sm text-zinc-500">Carregando…</p>
+          ) : (
+            <TestimonialsEditor
+              testimonials={testimonialsConfig}
+              onChange={setTestimonialsConfig}
+              bannerUrl={testimonialsBannerUrl}
+              onBannerChange={setTestimonialsBannerUrl}
+              saving={testimonialsSaving}
+              onSave={() => void handleSaveTestimonials()}
+              onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "testimonials")}
             />
           )}
         </AdminSection>

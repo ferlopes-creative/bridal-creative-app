@@ -9,6 +9,7 @@ import {
   parseProductCategoriesConfig,
   type ProductCategoryConfig,
 } from "@/lib/productCategories";
+import { parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
 import { supabase } from "@/lib/supabase";
 
 /** Opacidade padrão da textura (~22 %; antes era 14 % fixo no CSS). */
@@ -29,6 +30,8 @@ export type SiteSettingsRow = {
   dashboard_section_order: DashboardSectionId[];
   dashboard_sections_config: DashboardSectionConfig[];
   product_categories_config: ProductCategoryConfig[];
+  testimonials_config: TestimonialConfig[];
+  testimonials_banner_url: string | null;
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -96,6 +99,9 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
       parseDashboardSectionOrder(data.dashboard_section_order)
     ),
     product_categories_config: parseProductCategoriesConfig(data.product_categories_config),
+    testimonials_config: parseTestimonialsConfig(data.testimonials_config),
+    testimonials_banner_url:
+      (data.testimonials_banner_url as string | null | undefined)?.trim() || null,
   };
 }
 
@@ -154,6 +160,11 @@ export {
   isProductCategoriesConfigSchemaError,
   type ProductCategoryConfig,
 } from "@/lib/productCategories";
+export {
+  isTestimonialsConfigSchemaError,
+  isTestimonialsBannerUrlSchemaError,
+  type TestimonialConfig,
+} from "@/lib/testimonials";
 export {
   DEFAULT_DASHBOARD_SECTION_ORDER,
   DEFAULT_DASHBOARD_SECTIONS_CONFIG,
