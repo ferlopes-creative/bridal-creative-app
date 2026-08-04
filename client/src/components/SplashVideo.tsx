@@ -46,12 +46,28 @@ export default function SplashVideo({ onFinished }: { onFinished?: () => void })
       return;
     }
 
-    // Alguns navegadores só respeitam autoplay se `muted` for setado via propriedade, não só o atributo.
+    // iOS Safari (principalmente em modo "adicionar à tela inicial") só garante autoplay
+    // de forma confiável se `muted`/`playsInline` forem setados como propriedade antes do
+    // play(), além do atributo HTML — e às vezes precisa do `load()` explícito primeiro.
     video.muted = true;
-    video.play().catch(() => {
-      // Autoplay bloqueado (ex: sem interação prévia) — não trava a pessoa numa tela parada.
-      finish();
-    });
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("webkit-playsinline", "true");
+
+    const attemptPlay = () => {
+      video.play().catch(() => {
+        // Autoplay realmente bloqueado nesse aparelho — não trava numa tela parada.
+        finish();
+      });
+    };
+
+    if (video.readyState >= 2) {
+      attemptPlay();
+    } else {
+      video.load();
+      video.addEventListener("loadeddata", attemptPlay, { once: true });
+    }
 
     const onTimeUpdate = () => {
       if (video.duration && video.currentTime >= video.duration - FADE_LEAD_S) {
@@ -66,6 +82,7 @@ export default function SplashVideo({ onFinished }: { onFinished?: () => void })
 
     return () => {
       window.clearTimeout(timeout);
+      video.removeEventListener("loadeddata", attemptPlay);
       video.removeEventListener("timeupdate", onTimeUpdate);
       video.removeEventListener("ended", finish);
       video.removeEventListener("error", finish);
@@ -96,9 +113,10 @@ export default function SplashVideo({ onFinished }: { onFinished?: () => void })
         ref={videoRef}
         className="h-full w-full object-cover"
         src="/intro.mp4"
-        autoPlay
         muted
         playsInline
+        // eslint-disable-next-line react/no-unknown-property
+        webkit-playsinline="true"
         preload="auto"
       />
     </div>
