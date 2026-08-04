@@ -427,18 +427,21 @@ export default function Dashboard() {
         </div>
         <div className="mt-4 flex items-center justify-between gap-4">
           <h1
-            className="text-xl leading-snug text-bc-primary sm:text-2xl"
+            className="text-lg leading-snug text-bc-primary sm:text-xl"
             style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
           >
             Um grande amor,
             <br />
             merece um
             <br />
-            <span className="text-3xl leading-tight sm:text-4xl" style={{ fontFamily: "var(--font-script)" }}>
-              Grande dia
+            <span className="text-4xl leading-tight sm:text-5xl" style={{ fontFamily: "var(--font-script)" }}>
+              Grande dia!
             </span>
           </h1>
-          <div className="shrink-0 rounded-2xl bg-bc-primary px-4 py-3 text-center text-white sm:px-6 sm:py-4">
+          <div
+            className="shrink-0 rounded-[3px] px-4 py-3 text-center text-white sm:px-6 sm:py-4"
+            style={{ backgroundColor: "var(--bc-primary)" }}
+          >
             <p className="text-[10px] uppercase tracking-[0.1em] text-white/75 sm:text-[11px]">Faltam</p>
             <p className="text-lg font-semibold whitespace-nowrap sm:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
               {weddingDaysLeft !== null ? `${weddingDaysLeft} dias` : "--"}
