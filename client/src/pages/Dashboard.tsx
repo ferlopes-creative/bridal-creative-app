@@ -37,9 +37,9 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
   const initial = (testimonial.author_name || "?").trim().charAt(0).toUpperCase();
 
   return (
-    <div className="flex h-full w-[240px] shrink-0 flex-col rounded-xl bg-white p-4 shadow-[0_2px_14px_rgba(53,58,46,0.08)] sm:w-[260px]">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bc-primary/15 text-sm font-semibold text-bc-primary">
+    <div className="flex h-full w-[220px] shrink-0 flex-col rounded-[2px] bg-white p-3.5 shadow-[0_2px_14px_rgba(53,58,46,0.08)] sm:w-[240px]">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bc-primary/15 text-xs font-semibold text-bc-primary">
           {testimonial.photo_url ? (
             <img src={testimonial.photo_url} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -48,13 +48,13 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
         </span>
         <div className="min-w-0">
           <p
-            className="truncate text-sm font-semibold text-bc-primary"
+            className="truncate text-xs font-semibold text-bc-primary"
             style={{ fontFamily: "var(--font-display)" }}
           >
             {testimonial.author_name || "Anônimo"}
           </p>
           {testimonial.submitted_at ? (
-            <p className="text-[10px] text-bc-primary/60">
+            <p className="text-[9px] text-bc-primary/60">
               Enviado em {formatTestimonialDate(testimonial.submitted_at)}
             </p>
           ) : null}
@@ -66,19 +66,19 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
           {[1, 2, 3, 4, 5].map((value) => (
             <Star
               key={value}
-              className={`h-3.5 w-3.5 ${
+              className={`h-3 w-3 ${
                 value <= testimonial.rating ? "fill-amber-400 text-amber-400" : "text-zinc-300"
               }`}
             />
           ))}
         </div>
-        <span className="text-xs font-medium text-bc-primary/70">
+        <span className="text-[11px] font-medium text-bc-primary/70">
           {testimonial.rating.toFixed(1)}
         </span>
       </div>
 
       <p
-        className={`mt-2.5 flex-1 text-sm leading-snug text-bc-primary/85 ${
+        className={`mt-2 flex-1 text-xs leading-snug text-bc-primary/85 ${
           expanded ? "" : "line-clamp-3"
         }`}
       >
@@ -89,7 +89,7 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
         <button
           type="button"
           onClick={() => setExpanded((prev) => !prev)}
-          className="mt-1.5 self-start text-xs font-medium text-bc-primary underline underline-offset-2"
+          className="mt-1.5 self-start text-[11px] font-medium text-bc-primary underline underline-offset-2"
         >
           {expanded ? "Ler menos" : "Ler mais"}
         </button>
@@ -365,24 +365,28 @@ export default function Dashboard() {
             ) : null}
             {visibleTestimonials.length > 0 ? (
               <section className="mt-6 md:mt-9">
-                {settings.testimonials_banner_url ? (
-                  <img
-                    src={settings.testimonials_banner_url}
-                    alt=""
-                    className="mb-4 h-40 w-full rounded-2xl object-cover sm:h-52"
-                  />
-                ) : null}
-                <h2
-                  className="mb-3 text-lg italic text-bc-primary sm:text-xl"
-                  style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
-                >
-                  O que as noivas dizem…
-                </h2>
-                <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
-                  {visibleTestimonials.map((testimonial) => (
-                    <TestimonialCard key={testimonial.id} testimonial={testimonial} />
-                  ))}
-                </HorizontalScrollRow>
+                <div className="md:flex md:items-start md:gap-6">
+                  {settings.testimonials_banner_url ? (
+                    <img
+                      src={settings.testimonials_banner_url}
+                      alt=""
+                      className="mb-4 aspect-square w-full rounded-[2px] object-cover md:mb-0 md:w-56 md:shrink-0 lg:w-64"
+                    />
+                  ) : null}
+                  <div className="min-w-0 md:flex-1">
+                    <h2
+                      className="mb-3 text-base text-bc-primary sm:text-lg"
+                      style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+                    >
+                      O que as noivas dizem…
+                    </h2>
+                    <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
+                      {visibleTestimonials.map((testimonial) => (
+                        <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+                      ))}
+                    </HorizontalScrollRow>
+                  </div>
+                </div>
               </section>
             ) : null}
           </Fragment>
