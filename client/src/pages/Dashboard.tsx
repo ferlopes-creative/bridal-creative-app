@@ -123,7 +123,7 @@ function SuggestedProductCard({
 
   return (
     <article onClick={onOpen} className="cursor-pointer">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2px] bg-bc-banner-light">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[2px] bg-bc-banner-light">
         <img src={imageSrc} alt={product.name || "Produto"} className="h-full w-full object-cover" />
         {locked ? (
           <>
@@ -138,7 +138,7 @@ function SuggestedProductCard({
         ) : null}
       </div>
       <p
-        className="mt-2 line-clamp-1 text-xs font-semibold uppercase tracking-[0.04em] text-bc-primary"
+        className="mt-2 text-xs font-semibold uppercase leading-snug tracking-[0.04em] text-bc-primary"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {product.name || "Produto"}
@@ -380,6 +380,7 @@ export default function Dashboard() {
         }
 
         const isPurchasedSection = section.mode === "automatic" && section.auto_rule === "purchased";
+        const isSuggestedSection = section.id === "suggested";
         let sectionProducts = resolveSectionProducts(section, products, sectionCtx);
         if (isPurchasedSection && bonusProducts.length > 0) {
           const existingIds = new Set(sectionProducts.map((p) => p.id));
@@ -387,6 +388,9 @@ export default function Dashboard() {
             ...sectionProducts,
             ...bonusProducts.filter((p) => !existingIds.has(p.id)),
           ];
+        }
+        if (isSuggestedSection) {
+          sectionProducts = sectionProducts.filter((p) => !purchasedIds.has(p.id));
         }
 
         if (!shouldRenderDashboardSection(section, sectionProducts.length, whatsappUrl)) {
@@ -396,11 +400,9 @@ export default function Dashboard() {
         const emptyMessage =
           section.mode === "automatic" && section.auto_rule === "purchased"
             ? "Nenhum produto liberado no momento."
-            : section.mode === "automatic" && section.auto_rule === "unpurchased"
-              ? "Sem sugestões bloqueadas para agora."
+            : isSuggestedSection
+              ? "Sem sugestões novas por agora."
               : "Nenhum produto nesta seção.";
-
-        const isSuggestedSection = section.id === "suggested";
 
         const sectionNode = (
           <section key={isPurchasedSection ? undefined : section.id}>
@@ -410,7 +412,7 @@ export default function Dashboard() {
                   {section.title.toUpperCase()}
                 </p>
                 <h2
-                  className="mt-0.5 text-lg text-bc-primary sm:text-xl"
+                  className="mt-0.5 text-sm text-bc-primary sm:text-lg"
                   style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
                 >
                   PRONTOS PARA USAR
