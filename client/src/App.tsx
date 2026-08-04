@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -9,6 +9,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import { PageLoading } from "./components/PageLoading";
 import RequireAuth from "./components/RequireAuth";
 import RequireAppAccess from "./components/RequireAppAccess";
+import SplashVideo from "./components/SplashVideo";
 import { CommunityAccessProvider } from "./contexts/CommunityAccessContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
@@ -18,13 +19,44 @@ import RequireAdminAuth from "./components/RequireAdminAuth";
 import { SiteSettingsProvider } from "./contexts/SiteSettingsContext";
 
 // Carregadas sob demanda: reduzem o bundle inicial pra quem só acessa login/dashboard.
-const DashboardProduct = lazy(() => import("./pages/DashboardProduct"));
-const Community = lazy(() => import("./pages/Community"));
-const AdminPage = lazy(() => import("./pages/Admin"));
-const AdminNew = lazy(() => import("./pages/AdminNew"));
-const Notifications = lazy(() => import("./pages/Notifications"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Planejamento = lazy(() => import("./pages/Planejamento"));
+const loadDashboardProduct = () => import("./pages/DashboardProduct");
+const loadCommunity = () => import("./pages/Community");
+const loadAdminPage = () => import("./pages/Admin");
+const loadAdminNew = () => import("./pages/AdminNew");
+const loadNotifications = () => import("./pages/Notifications");
+const loadProfile = () => import("./pages/Profile");
+const loadPlanejamento = () => import("./pages/Planejamento");
+
+const DashboardProduct = lazy(loadDashboardProduct);
+const Community = lazy(loadCommunity);
+const AdminPage = lazy(loadAdminPage);
+const AdminNew = lazy(loadAdminNew);
+const Notifications = lazy(loadNotifications);
+const Profile = lazy(loadProfile);
+const Planejamento = lazy(loadPlanejamento);
+
+/** Busca os chunks das outras páginas em segundo plano depois do 1º carregamento,
+ * pra troca de aba dentro do app não mostrar tela de carregamento de novo. */
+function usePrefetchRoutes() {
+  useEffect(() => {
+    const prefetch = () => {
+      void loadDashboardProduct();
+      void loadCommunity();
+      void loadNotifications();
+      void loadProfile();
+      void loadPlanejamento();
+      // Admin/AdminNew ficam de fora: só quem administra usa, não vale a banda de todo mundo.
+    };
+
+    const ric = (window as typeof window & { requestIdleCallback?: (cb: () => void) => number })
+      .requestIdleCallback;
+    if (ric) {
+      ric(prefetch);
+    } else {
+      window.setTimeout(prefetch, 1500);
+    }
+  }, []);
+}
 
 function Router() {
   return (
@@ -86,6 +118,8 @@ function Router() {
 }
 
 function App() {
+  usePrefetchRoutes();
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
@@ -96,6 +130,7 @@ function App() {
                 <Router />
                 <Toaster />
                 <InstallPrompt />
+                <SplashVideo />
               </div>
             </TooltipProvider>
           </CommunityAccessProvider>
