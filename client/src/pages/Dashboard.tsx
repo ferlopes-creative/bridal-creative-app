@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Bell, Star } from "lucide-react";
+import { Bell, Lock, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
@@ -95,6 +95,100 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
         </button>
       ) : null}
     </div>
+  );
+}
+
+function chunkIntoPagesOfFour<T>(items: T[]): T[][] {
+  const pages: T[][] = [];
+  for (let i = 0; i < items.length; i += 4) {
+    pages.push(items.slice(i, i + 4));
+  }
+  return pages;
+}
+
+function SuggestedProductCard({
+  product,
+  locked,
+  onOpen,
+}: {
+  product: Product;
+  locked: boolean;
+  onOpen: () => void;
+}) {
+  const imageSrc =
+    product.image_url ||
+    product.image ||
+    product.thumbnail_url ||
+    "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+
+  return (
+    <article onClick={onOpen} className="cursor-pointer">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2px] bg-bc-banner-light">
+        <img src={imageSrc} alt={product.name || "Produto"} className="h-full w-full object-cover" />
+        {locked ? (
+          <>
+            <div className="absolute inset-0 bg-black/20" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Lock
+                className="h-6 w-6 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]"
+                strokeWidth={2}
+              />
+            </div>
+          </>
+        ) : null}
+      </div>
+      <p
+        className="mt-2 line-clamp-1 text-xs font-semibold uppercase tracking-[0.04em] text-bc-primary"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {product.name || "Produto"}
+      </p>
+    </article>
+  );
+}
+
+function SuggestedProductsGrid({
+  products,
+  showLocked,
+  onOpen,
+}: {
+  products: Product[];
+  showLocked: boolean | ((product: Product) => boolean);
+  onOpen: (id: string) => void;
+}) {
+  const locked = (product: Product) =>
+    typeof showLocked === "function" ? showLocked(product) : showLocked;
+  const pages = useMemo(() => chunkIntoPagesOfFour(products), [products]);
+
+  return (
+    <>
+      <div className="md:hidden">
+        <div className="flex snap-x snap-mandatory gap-6 overflow-x-auto pb-1">
+          {pages.map((page, index) => (
+            <div key={index} className="grid w-full shrink-0 snap-start grid-cols-2 gap-x-4 gap-y-6">
+              {page.map((product) => (
+                <SuggestedProductCard
+                  key={product.id}
+                  product={product}
+                  locked={locked(product)}
+                  onOpen={() => onOpen(product.id)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="hidden grid-cols-4 gap-4 md:grid">
+        {products.map((product) => (
+          <SuggestedProductCard
+            key={product.id}
+            product={product}
+            locked={locked(product)}
+            onOpen={() => onOpen(product.id)}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -306,19 +400,43 @@ export default function Dashboard() {
               ? "Sem sugestões bloqueadas para agora."
               : "Nenhum produto nesta seção.";
 
+        const isSuggestedSection = section.id === "suggested";
+
         const sectionNode = (
           <section key={isPurchasedSection ? undefined : section.id}>
-            <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
-            <ProductList
-              products={sectionProducts}
-              keyPrefix={section.id}
-              showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
-              showTitle={!isPurchasedSection}
-              showFrame={!isPurchasedSection}
-              imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
-              large={isPurchasedSection}
-              onOpen={openProduct}
-            />
+            {isSuggestedSection ? (
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs">
+                  {section.title.toUpperCase()}
+                </p>
+                <h2
+                  className="mt-0.5 text-lg text-bc-primary sm:text-xl"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+                >
+                  PRONTOS PARA USAR
+                </h2>
+              </div>
+            ) : (
+              <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
+            )}
+            {isSuggestedSection ? (
+              <SuggestedProductsGrid
+                products={sectionProducts}
+                showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
+                onOpen={openProduct}
+              />
+            ) : (
+              <ProductList
+                products={sectionProducts}
+                keyPrefix={section.id}
+                showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
+                showTitle={!isPurchasedSection}
+                showFrame={!isPurchasedSection}
+                imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
+                large={isPurchasedSection}
+                onOpen={openProduct}
+              />
+            )}
             {sectionProducts.length === 0 && (
               <p className="text-sm text-bc-primary/75">{emptyMessage}</p>
             )}
