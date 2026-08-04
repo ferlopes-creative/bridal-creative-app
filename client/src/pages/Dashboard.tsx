@@ -262,7 +262,7 @@ export default function Dashboard() {
             {visibleCategories.length > 0 ? (
               <section className="mt-6 md:mt-9">
                 <h2 className="app-section-title">EXPLORE</h2>
-                <div className="flex gap-5 overflow-x-auto pb-1 sm:gap-8">
+                <div className="flex gap-6 overflow-x-auto pb-1 sm:gap-10">
                   {visibleCategories.map((category) => (
                     <button
                       key={category.id}
@@ -270,7 +270,7 @@ export default function Dashboard() {
                       onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
                       className="flex shrink-0 flex-col items-center gap-2"
                     >
-                      <span className="h-16 w-16 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-20 sm:w-20">
+                      <span className="h-24 w-24 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-28 sm:w-28">
                         {category.photo_url ? (
                           <img
                             src={category.photo_url}
@@ -280,7 +280,7 @@ export default function Dashboard() {
                         ) : null}
                       </span>
                       <span
-                        className="max-w-[76px] text-center text-[11px] leading-tight text-bc-primary sm:max-w-[92px] sm:text-xs"
+                        className="max-w-[96px] text-center text-[11px] leading-tight text-bc-primary sm:max-w-[112px] sm:text-xs"
                         style={{ fontFamily: "var(--font-display)" }}
                       >
                         {category.name || "Sem nome"}

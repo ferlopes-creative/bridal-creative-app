@@ -125,6 +125,8 @@ export function ProductList({
   imageAspectClass,
   large = false,
   onOpen,
+  /** Grade que empilha (sem scroll lateral no mobile), em vez do padrão de fileira arrastável. */
+  stacked = false,
 }: {
   products: Product[];
   keyPrefix: string;
@@ -134,9 +136,28 @@ export function ProductList({
   imageAspectClass?: string;
   large?: boolean;
   onOpen: (id: string) => void;
+  stacked?: boolean;
 }) {
   const locked = (product: Product) =>
     typeof showLocked === "function" ? showLocked(product) : showLocked;
+
+  if (stacked) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4">
+        {products.map((product) => (
+          <ProductCard
+            key={`${keyPrefix}-${product.id}`}
+            product={product}
+            showLockedOverlay={locked(product)}
+            showTitle={showTitle}
+            showFrame={showFrame}
+            imageAspectClass={imageAspectClass}
+            onNavigate={() => onOpen(product.id)}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <>
