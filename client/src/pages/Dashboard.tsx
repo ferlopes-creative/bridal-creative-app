@@ -364,28 +364,31 @@ export default function Dashboard() {
               </section>
             ) : null}
             {visibleTestimonials.length > 0 ? (
-              <section className="mt-6 md:mt-9">
-                <div className="md:flex md:items-start md:gap-6">
-                  {settings.testimonials_banner_url ? (
-                    <img
-                      src={settings.testimonials_banner_url}
-                      alt=""
-                      className="mb-4 aspect-square w-full rounded-[2px] object-cover md:mb-0 md:w-56 md:shrink-0 lg:w-64"
-                    />
-                  ) : null}
-                  <div className="min-w-0 md:flex-1">
-                    <h2
-                      className="mb-3 text-base text-bc-primary sm:text-lg"
-                      style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
-                    >
-                      O que as noivas dizem…
-                    </h2>
-                    <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
-                      {visibleTestimonials.map((testimonial) => (
-                        <TestimonialCard key={testimonial.id} testimonial={testimonial} />
-                      ))}
-                    </HorizontalScrollRow>
-                  </div>
+              <section className="mt-8 mb-2 md:mt-12">
+                {settings.testimonials_banner_url ? (
+                  <img
+                    src={settings.testimonials_banner_url}
+                    alt=""
+                    className="aspect-[4/3] w-full rounded-t-[2px] object-cover sm:aspect-[21/9]"
+                  />
+                ) : null}
+                <div
+                  className={`px-4 py-5 sm:px-6 sm:py-6 ${
+                    settings.testimonials_banner_url ? "rounded-b-[2px]" : "rounded-[2px]"
+                  }`}
+                  style={{ backgroundColor: "var(--bc-primary)" }}
+                >
+                  <h2
+                    className="mb-3 text-base text-white sm:text-lg"
+                    style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+                  >
+                    O que as noivas dizem…
+                  </h2>
+                  <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
+                    {visibleTestimonials.map((testimonial) => (
+                      <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+                    ))}
+                  </HorizontalScrollRow>
                 </div>
               </section>
             ) : null}
