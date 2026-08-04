@@ -139,6 +139,60 @@
     color: white;
     box-shadow: 0 4px 22px rgb(80 88 60 / 0.1);
   }
+
+  .bc-splash-logo {
+    object-fit: contain;
+    animation: bc-splash-logo-in 950ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+  }
+
+  .bc-splash-line {
+    height: 1px;
+    width: 48px;
+    margin: 18px 0 14px;
+    background: color-mix(in srgb, var(--bc-primary) 55%, transparent);
+    animation: bc-splash-line-in 500ms ease-out 900ms both;
+  }
+
+  .bc-splash-text {
+    font-size: 13px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--bc-primary);
+    animation: bc-splash-text-in 600ms ease-out 1100ms both;
+  }
+}
+
+@keyframes bc-splash-logo-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bc-splash-line-in {
+  0% {
+    width: 0;
+    opacity: 0;
+  }
+  100% {
+    width: 48px;
+    opacity: 1;
+  }
+}
+
+@keyframes bc-splash-text-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @layer components {

@@ -9,7 +9,7 @@ import InstallPrompt from "./components/InstallPrompt";
 import { PageLoading } from "./components/PageLoading";
 import RequireAuth from "./components/RequireAuth";
 import RequireAppAccess from "./components/RequireAppAccess";
-import SplashVideo from "./components/SplashVideo";
+import SplashIntro from "./components/SplashIntro";
 import { CommunityAccessProvider } from "./contexts/CommunityAccessContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
@@ -36,8 +36,8 @@ const Profile = lazy(loadProfile);
 const Planejamento = lazy(loadPlanejamento);
 
 /** Busca os chunks das outras páginas em segundo plano, pra troca de aba dentro
- * do app não mostrar tela de carregamento de novo. Chamada só depois que o vídeo
- * de abertura termina, pra não competir com ele pela banda no primeiro carregamento. */
+ * do app não mostrar tela de carregamento de novo. Chamada só depois que a
+ * splash de abertura termina. */
 function prefetchRoutes() {
   const run = () => {
     void loadDashboardProduct();
@@ -127,7 +127,7 @@ function App() {
                 <Router />
                 <Toaster />
                 <InstallPrompt />
-                <SplashVideo onFinished={prefetchRoutes} />
+                <SplashIntro onFinished={prefetchRoutes} />
               </div>
             </TooltipProvider>
           </CommunityAccessProvider>
