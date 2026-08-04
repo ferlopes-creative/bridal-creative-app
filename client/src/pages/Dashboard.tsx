@@ -49,12 +49,14 @@ function ProductCard({
   product,
   showLockedOverlay = false,
   showTitle = true,
+  showFrame = true,
   imageAspectClass = "aspect-[3/4]",
   onNavigate,
 }: {
   product: Product;
   showLockedOverlay?: boolean;
   showTitle?: boolean;
+  showFrame?: boolean;
   imageAspectClass?: string;
   onNavigate: () => void;
 }) {
@@ -63,6 +65,44 @@ function ProductCard({
     product.image ||
     product.thumbnail_url ||
     "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+
+  const lockOverlay = showLockedOverlay ? (
+    <>
+      <div className="absolute inset-0 bg-black/20" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+        <Lock
+          className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
+          strokeWidth={2}
+        />
+      </div>
+    </>
+  ) : null;
+
+  const title = showTitle ? (
+    <h3
+      className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
+      style={{ fontFamily: "var(--font-display)" }}
+    >
+      {product.name || "Produto"}
+    </h3>
+  ) : null;
+
+  if (!showFrame) {
+    return (
+      <article
+        onClick={onNavigate}
+        className="relative w-full cursor-pointer justify-self-center overflow-hidden rounded-[2px] transition-transform hover:scale-[1.01]"
+      >
+        <img
+          src={imageSrc}
+          alt={product.name || "Produto"}
+          className={`${imageAspectClass} w-full object-cover`}
+        />
+        {lockOverlay}
+        {title}
+      </article>
+    );
+  }
 
   return (
     <article
@@ -76,28 +116,11 @@ function ProductCard({
             alt={product.name || "Produto"}
             className={`${imageAspectClass} w-full object-cover`}
           />
-          {showLockedOverlay ? (
-            <>
-              <div className="absolute inset-0 bg-black/20" aria-hidden />
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <Lock
-                  className="h-7 w-7 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)] sm:h-8 sm:w-8"
-                  strokeWidth={2}
-                />
-              </div>
-            </>
-          ) : null}
+          {lockOverlay}
         </div>
       </div>
 
-      {showTitle ? (
-        <h3
-          className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
-          style={{ fontFamily: "var(--font-display)" }}
-        >
-          {product.name || "Produto"}
-        </h3>
-      ) : null}
+      {title}
     </article>
   );
 }
@@ -107,6 +130,7 @@ function ProductList({
   keyPrefix,
   showLocked,
   showTitle = true,
+  showFrame = true,
   imageAspectClass,
   onOpen,
 }: {
@@ -114,6 +138,7 @@ function ProductList({
   keyPrefix: string;
   showLocked: boolean | ((product: Product) => boolean);
   showTitle?: boolean;
+  showFrame?: boolean;
   imageAspectClass?: string;
   onOpen: (id: string) => void;
 }) {
@@ -130,6 +155,7 @@ function ProductList({
                 product={product}
                 showLockedOverlay={locked(product)}
                 showTitle={showTitle}
+                showFrame={showFrame}
                 imageAspectClass={imageAspectClass}
                 onNavigate={() => onOpen(product.id)}
               />
@@ -144,6 +170,7 @@ function ProductList({
             product={product}
             showLockedOverlay={locked(product)}
             showTitle={showTitle}
+            showFrame={showFrame}
             imageAspectClass={imageAspectClass}
             onNavigate={() => onOpen(product.id)}
           />
@@ -356,6 +383,7 @@ export default function Dashboard() {
               keyPrefix={section.id}
               showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
               showTitle={!isPurchasedSection}
+              showFrame={!isPurchasedSection}
               imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
               onOpen={openProduct}
             />
@@ -462,16 +490,16 @@ export default function Dashboard() {
             <br />
             merece um
             <br />
-            <span className="text-4xl leading-tight sm:text-5xl" style={{ fontFamily: "var(--font-script)" }}>
+            <span className="text-5xl leading-tight sm:text-6xl" style={{ fontFamily: "var(--font-script)" }}>
               Grande dia!
             </span>
           </h1>
           <div
-            className="shrink-0 rounded-[3px] px-4 py-3 text-center text-white sm:px-6 sm:py-4"
+            className="shrink-0 rounded-[3px] px-4 py-2 text-center text-white sm:px-6 sm:py-2.5"
             style={{ backgroundColor: "var(--bc-primary)" }}
           >
-            <p className="text-[10px] uppercase tracking-[0.1em] text-white/75 sm:text-[11px]">Faltam</p>
-            <p className="text-lg font-semibold whitespace-nowrap sm:text-2xl" style={{ fontFamily: "var(--font-display)" }}>
+            <p className="text-[9px] uppercase tracking-[0.1em] text-white/75 sm:text-[10px]">Faltam</p>
+            <p className="text-base font-semibold whitespace-nowrap sm:text-xl" style={{ fontFamily: "var(--font-display)" }}>
               {weddingDaysLeft !== null ? `${weddingDaysLeft} dias` : "--"}
             </p>
           </div>
