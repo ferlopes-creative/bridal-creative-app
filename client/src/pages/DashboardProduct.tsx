@@ -50,12 +50,20 @@ export default function DashboardProduct() {
 
   useEffect(() => {
     const loadProduct = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-
       if (!match || !params?.id) {
         setLocation("/dashboard");
         return;
       }
+
+      const productId = decodeURIComponent(String(params.id)).trim();
+
+      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
+        supabase.from("products").select("*").eq("id", productId).maybeSingle(),
+      ]);
+
+      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
 
       if (userData.user) {
         const { data: purchasesData } = await supabase
@@ -67,13 +75,6 @@ export default function DashboardProduct() {
           setPurchasedIds(new Set(purchasesData.map((p) => p.product_id)));
         }
       }
-
-      const { data: kbData } = await supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id");
-      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
-
-      const productId = decodeURIComponent(String(params.id)).trim();
-
-      const { data, error } = await supabase.from("products").select("*").eq("id", productId).maybeSingle();
 
       if (error) {
         console.error("DashboardProduct / products:", error.message, error);

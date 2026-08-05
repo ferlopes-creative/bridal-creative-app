@@ -234,56 +234,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadProducts = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (userData.user) {
-        const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
-        if (!guestMode && !registeredName) {
-          setShowNamePrompt(true);
-        }
-
-        const { data: purchasesData } = await supabase
-          .from("purchases")
-          .select("product_id, status")
-          .eq("user_id", userData.user.id)
-          .eq("status", "active");
-
-        if (purchasesData) {
-          setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
-        }
-
-        const { data: weddingData } = await supabase
-          .from("wedding_details")
-          .select("bride_name, wedding_date")
-          .eq("user_id", userData.user.id)
-          .maybeSingle();
-
-        setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
-        if (weddingData?.wedding_date) {
-          const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
-          const target = new Date(y, m - 1, d);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
-        } else {
-          setWeddingDaysLeft(null);
-        }
-      } else {
-        setPurchasedIds(new Set());
-        setWeddingName(null);
-        setWeddingDaysLeft(null);
-      }
-
-      const { data: kbData } = await supabase
-        .from("kit_bonus_products")
-        .select("kit_product_id, bonus_product_id");
+      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
+        supabase.from("products").select("*").order("name", { ascending: true }),
+      ]);
 
       setKitBonusRows(kbData ? (kbData as KitBonusRow[]) : []);
-
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("name", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar dashboard/products:", error);
@@ -305,6 +262,46 @@ export default function Dashboard() {
           }))
         );
       }
+
+      if (userData.user) {
+        const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
+        if (!guestMode && !registeredName) {
+          setShowNamePrompt(true);
+        }
+
+        const [{ data: purchasesData }, { data: weddingData }] = await Promise.all([
+          supabase
+            .from("purchases")
+            .select("product_id, status")
+            .eq("user_id", userData.user.id)
+            .eq("status", "active"),
+          supabase
+            .from("wedding_details")
+            .select("bride_name, wedding_date")
+            .eq("user_id", userData.user.id)
+            .maybeSingle(),
+        ]);
+
+        if (purchasesData) {
+          setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
+        }
+
+        setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
+        if (weddingData?.wedding_date) {
+          const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
+          const target = new Date(y, m - 1, d);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
+        } else {
+          setWeddingDaysLeft(null);
+        }
+      } else {
+        setPurchasedIds(new Set());
+        setWeddingName(null);
+        setWeddingDaysLeft(null);
+      }
+
       setLoading(false);
     };
 

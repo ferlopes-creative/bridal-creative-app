@@ -10,6 +10,7 @@ import { PageLoading } from "./components/PageLoading";
 import RequireAuth from "./components/RequireAuth";
 import RequireAppAccess from "./components/RequireAppAccess";
 import SplashIntro from "./components/SplashIntro";
+import { AppAccessProvider } from "./contexts/AppAccessContext";
 import { CommunityAccessProvider } from "./contexts/CommunityAccessContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
@@ -129,16 +130,18 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <SiteSettingsProvider>
-          <CommunityAccessProvider>
-            <TooltipProvider>
-              <div className="min-h-screen w-full bg-background">
-                <Router />
-                <Toaster />
-                <InstallPrompt />
-                <SplashIntro onFinished={prefetchRoutes} />
-              </div>
-            </TooltipProvider>
-          </CommunityAccessProvider>
+          <AppAccessProvider>
+            <CommunityAccessProvider>
+              <TooltipProvider>
+                <div className="min-h-screen w-full bg-background">
+                  <Router />
+                  <Toaster />
+                  <InstallPrompt />
+                  <SplashIntro onFinished={prefetchRoutes} />
+                </div>
+              </TooltipProvider>
+            </CommunityAccessProvider>
+          </AppAccessProvider>
         </SiteSettingsProvider>
       </ThemeProvider>
     </ErrorBoundary>

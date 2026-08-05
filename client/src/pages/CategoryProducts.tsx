@@ -24,7 +24,13 @@ export default function CategoryProducts() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: userData } = await supabase.auth.getUser();
+      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
+        supabase.from("products").select("*").order("name", { ascending: true }),
+      ]);
+
+      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
 
       if (userData.user) {
         const { data: purchasesData } = await supabase
@@ -37,12 +43,6 @@ export default function CategoryProducts() {
         }
       }
 
-      const { data: kbData } = await supabase
-        .from("kit_bonus_products")
-        .select("kit_product_id, bonus_product_id");
-      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
-
-      const { data, error } = await supabase.from("products").select("*").order("name", { ascending: true });
       if (error) {
         console.error("CategoryProducts / products:", error.message, error);
       } else if (data) {

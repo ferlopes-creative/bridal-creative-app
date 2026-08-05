@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { PageLoading } from "@/components/PageLoading";
-import { hasAuthenticatedSession } from "@/lib/authGuard";
+import { useAppAccessState } from "@/contexts/AppAccessContext";
 
 type GuestOnlyProps = {
   children: ReactNode;
@@ -10,26 +10,15 @@ type GuestOnlyProps = {
 /** Rotas públicas (login): redireciona para o dashboard se já houver sessão. */
 export default function GuestOnly({ children }: GuestOnlyProps) {
   const [, setLocation] = useLocation();
-  const [ready, setReady] = useState(false);
+  const { authSession } = useAppAccessState();
 
   useEffect(() => {
-    let cancelled = false;
+    if (authSession === true) {
+      setLocation("/dashboard");
+    }
+  }, [authSession, setLocation]);
 
-    void hasAuthenticatedSession().then((loggedIn) => {
-      if (cancelled) return;
-      if (loggedIn) {
-        setLocation("/dashboard");
-        return;
-      }
-      setReady(true);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [setLocation]);
-
-  if (!ready) {
+  if (authSession === null || authSession === true) {
     return <PageLoading label="Carregando..." className="min-h-screen" />;
   }
 
