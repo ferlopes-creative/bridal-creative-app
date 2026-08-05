@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useAppAccessState } from "@/contexts/AppAccessContext";
 import { useCommunityAccess } from "@/contexts/CommunityAccessContext";
 import { useSiteSettings, resolveCommunityBackground } from "@/contexts/SiteSettingsContext";
+import { readLocalCache, writeLocalCache } from "@/lib/localCache";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 
 const IMAGE_BUCKET = import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || "product-images";
@@ -43,6 +44,12 @@ type TimeFilter = "all" | "today" | "week" | "month";
 type ImageFilter = "all" | "with_image" | "without_image";
 
 const TABLE_NAME = "community_comments";
+const CHAT_CACHE_KEY = "chat_v1";
+
+type ChatCache = {
+  comments: ChatComment[];
+  likes: { comment_id: string; user_id: string }[];
+};
 
 function persistDisplayName(value: string) {
   const t = value.trim();
@@ -331,9 +338,11 @@ export default function Community() {
   const { canOpenCommunity } = useCommunityAccess();
   const currentUserId = session?.user.id ?? null;
   const accessLoading = authSession === null;
-  const [comments, setComments] = useState<ChatComment[]>([]);
-  const [likes, setLikes] = useState<{ comment_id: string; user_id: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const chatCache = readLocalCache<ChatCache>(CHAT_CACHE_KEY);
+  const [comments, setComments] = useState<ChatComment[]>(chatCache?.comments ?? []);
+  const [likes, setLikes] = useState<{ comment_id: string; user_id: string }[]>(chatCache?.likes ?? []);
+  const [loading, setLoading] = useState(chatCache == null);
+  const chatCacheRef = useRef<ChatCache>(chatCache ?? { comments: [], likes: [] });
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -392,6 +401,8 @@ export default function Community() {
       }));
 
       setComments(normalized);
+      chatCacheRef.current = { ...chatCacheRef.current, comments: normalized };
+      writeLocalCache(CHAT_CACHE_KEY, chatCacheRef.current);
     } finally {
       if (silent) setRefreshing(false);
       else setLoading(false);
@@ -406,12 +417,13 @@ export default function Community() {
       }
       return;
     }
-    setLikes(
-      (data || []).map((item: Record<string, unknown>) => ({
-        comment_id: String(item.comment_id),
-        user_id: String(item.user_id),
-      }))
-    );
+    const normalized = (data || []).map((item: Record<string, unknown>) => ({
+      comment_id: String(item.comment_id),
+      user_id: String(item.user_id),
+    }));
+    setLikes(normalized);
+    chatCacheRef.current = { ...chatCacheRef.current, likes: normalized };
+    writeLocalCache(CHAT_CACHE_KEY, chatCacheRef.current);
   }, []);
 
   useEffect(() => {
@@ -420,7 +432,7 @@ export default function Community() {
       return;
     }
 
-    fetchComments();
+    fetchComments({ silent: chatCacheRef.current.comments.length > 0 });
     fetchLikes();
 
     const channel = supabase

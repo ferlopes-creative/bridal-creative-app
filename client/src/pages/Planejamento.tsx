@@ -8,6 +8,7 @@ import { resolvePlanejamentoBackground, useSiteSettings } from "@/contexts/SiteS
 import { LOGIN_PATH } from "@/lib/authGuard";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
+import { readLocalCache, writeLocalCache } from "@/lib/localCache";
 import { supabase } from "@/lib/supabase";
 import {
   VENDOR_CATEGORIES,
@@ -285,8 +286,9 @@ function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, strin
   );
 }
 
-/* Guarda o último carregamento por usuário nesta aba: revisitar Planejamento não
- * mostra tela de carregamento de novo — hidrata na hora e atualiza em segundo plano. */
+/* Guarda o último carregamento por usuário em localStorage: revisitar Planejamento
+ * (mesmo reabrindo o app do zero) não mostra tela de carregamento de novo —
+ * hidrata na hora e atualiza em segundo plano. */
 type PlanningCache = {
   userId: string;
   details: WeddingDetails | null;
@@ -297,7 +299,9 @@ type PlanningCache = {
   premiumLink: string | null;
   showOnboarding: boolean;
 };
-let planningCache: PlanningCache | null = null;
+const PLANNING_CACHE_KEY = "planning_v1";
+const getPlanningCache = () => readLocalCache<PlanningCache>(PLANNING_CACHE_KEY);
+const setPlanningCache = (value: PlanningCache) => writeLocalCache(PLANNING_CACHE_KEY, value);
 
 /* ============================================================ PÁGINA PRINCIPAL ============================================================ */
 export default function Planejamento() {
@@ -342,6 +346,7 @@ export default function Planejamento() {
     }
     const uid = data.user.id;
 
+    const planningCache = getPlanningCache();
     if (planningCache && planningCache.userId === uid) {
       const cached = planningCache;
       setUserId(uid);
@@ -392,7 +397,7 @@ export default function Planejamento() {
       setChecklist([]);
       setShowOnboarding(true);
       setPhase("app");
-      planningCache = {
+      setPlanningCache({
         userId: uid,
         details: null,
         vendors: vendorsValue,
@@ -401,7 +406,7 @@ export default function Planejamento() {
         isPremium: isPremiumValue,
         premiumLink: premiumLinkValue,
         showOnboarding: true,
-      };
+      });
       return;
     }
 
@@ -416,7 +421,7 @@ export default function Planejamento() {
     setChecklist(checklistRows);
     setShowOnboarding(false);
     setPhase("app");
-    planningCache = {
+    setPlanningCache({
       userId: uid,
       details: detailsRes.data as WeddingDetails,
       vendors: vendorsValue,
@@ -425,7 +430,7 @@ export default function Planejamento() {
       isPremium: isPremiumValue,
       premiumLink: premiumLinkValue,
       showOnboarding: false,
-    };
+    });
   }
 
   /* -------------------- onboarding -------------------- */
