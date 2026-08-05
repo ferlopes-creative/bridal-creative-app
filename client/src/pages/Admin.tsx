@@ -103,6 +103,7 @@ type Product = {
   image?: string | null;
   thumbnail_url?: string | null;
   video_url?: string | null;
+  video_sales_url?: string | null;
   video?: string | null;
   link_compra?: string | null;
   access_links?: unknown;
@@ -145,7 +146,13 @@ function isMissingDescriptionDeliveryColumnError(err: unknown): boolean {
 /** Banco sem migração da coluna `video_url`. */
 function isMissingVideoUrlColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
-  return m.includes("video_url");
+  return m.includes("video_url") && !m.includes("video_sales_url");
+}
+
+/** Banco sem migração da coluna `video_sales_url`. */
+function isMissingVideoSalesUrlColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("video_sales_url");
 }
 
 /** Banco sem migração da coluna `access_links`. */
@@ -712,6 +719,7 @@ export default function AdminPage() {
   const [salesGalleryUrls, setSalesGalleryUrls] = useState<string[]>([]);
   const [salesGalleryPendingFiles, setSalesGalleryPendingFiles] = useState<File[]>([]);
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
+  const [existingSalesVideoUrl, setExistingSalesVideoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -723,6 +731,8 @@ export default function AdminPage() {
   const [salesImageFile, setSalesImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [clearVideo, setClearVideo] = useState(false);
+  const [salesVideoFile, setSalesVideoFile] = useState<File | null>(null);
+  const [clearSalesVideo, setClearSalesVideo] = useState(false);
   const [hotmartSalesId, setHotmartSalesId] = useState("");
   const [caktoSalesId, setCaktoSalesId] = useState("");
   const [legacyExternalSalesId, setLegacyExternalSalesId] = useState<string | null>(null);
@@ -731,6 +741,8 @@ export default function AdminPage() {
   const [promoPrice, setPromoPrice] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  /** Cadastro de produto em 2 etapas: "basic" = só o essencial; "full" = personalização completa. */
+  const [createStep, setCreateStep] = useState<"basic" | "full">("basic");
 
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
@@ -837,6 +849,7 @@ export default function AdminPage() {
     setSalesGalleryUrls([]);
     setSalesGalleryPendingFiles([]);
     setExistingVideoUrl(null);
+    setExistingSalesVideoUrl(null);
     setName("");
     setDescription("");
     setDescriptionDelivery("");
@@ -848,6 +861,8 @@ export default function AdminPage() {
     setSalesImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
+    setSalesVideoFile(null);
+    setClearSalesVideo(false);
     setHotmartSalesId("");
     setCaktoSalesId("");
     setLegacyExternalSalesId(null);
@@ -855,6 +870,7 @@ export default function AdminPage() {
     setSelectedCategoryId("");
     setPrice("");
     setPromoPrice("");
+    setCreateStep("basic");
   };
 
   const closeModal = () => {
@@ -874,6 +890,7 @@ export default function AdminPage() {
 
   const openEditModal = (product: Product) => {
     setEditingProductId(product.id);
+    setCreateStep("full");
     setExistingImageUrl(product.image_url || product.image || product.thumbnail_url || null);
     setExistingDeliveryImageUrl(product.image_delivery_url?.trim() || null);
     setExistingSalesImageUrl(product.image_sales_url?.trim() || null);
@@ -883,6 +900,8 @@ export default function AdminPage() {
     setSalesGalleryPendingFiles([]);
     setExistingVideoUrl(product.video_url || product.video || null);
     setClearVideo(false);
+    setExistingSalesVideoUrl(product.video_sales_url?.trim() || null);
+    setClearSalesVideo(false);
     setName(product.name || "");
     setDescription(product.description || "");
     setDescriptionDelivery(product.description_delivery || "");
@@ -894,6 +913,7 @@ export default function AdminPage() {
     setDeliveryImageFile(null);
     setSalesImageFile(null);
     setVideoFile(null);
+    setSalesVideoFile(null);
     const hotmartId = product.hotmart_sales_id?.trim() || "";
     const caktoId = product.cakto_sales_id?.trim() || "";
     setHotmartSalesId(hotmartId);
@@ -936,6 +956,8 @@ export default function AdminPage() {
     setSalesImageFile(null);
     setVideoFile(null);
     setClearVideo(false);
+    setSalesVideoFile(null);
+    setClearSalesVideo(false);
     if (!editingProductId) {
       setExistingImageUrl(null);
       setExistingDeliveryImageUrl(null);
@@ -945,6 +967,7 @@ export default function AdminPage() {
       setSalesGalleryUrls([]);
       setSalesGalleryPendingFiles([]);
       setExistingVideoUrl(null);
+      setExistingSalesVideoUrl(null);
       setLegacyExternalSalesId(null);
     }
     setModalSnapshot(emptyFormSnapshot);
@@ -976,7 +999,9 @@ export default function AdminPage() {
       deliveryGalleryPendingFiles.length > 0 ||
       salesGalleryPendingFiles.length > 0 ||
       videoFile != null ||
-      clearVideo
+      clearVideo ||
+      salesVideoFile != null ||
+      clearSalesVideo
     );
   }, [
     isModalOpen,
@@ -995,6 +1020,8 @@ export default function AdminPage() {
     deliveryGalleryPendingFiles,
     salesGalleryPendingFiles,
     videoFile,
+    salesVideoFile,
+    clearSalesVideo,
     clearVideo,
     modalSnapshot,
   ]);
@@ -1243,6 +1270,25 @@ export default function AdminPage() {
     setSaving(true);
     const hotmartId = hotmartSalesId.trim();
     const caktoId = caktoSalesId.trim();
+    const wasNewProductBasicCreate = !editingProductId && createStep === "basic";
+
+    const continueToFullStep = (newId: string, uploadedImageUrl: string | null) => {
+      setEditingProductId(newId);
+      setExistingImageUrl(uploadedImageUrl);
+      setImageFile(null);
+      setCreateStep("full");
+      setModalSnapshot({
+        name,
+        description,
+        descriptionDelivery,
+        linkCompra,
+        accessLinks: formRowsToAccessLinks(accessLinkRows),
+        hotmartSalesId,
+        caktoSalesId,
+        type,
+        isHidden,
+      });
+    };
 
     const saveProductRow = async (
       imageUrl: string | null,
@@ -1251,11 +1297,13 @@ export default function AdminPage() {
       galleryUrls: string[],
       salesImageUrl: string | null,
       salesGallery: string[],
+      salesVideoUrl: string | null,
       opts: {
         includeCaktoSalesId: boolean;
         includeHotmartSalesId: boolean;
         includeDescriptionDelivery: boolean;
         includeVideoUrl: boolean;
+        includeVideoSalesUrl: boolean;
         includeAccessLinks: boolean;
         includeImageDeliveryUrl: boolean;
         includeDeliveryGalleryUrls: boolean;
@@ -1277,6 +1325,9 @@ export default function AdminPage() {
       }
       if (opts.includeVideoUrl) {
         payload.video_url = videoUrl;
+      }
+      if (opts.includeVideoSalesUrl) {
+        payload.video_sales_url = salesVideoUrl;
       }
       if (opts.includeAccessLinks) {
         payload.access_links = formRowsToAccessLinks(accessLinkRows);
@@ -1318,13 +1369,15 @@ export default function AdminPage() {
       deliveryImageUrl: string | null,
       galleryUrls: string[],
       salesImageUrl: string | null,
-      salesGallery: string[]
+      salesGallery: string[],
+      salesVideoUrl: string | null
     ) => {
       const flags = {
         includeCaktoSalesId: true,
         includeHotmartSalesId: true,
         includeDescriptionDelivery: true,
         includeVideoUrl: true,
+        includeVideoSalesUrl: true,
         includeAccessLinks: true,
         includeImageDeliveryUrl: true,
         includeDeliveryGalleryUrls: true,
@@ -1344,6 +1397,7 @@ export default function AdminPage() {
           galleryUrls,
           salesImageUrl,
           salesGallery,
+          salesVideoUrl,
           flags
         );
         dbError = result.error;
@@ -1352,6 +1406,10 @@ export default function AdminPage() {
             insertedId = String((result.data as { id: string }).id);
           }
           break;
+        }
+        if (isMissingVideoSalesUrlColumnError(dbError) && flags.includeVideoSalesUrl) {
+          flags.includeVideoSalesUrl = false;
+          continue;
         }
         if (isMissingVideoUrlColumnError(dbError) && flags.includeVideoUrl) {
           flags.includeVideoUrl = false;
@@ -1409,6 +1467,8 @@ export default function AdminPage() {
       let salesImageUrl = existingSalesImageUrl;
       let videoUrl = clearVideo ? null : existingVideoUrl;
       let pendingVideoFile: File | null = null;
+      let salesVideoUrl = clearSalesVideo ? null : existingSalesVideoUrl;
+      let pendingSalesVideoFile: File | null = null;
 
       if (imageFile) {
         imageUrl = await uploadFileToStorage(imageFile, IMAGE_BUCKET, "images");
@@ -1448,13 +1508,28 @@ export default function AdminPage() {
         }
       }
 
+      if (salesVideoFile && !clearSalesVideo) {
+        if (editingProductId) {
+          salesVideoUrl = await uploadFileToStorage(
+            salesVideoFile,
+            VIDEO_BUCKET,
+            "videos",
+            editingProductId
+          );
+        } else {
+          pendingSalesVideoFile = salesVideoFile;
+          salesVideoUrl = null;
+        }
+      }
+
       const { dbError, insertedId, flags } = await persistWithSchemaFallback(
         imageUrl,
         videoUrl,
         deliveryImageUrl,
         galleryUrls,
         salesImageUrl,
-        salesGallery
+        salesGallery,
+        salesVideoUrl
       );
 
       if (!dbError && insertedId) {
@@ -1485,12 +1560,37 @@ export default function AdminPage() {
         }
       }
 
+      if (!dbError && pendingSalesVideoFile && insertedId) {
+        const uploadedUrl = await uploadFileToStorage(
+          pendingSalesVideoFile,
+          VIDEO_BUCKET,
+          "videos",
+          insertedId
+        );
+        const { error: salesVideoUpdateError } = await supabase
+          .from("products")
+          .update({ video_sales_url: uploadedUrl })
+          .eq("id", insertedId);
+        if (salesVideoUpdateError && isMissingVideoSalesUrlColumnError(salesVideoUpdateError)) {
+          toast.success(
+            "Produto salvo, mas o vídeo de vendas não foi guardado — execute a migração SQL que adiciona a coluna video_sales_url em products."
+          );
+          await fetchProducts();
+          closeModal();
+          return;
+        }
+        if (salesVideoUpdateError) {
+          throw salesVideoUpdateError;
+        }
+      }
+
       if (
         !dbError &&
         (!flags.includeDescriptionDelivery ||
           !flags.includeCaktoSalesId ||
           !flags.includeHotmartSalesId ||
           !flags.includeVideoUrl ||
+          !flags.includeVideoSalesUrl ||
           !flags.includeAccessLinks ||
           !flags.includeImageDeliveryUrl ||
           !flags.includeDeliveryGalleryUrls ||
@@ -1500,10 +1600,18 @@ export default function AdminPage() {
           !flags.includePrice)
       ) {
         await fetchProducts();
+        if (wasNewProductBasicCreate && insertedId) {
+          continueToFullStep(insertedId, imageUrl);
+          toast.success("Produto criado! Agora personalize o restante (descrições, imagens, vídeo, links...).");
+          return;
+        }
         closeModal();
         const parts: string[] = [];
         if (!flags.includeVideoUrl) {
           parts.push("vídeo do produto (migração video_url)");
+        }
+        if (!flags.includeVideoSalesUrl) {
+          parts.push("vídeo de vendas (migração video_sales_url)");
         }
         if (!flags.includeAccessLinks) {
           parts.push("links de acesso (migração access_links)");
@@ -1544,6 +1652,11 @@ export default function AdminPage() {
       }
 
       await fetchProducts();
+      if (wasNewProductBasicCreate && insertedId) {
+        continueToFullStep(insertedId, imageUrl);
+        toast.success("Produto criado! Agora personalize o restante (descrições, imagens, vídeo, links...).");
+        return;
+      }
       closeModal();
       toast.success("Produto salvo com sucesso.");
     } catch (error) {
@@ -1554,19 +1667,22 @@ export default function AdminPage() {
       if (message.toLowerCase().includes("auth session missing")) {
         try {
           const fallbackVideoUrl = clearVideo ? null : existingVideoUrl;
+          const fallbackSalesVideoUrl = clearSalesVideo ? null : existingSalesVideoUrl;
           const { dbError: fallbackError, flags } = await persistWithSchemaFallback(
             existingImageUrl,
             fallbackVideoUrl,
             existingDeliveryImageUrl,
             deliveryGalleryUrls,
             existingSalesImageUrl,
-            salesGalleryUrls
+            salesGalleryUrls,
+            fallbackSalesVideoUrl
           );
           if (!fallbackError) {
             await fetchProducts();
             closeModal();
             const parts: string[] = [];
             if (!flags.includeVideoUrl) parts.push("vídeo do produto");
+            if (!flags.includeVideoSalesUrl) parts.push("vídeo de vendas");
             if (!flags.includeAccessLinks) parts.push("links de acesso");
             if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
             if (!flags.includeHotmartSalesId) parts.push("ID Hotmart");
@@ -3098,6 +3214,11 @@ export default function AdminPage() {
                   Visualizar como cliente
                 </a>
               )}
+              {!editingProductId && createStep === "full" && (
+                <p className="mt-2 text-xs font-medium text-emerald-700">
+                  Produto criado — personalize o restante abaixo quando quiser.
+                </p>
+              )}
               {modalFormIsDirty && (
                 <button
                   type="button"
@@ -3110,6 +3231,88 @@ export default function AdminPage() {
               )}
             </header>
 
+            {!editingProductId && createStep === "basic" ? (
+              <form
+                onSubmit={handleSave}
+                className={`space-y-4 ${saving ? "pointer-events-none opacity-80" : ""}`}
+                aria-busy={saving}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B705C]/70">
+                  Passo 1 de 2 — o essencial
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm text-zinc-700">Título do Conteúdo</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Nome do produto"
+                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
+                  <p className="text-xs text-zinc-500">Pode trocar depois. Proporção retrato, com recorte.</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm text-zinc-700">
+                      Preço <span className="text-xs text-zinc-400">(opcional, dá pra ajustar depois)</span>
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      placeholder="Ex: 97.00"
+                      className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm text-zinc-700">Tipo</label>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value as "PRO" | "BON")}
+                      className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                    >
+                      <option value="PRO">PRO</option>
+                      <option value="BON">BON</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md px-8 text-sm font-medium tracking-wide text-white transition-opacity hover:opacity-90 disabled:opacity-70 sm:w-auto"
+                  style={{ backgroundColor: "#6B705C" }}
+                >
+                  {saving ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      CRIANDO...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      CRIAR E CONTINUAR
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
             <form
               onSubmit={handleSave}
               className={`space-y-4 ${saving ? "pointer-events-none opacity-80" : ""}`}
@@ -3134,7 +3337,12 @@ export default function AdminPage() {
                 <p className="text-xs text-zinc-500">
                   Exibida para quem ainda não comprou o conteúdo (página com CTA de compra).
                 </p>
-                <AdminRichTextEditor value={description} onChange={setDescription} disabled={saving} />
+                <AdminRichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  disabled={saving}
+                  onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -3146,6 +3354,7 @@ export default function AdminPage() {
                   value={descriptionDelivery}
                   onChange={setDescriptionDelivery}
                   disabled={saving}
+                  onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
                 />
               </div>
 
@@ -3340,9 +3549,50 @@ export default function AdminPage() {
               <FormFieldGroup title="Vídeo" />
 
               <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Vídeo deste produto</label>
+                <label className="text-sm text-zinc-700">Vídeo da página de vendas</label>
                 <p className="text-xs text-zinc-500">
-                  Cada conteúdo tem seu próprio arquivo. O vídeo é exibido na página do produto após a compra.
+                  Exibido no carrossel antes da compra (fica bloqueado com cadeado se o item ainda não foi liberado).
+                </p>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => {
+                    setSalesVideoFile(e.target.files?.[0] ?? null);
+                    if (e.target.files?.[0]) setClearSalesVideo(false);
+                  }}
+                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                />
+                {existingSalesVideoUrl && !salesVideoFile && !clearSalesVideo && (
+                  <p className="text-[11px] text-zinc-500">
+                    Vídeo de vendas atual salvo; envie outro arquivo só se quiser trocar.
+                  </p>
+                )}
+                {existingSalesVideoUrl && !clearSalesVideo && (
+                  <video
+                    src={existingSalesVideoUrl}
+                    controls
+                    preload="metadata"
+                    className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
+                  />
+                )}
+                {existingSalesVideoUrl && !salesVideoFile && (
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={clearSalesVideo}
+                      onChange={(e) => setClearSalesVideo(e.target.checked)}
+                      disabled={saving}
+                      className="rounded border-zinc-300"
+                    />
+                    Remover vídeo de vendas
+                  </label>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-zinc-700">Vídeo da página de entrega</label>
+                <p className="text-xs text-zinc-500">
+                  Exibido no carrossel após a compra. Se vazio, nenhum vídeo aparece na entrega.
                 </p>
                 <input
                   type="file"
@@ -3355,7 +3605,7 @@ export default function AdminPage() {
                 />
                 {existingVideoUrl && !videoFile && !clearVideo && (
                   <p className="text-[11px] text-zinc-500">
-                    Vídeo atual deste produto salvo; envie outro arquivo só se quiser trocar.
+                    Vídeo de entrega atual salvo; envie outro arquivo só se quiser trocar.
                   </p>
                 )}
                 {existingVideoUrl && !clearVideo && (
@@ -3375,7 +3625,7 @@ export default function AdminPage() {
                       disabled={saving}
                       className="rounded border-zinc-300"
                     />
-                    Remover vídeo deste produto
+                    Remover vídeo de entrega
                   </label>
                 )}
               </div>
@@ -3598,6 +3848,7 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+            )}
           </section>
         </div>
       )}

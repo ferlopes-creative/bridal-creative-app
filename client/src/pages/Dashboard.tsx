@@ -144,7 +144,7 @@ function SuggestedProductCard({
       >
         {product.name || "Produto"}
       </p>
-      {locked && product.price != null ? (
+      {product.price != null ? (
         <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-0.5" />
       ) : null}
     </article>
@@ -473,7 +473,6 @@ export default function Dashboard() {
                 products={sectionProducts}
                 keyPrefix={section.id}
                 showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
-                showTitle={!isPurchasedSection}
                 showFrame={!isPurchasedSection}
                 imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
                 large={isPurchasedSection}

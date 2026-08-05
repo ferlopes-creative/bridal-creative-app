@@ -1,4 +1,4 @@
-import { ExternalLink, Lock, PlayCircle } from "lucide-react";
+import { ExternalLink, PlayCircle } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { ProductPrice } from "@/components/ProductGrid";
@@ -22,6 +22,7 @@ type ProductViewData = {
   sales_gallery_urls?: unknown;
   thumbnail_url?: string | null;
   video_url?: string | null;
+  video_sales_url?: string | null;
   video?: string | null;
   access_links?: unknown;
   link_compra?: string | null;
@@ -37,8 +38,11 @@ interface ProductViewProps {
 }
 
 const PURIFY = {
-  ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3"],
-  ALLOWED_ATTR: ["href", "target", "rel", "class"],
+  ALLOWED_TAGS: [
+    "p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3",
+    "img", "label", "input", "div",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel", "class", "src", "alt", "type", "checked", "data-type", "data-checked"],
 };
 
 /** Plain text / legacy descriptions without tags → wrap in <p> so wrapping CSS applies consistently */
@@ -84,7 +88,9 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     : parseGalleryUrls(product.sales_gallery_urls);
   const purchaseLink = (product.link_compra || product.link || "").trim() || null;
   const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
-  const videoSrc = (product.video_url || product.video || "").trim() || null;
+  const videoSrc = canAccess
+    ? (product.video_url || product.video || "").trim() || null
+    : product.video_sales_url?.trim() || null;
 
   const slides: Slide[] = [
     { kind: "image", url: heroSrc, alt: title },
@@ -101,13 +107,61 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
     }`;
 
+  const ctaBlock = (
+    <div
+      className={`flex flex-col items-stretch gap-2.5 sm:items-start ${
+        canAccess && accessLinks.length > 1 ? "" : "sm:flex-row"
+      }`}
+    >
+      {canAccess ? (
+        accessLinks.length > 0 ? (
+          accessLinks.map((link, index) => {
+            const label =
+              link.label ||
+              (accessLinks.length === 1 ? "ACESSO / LINK" : `ACESSO ${index + 1}`);
+            return (
+              <a
+                key={`${link.url}-${index}`}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className={accessButtonClass(true)}
+              >
+                {label.toUpperCase()}
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            );
+          })
+        ) : (
+          <span className={accessButtonClass(false)} aria-disabled>
+            ACESSO / LINK
+            <ExternalLink className="h-4 w-4" />
+          </span>
+        )
+      ) : (
+        <a
+          href={purchaseLink || "#"}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center gap-2 border border-bc-primary bg-bc-primary px-5 py-2.5 text-xs tracking-[0.1em] text-white transition-opacity hover:opacity-95 md:text-sm"
+          onClick={(e) => {
+            if (!purchaseLink) e.preventDefault();
+          }}
+        >
+          QUERO TER ACESSO AGORA
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      )}
+    </div>
+  );
+
   return (
-    <section className="mx-auto w-full min-w-0 max-w-3xl">
-      <HorizontalScrollRow contentKey={slides.map((s) => s.url).join()}>
-        {slides.map((slide, index) => (
-          <div key={`${slide.url}-${index}`} className="w-full shrink-0 snap-start">
-            {slide.kind === "video" ? (
-              canAccess ? (
+    <section className="mx-auto w-full min-w-0 max-w-2xl">
+      <div className="mx-auto w-full max-w-xs sm:max-w-sm">
+        <HorizontalScrollRow contentKey={slides.map((s) => s.url).join()}>
+          {slides.map((slide, index) => (
+            <div key={`${slide.url}-${index}`} className="w-full shrink-0 snap-start">
+              {slide.kind === "video" ? (
                 <video
                   src={slide.url}
                   controls
@@ -115,96 +169,43 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
                   className="aspect-square w-full bg-[#1c1e17] object-contain"
                 />
               ) : (
-                <div className="flex aspect-square w-full items-center justify-center bg-[#eef1e9] text-bc-primary">
-                  <div className="flex flex-col items-center gap-2 px-4 text-center">
-                    <Lock className="h-8 w-8" />
-                    <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
-                      Vídeo liberado após a compra
-                    </p>
-                  </div>
-                </div>
+                <img src={slide.url} alt={slide.alt} className="aspect-square w-full bg-[#f4f5ef] object-cover" />
+              )}
+            </div>
+          ))}
+        </HorizontalScrollRow>
+        {slides.length > 1 && (
+          <div className="mt-2 flex items-center justify-center gap-2 text-bc-primary/50">
+            {slides.map((slide, index) =>
+              slide.kind === "video" ? (
+                <PlayCircle key={`dot-${index}`} className="h-3 w-3" aria-hidden />
+              ) : (
+                <span key={`dot-${index}`} className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
               )
-            ) : (
-              <img src={slide.url} alt={slide.alt} className="aspect-square w-full bg-[#f4f5ef] object-cover" />
             )}
           </div>
-        ))}
-      </HorizontalScrollRow>
-      {slides.length > 1 && (
-        <div className="mt-2 flex items-center justify-center gap-2 text-bc-primary/50">
-          {slides.map((slide, index) =>
-            slide.kind === "video" ? (
-              <PlayCircle key={`dot-${index}`} className="h-3 w-3" aria-hidden />
-            ) : (
-              <span key={`dot-${index}`} className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-            )
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="mt-6 md:mt-8">
+      <div className="mt-5 md:mt-6">
         <h1
-          className="break-words text-[1.375rem] leading-[1.15] text-bc-primary md:text-[1.625rem]"
+          className="break-words text-base leading-[1.2] text-bc-primary md:text-lg"
           style={{ fontFamily: "var(--font-display)", letterSpacing: "0.05em" }}
         >
           {title}
         </h1>
 
         {!canAccess && product.price != null ? (
-          <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-2" />
+          <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-1.5" />
         ) : null}
 
+        <div className="mt-4">{ctaBlock}</div>
+
         <div
-          className="product-html mt-5 w-full min-w-0 max-w-full text-[0.8125rem] leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-base [&_h2]:text-bc-primary [&_h3]:text-sm [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+          className="product-html mt-5 w-full min-w-0 max-w-full text-xs leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:text-bc-primary [&_h3]:text-xs [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_img]:my-3 [&_img]:w-full [&_img]:object-cover [&_ul[data-type=taskList]]:my-2 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_li[data-type=taskItem]]:my-1 [&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2 [&_input[type=checkbox]]:mt-0.5 [&_input[type=checkbox]]:pointer-events-none [&_li[data-type=taskItem]_div]:min-w-0 [&_li[data-type=taskItem]_p]:mb-0"
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
-      </div>
-
-      <div
-        className={`mt-7 flex flex-col items-stretch gap-3 sm:items-end md:mt-8 ${
-          canAccess && accessLinks.length > 1 ? "sm:flex-col" : "sm:flex-row sm:justify-end"
-        }`}
-      >
-        {canAccess ? (
-          accessLinks.length > 0 ? (
-            accessLinks.map((link, index) => {
-              const label =
-                link.label ||
-                (accessLinks.length === 1 ? "ACESSO / LINK" : `ACESSO ${index + 1}`);
-              return (
-                <a
-                  key={`${link.url}-${index}`}
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={accessButtonClass(true)}
-                >
-                  {label.toUpperCase()}
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              );
-            })
-          ) : (
-            <span className={accessButtonClass(false)} aria-disabled>
-              ACESSO / LINK
-              <ExternalLink className="h-4 w-4" />
-            </span>
-          )
-        ) : (
-          <a
-            href={purchaseLink || "#"}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 border border-bc-primary bg-bc-primary px-5 py-2.5 text-xs tracking-[0.1em] text-white transition-opacity hover:opacity-95 md:text-sm"
-            onClick={(e) => {
-              if (!purchaseLink) e.preventDefault();
-            }}
-          >
-            QUERO TER ACESSO AGORA
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        )}
       </div>
     </section>
   );

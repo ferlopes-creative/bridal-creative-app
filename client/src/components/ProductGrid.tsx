@@ -104,7 +104,9 @@ export function ProductCard({
 
   const title = showTitle ? (
     <h3
-      className="mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] text-white sm:mt-2.5 sm:text-[11px]"
+      className={`mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] sm:mt-2.5 sm:text-[11px] ${
+        showFrame ? "text-white" : "text-bc-primary"
+      }`}
       style={{ fontFamily: "var(--font-display)" }}
     >
       {product.name || "Produto"}
@@ -112,12 +114,12 @@ export function ProductCard({
   ) : null;
 
   const priceBlock =
-    showLockedOverlay && product.price != null ? (
+    product.price != null ? (
       <ProductPrice
         price={product.price}
         promoPrice={product.promo_price}
         className="mt-1 justify-center"
-        light
+        light={showFrame}
       />
     ) : null;
 
@@ -127,15 +129,18 @@ export function ProductCard({
         onClick={onNavigate}
         {...pressHandlers}
         style={liftStyle}
-        className="relative w-full cursor-pointer touch-manipulation justify-self-center overflow-hidden rounded-[2px] transition-transform duration-150 ease-out hover:scale-[1.01]"
+        className="w-full cursor-pointer touch-manipulation justify-self-center transition-transform duration-150 ease-out hover:scale-[1.01]"
       >
-        <img
-          src={imageSrc}
-          alt={product.name || "Produto"}
-          className={`${imageAspectClass} w-full object-cover`}
-        />
-        {lockOverlay}
+        <div className="relative overflow-hidden rounded-[2px]">
+          <img
+            src={imageSrc}
+            alt={product.name || "Produto"}
+            className={`${imageAspectClass} w-full object-cover`}
+          />
+          {lockOverlay}
+        </div>
         {title}
+        {priceBlock}
       </article>
     );
   }
