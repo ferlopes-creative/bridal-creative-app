@@ -22,9 +22,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { useAppAccessState } from "@/contexts/AppAccessContext";
+import { useCommunityAccess } from "@/contexts/CommunityAccessContext";
 import { useSiteSettings, resolveCommunityBackground } from "@/contexts/SiteSettingsContext";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
-import { hasCommunityAccess } from "@/lib/communityAccess";
 
 const IMAGE_BUCKET = import.meta.env.VITE_SUPABASE_IMAGE_BUCKET || "product-images";
 const DISPLAY_NAME_STORAGE_KEY = "bridal_community_display_name";
@@ -326,12 +327,13 @@ export default function Community() {
   const { hasUnread } = useNotificationBellBadge();
   const pageBgUrl = resolveCommunityBackground(settings);
   const logoUrl = settings.logo_url;
+  const { authSession, session } = useAppAccessState();
+  const { canOpenCommunity } = useCommunityAccess();
+  const currentUserId = session?.user.id ?? null;
+  const accessLoading = authSession === null;
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [likes, setLikes] = useState<{ comment_id: string; user_id: string }[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accessLoading, setAccessLoading] = useState(true);
-  const [canOpenCommunity, setCanOpenCommunity] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -351,39 +353,9 @@ export default function Community() {
   const [imageFilter, setImageFilter] = useState<ImageFilter>("all");
 
   useEffect(() => {
-    const loadCommunityAccess = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-
-      if (!userData.user) {
-        setCanOpenCommunity(false);
-        setAccessLoading(false);
-        setLoading(false);
-        return;
-      }
-
-      setCurrentUserId(userData.user.id);
-
-      const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
-      if (registeredName) setName(registeredName);
-
-      const { data: purchasesData, error } = await supabase
-        .from("purchases")
-        .select("product_id, status")
-        .eq("user_id", userData.user.id)
-        .eq("status", "active");
-
-      if (error || !purchasesData) {
-        setCanOpenCommunity(false);
-      } else {
-        const purchasedIds = new Set(purchasesData.map((item) => String(item.product_id)));
-        setCanOpenCommunity(hasCommunityAccess(purchasedIds));
-      }
-
-      setAccessLoading(false);
-    };
-
-    void loadCommunityAccess();
-  }, [setLocation]);
+    const registeredName = (session?.user.user_metadata?.display_name as string | undefined)?.trim();
+    if (registeredName) setName(registeredName);
+  }, [session]);
 
   useEffect(() => {
     try {

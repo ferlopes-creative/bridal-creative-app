@@ -285,6 +285,20 @@ function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, strin
   );
 }
 
+/* Guarda o último carregamento por usuário nesta aba: revisitar Planejamento não
+ * mostra tela de carregamento de novo — hidrata na hora e atualiza em segundo plano. */
+type PlanningCache = {
+  userId: string;
+  details: WeddingDetails | null;
+  vendors: Vendor[];
+  checklist: ChecklistItem[];
+  guests: Guest[];
+  isPremium: boolean;
+  premiumLink: string | null;
+  showOnboarding: boolean;
+};
+let planningCache: PlanningCache | null = null;
+
 /* ============================================================ PÁGINA PRINCIPAL ============================================================ */
 export default function Planejamento() {
   const [, setLocation] = useLocation();
@@ -326,12 +340,30 @@ export default function Planejamento() {
       setLocation(LOGIN_PATH);
       return;
     }
-    await loadAll(data.user.id);
+    const uid = data.user.id;
+
+    if (planningCache && planningCache.userId === uid) {
+      const cached = planningCache;
+      setUserId(uid);
+      setDetails(cached.details);
+      setVendors(cached.vendors);
+      setChecklist(cached.checklist);
+      setGuests(cached.guests);
+      setVowsDraft(cached.details?.vows || "");
+      setIsPremium(cached.isPremium);
+      setPremiumLink(cached.premiumLink);
+      setShowOnboarding(cached.showOnboarding);
+      setPhase("app");
+      await loadAll(uid, { silent: true });
+      return;
+    }
+
+    await loadAll(uid);
   }
 
-  async function loadAll(uid: string) {
+  async function loadAll(uid: string, opts?: { silent?: boolean }) {
     setUserId(uid);
-    setPhase("loading");
+    if (!opts?.silent) setPhase("loading");
 
     const [detailsRes, vendorsRes, checklistRes, guestsRes, purchasesRes, productRes] = await Promise.all([
       supabase.from("wedding_details").select("*").eq("user_id", uid).maybeSingle(),
@@ -344,11 +376,15 @@ export default function Planejamento() {
 
     const purchasedIds = new Set((purchasesRes.data || []).map((p) => String(p.product_id)));
     const premiumProductId = productRes.data?.id ? String(productRes.data.id) : null;
-    setIsPremium(hasWeddingPremiumAccess(purchasedIds, premiumProductId));
-    setPremiumLink(productRes.data?.link_compra || null);
+    const isPremiumValue = hasWeddingPremiumAccess(purchasedIds, premiumProductId);
+    const premiumLinkValue = productRes.data?.link_compra || null;
+    const vendorsValue = (vendorsRes.data as Vendor[]) || [];
+    const guestsValue = (guestsRes.data as Guest[]) || [];
 
-    setVendors((vendorsRes.data as Vendor[]) || []);
-    setGuests((guestsRes.data as Guest[]) || []);
+    setIsPremium(isPremiumValue);
+    setPremiumLink(premiumLinkValue);
+    setVendors(vendorsValue);
+    setGuests(guestsValue);
     setVowsDraft((detailsRes.data as WeddingDetails | null)?.vows || "");
 
     if (!detailsRes.data) {
@@ -356,6 +392,16 @@ export default function Planejamento() {
       setChecklist([]);
       setShowOnboarding(true);
       setPhase("app");
+      planningCache = {
+        userId: uid,
+        details: null,
+        vendors: vendorsValue,
+        checklist: [],
+        guests: guestsValue,
+        isPremium: isPremiumValue,
+        premiumLink: premiumLinkValue,
+        showOnboarding: true,
+      };
       return;
     }
 
@@ -370,6 +416,16 @@ export default function Planejamento() {
     setChecklist(checklistRows);
     setShowOnboarding(false);
     setPhase("app");
+    planningCache = {
+      userId: uid,
+      details: detailsRes.data as WeddingDetails,
+      vendors: vendorsValue,
+      checklist: checklistRows,
+      guests: guestsValue,
+      isPremium: isPremiumValue,
+      premiumLink: premiumLinkValue,
+      showOnboarding: false,
+    };
   }
 
   /* -------------------- onboarding -------------------- */

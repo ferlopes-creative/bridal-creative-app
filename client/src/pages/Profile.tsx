@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CircleUserRound, LogOut, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
@@ -7,8 +7,10 @@ import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import { Spinner } from "@/components/ui/spinner";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
+import { useAppAccessState } from "@/contexts/AppAccessContext";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useSiteSettings, resolveProfileBackground } from "@/contexts/SiteSettingsContext";
-import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
+import { clearGuestMode } from "@/lib/guestMode";
 import { supabase } from "@/lib/supabase";
 
 const serifFont = "'Cormorant Garamond', 'Cinzel', 'Times New Roman', serif";
@@ -196,46 +198,25 @@ export default function Profile() {
   const pageBgUrl = resolveProfileBackground(settings);
   const logoUrl = settings.logo_url;
 
-  const [loading, setLoading] = useState(true);
-  const [guest, setGuest] = useState(false);
-  const [user, setUser] = useState<ProfileUser | null>(null);
+  const { appAccess, authSession, session } = useAppAccessState();
+  const { purchasedIds, ready: appDataReady } = useAppData();
+  const [displayNameOverride, setDisplayNameOverride] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      if (isGuestMode()) {
-        setGuest(true);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        setGuest(true);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      const { data: purchasesData } = await supabase
-        .from("purchases")
-        .select("product_id")
-        .eq("user_id", data.user.id)
-        .eq("status", "active");
-
-      setGuest(false);
-      setUser({
-        email: data.user.email ?? "—",
-        createdAt: data.user.created_at ?? null,
-        productCount: purchasesData?.length ?? 0,
-        displayName: (data.user.user_metadata?.display_name as string | undefined)?.trim() || null,
-      });
-      setLoading(false);
-    };
-
-    void load();
-  }, []);
+  const guest = appAccess === true && authSession === false;
+  const loading = appAccess === null || (authSession === true && !appDataReady);
+  const user: ProfileUser | null =
+    authSession === true && session?.user
+      ? {
+          email: session.user.email ?? "—",
+          createdAt: session.user.created_at ?? null,
+          productCount: purchasedIds.size,
+          displayName:
+            displayNameOverride ??
+            (session.user.user_metadata?.display_name as string | undefined)?.trim() ??
+            null,
+        }
+      : null;
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -305,7 +286,7 @@ export default function Profile() {
             <LoggedInProfile
               user={user}
               formatMemberSince={formatMemberSince}
-              onDisplayNameSaved={(name) => setUser((prev) => (prev ? { ...prev, displayName: name } : prev))}
+              onDisplayNameSaved={(name) => setDisplayNameOverride(name)}
             />
           ) : null}
         </div>

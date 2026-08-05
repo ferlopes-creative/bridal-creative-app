@@ -1,6 +1,7 @@
+import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { hasAppAccess } from "@/lib/appAccess";
-import { hasAuthenticatedSession } from "@/lib/authGuard";
+import { resolveAuthenticatedSession } from "@/lib/authSession";
 import { clearGuestMode } from "@/lib/guestMode";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -8,9 +9,15 @@ type AppAccessState = {
   /** null enquanto a sessão ainda não foi verificada nesta aba. */
   appAccess: boolean | null;
   authSession: boolean | null;
+  /** Sessão resolvida (com o user embutido); evita cada página fazer seu próprio getUser(). */
+  session: Session | null;
 };
 
-const AppAccessContext = createContext<AppAccessState>({ appAccess: null, authSession: null });
+const AppAccessContext = createContext<AppAccessState>({
+  appAccess: null,
+  authSession: null,
+  session: null,
+});
 
 /**
  * Verifica a sessão uma única vez por carregamento da aba (não a cada troca de rota),
@@ -18,15 +25,15 @@ const AppAccessContext = createContext<AppAccessState>({ appAccess: null, authSe
  * a cada clique — só a primeira vez, ou quando a sessão realmente muda.
  */
 export function AppAccessProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppAccessState>({ appAccess: null, authSession: null });
+  const [state, setState] = useState<AppAccessState>({ appAccess: null, authSession: null, session: null });
 
   useEffect(() => {
     let cancelled = false;
 
     const verify = async () => {
-      const [appAccess, authSession] = await Promise.all([hasAppAccess(), hasAuthenticatedSession()]);
+      const [appAccess, session] = await Promise.all([hasAppAccess(), resolveAuthenticatedSession()]);
       if (cancelled) return;
-      setState({ appAccess, authSession });
+      setState({ appAccess, authSession: Boolean(session), session });
     };
 
     void verify();
@@ -41,7 +48,7 @@ export function AppAccessProvider({ children }: { children: ReactNode }) {
       void hasAppAccess().then((appAccess) => {
         if (cancelled) return;
         if (!appAccess && !session) clearGuestMode();
-        setState({ appAccess, authSession: Boolean(session) });
+        setState({ appAccess, authSession: Boolean(session), session: session ?? null });
       });
     });
 
