@@ -31,6 +31,8 @@ type Product = {
   link_compra?: string | null;
   link?: string | null;
   is_hidden?: boolean | null;
+  price?: number | null;
+  promo_price?: number | null;
 };
 
 export default function DashboardProduct() {
@@ -98,6 +100,8 @@ export default function DashboardProduct() {
           link_compra: (item.link_compra ?? item.link) as string | null | undefined,
           link: item.link as string | null | undefined,
           is_hidden: item.is_hidden === true,
+          price: item.price != null ? Number(item.price) : null,
+          promo_price: item.promo_price != null ? Number(item.promo_price) : null,
         });
       }
       setLoading(false);
@@ -113,11 +117,7 @@ export default function DashboardProduct() {
   if (loading) {
     return (
       <div className="relative min-h-screen bg-bc-page-bg">
-        <PageBackgroundTexture
-          imageUrl={pageBgUrl}
-          settings={settings}
-          backgroundColor={settings.colors.pageBg}
-        />
+        <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
         <PageLoading label="Carregando conteúdo..." className="relative min-h-screen" />
       </div>
     );
@@ -140,11 +140,7 @@ export default function DashboardProduct() {
 
   return (
     <div className="relative min-h-screen bg-bc-page-bg px-4 py-6">
-      <PageBackgroundTexture
-        imageUrl={pageBgUrl}
-        settings={settings}
-        backgroundColor={settings.colors.pageBg}
-      />
+      <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <div className="relative mx-auto mb-6 flex w-full max-w-3xl items-center justify-between gap-3">
         <button
           type="button"

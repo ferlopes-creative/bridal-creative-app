@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Compass,
+  Eye,
   EyeOff,
   Image,
   LayoutGrid,
@@ -81,6 +82,7 @@ import {
 } from "@/lib/productAccessLinks";
 import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { normalizeWhatsAppUrl } from "@/lib/whatsappUrl";
+import { ProductCsvImport } from "@/components/ProductCsvImport";
 import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
 import { parseLegacyPurchaseLines } from "@/lib/legacyPurchaseImport";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
@@ -299,6 +301,19 @@ function AdminSection({
 
 const wpInputClass =
   "h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60";
+
+/** Divisor visual entre grupos de campos do formulário de produto — apenas
+ * organização, não altera nenhum estado ou lógica dos campos. */
+function FormFieldGroup({ title, first = false }: { title: string; first?: boolean }) {
+  return (
+    <div className={`flex items-center gap-2 ${first ? "" : "pt-3"}`}>
+      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B705C]/80">
+        {title}
+      </span>
+      <span className="h-px flex-1 bg-zinc-200" aria-hidden />
+    </div>
+  );
+}
 
 /** Configura, num só lugar, qual produto (link de compra + IDs Hotmart/Cakto)
  * libera o Premium da seção Planejamento — é sempre no máximo 1 produto,
@@ -2930,26 +2945,17 @@ export default function AdminPage() {
                 <Spinner className="size-5 shrink-0" />
                 Carregando catálogo…
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={`sk-${i}`}
-                    className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-sm"
-                  >
-                    <Skeleton className="aspect-[3/4] w-full rounded-none bg-zinc-200/90" />
-                    <div className="space-y-2 p-3">
-                      <Skeleton className="h-4 w-4/5 bg-zinc-200/80" />
-                      <div className="flex gap-2">
-                        <Skeleton className="h-9 flex-1 rounded-lg bg-zinc-200/70" />
-                        <Skeleton className="h-9 flex-1 rounded-lg bg-zinc-200/70" />
-                      </div>
-                    </div>
+              <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={`sk-${i}`} className="flex items-center gap-3 p-2.5">
+                    <Skeleton className="h-11 w-11 shrink-0 rounded bg-zinc-200/90" />
+                    <Skeleton className="h-4 w-2/5 bg-zinc-200/80" />
                   </div>
                 ))}
               </div>
             </div>
           ) : sortedProducts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center">
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center">
               <p className="text-sm text-zinc-600">Nenhum produto no catálogo.</p>
               <button
                 type="button"
@@ -2961,78 +2967,78 @@ export default function AdminPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
               {sortedProducts.map((product) => {
-              const imageSrc =
-                product.image_url ||
-                product.image ||
-                product.thumbnail_url ||
-                "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
-              return (
-                <article
-                  key={product.id}
-                  className={`flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm ring-1 ring-black/[0.03] transition-shadow hover:shadow-md ${
-                    product.is_hidden ? "border-amber-200/90" : "border-zinc-200/95"
-                  }`}
-                >
-                  <div className="relative">
+                const imageSrc =
+                  product.image_url ||
+                  product.image ||
+                  product.thumbnail_url ||
+                  "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 p-2.5 hover:bg-zinc-50/80"
+                  >
                     <img
                       src={imageSrc}
                       alt={product.name || "Produto"}
-                      className={`aspect-[3/4] w-full object-cover ${product.is_hidden ? "opacity-75" : ""}`}
+                      className={`h-11 w-11 shrink-0 rounded object-cover ${product.is_hidden ? "opacity-60" : ""}`}
                     />
-                    {product.is_hidden ? (
-                      <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-600/95 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
-                        <EyeOff className="h-3 w-3" />
-                        Oculto
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-3">
-                    <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-zinc-900">
-                      {product.name || product.title || "Sem nome"}
-                    </p>
-                    <div className="mt-auto flex flex-col gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-900">
+                        {product.name || product.title || "Sem nome"}
+                      </p>
+                      {product.is_hidden ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                          <EyeOff className="h-3 w-3" />
+                          Oculto
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         onClick={() => void handleToggleProductHidden(product)}
-                        className={`inline-flex h-9 w-full items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium ${
+                        title={product.is_hidden ? "Mostrar no catálogo" : "Ocultar antes da compra"}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded ${
                           product.is_hidden
-                            ? "border-amber-300 text-amber-800 hover:bg-amber-50"
-                            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                            ? "text-amber-700 hover:bg-amber-50"
+                            : "text-zinc-500 hover:bg-zinc-100"
                         }`}
                       >
-                        <EyeOff className="h-3.5 w-3.5" />
-                        {product.is_hidden ? "Mostrar no catálogo" : "Ocultar antes da compra"}
+                        <EyeOff className="h-4 w-4" />
                       </button>
-                      <div className="flex flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={() => openEditModal(product)}
-                        className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-[#6B705C]/45 px-2 text-xs font-medium text-[#6B705C] hover:bg-[#6B705C]/10"
+                        title="Editar"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-[#6B705C] hover:bg-[#6B705C]/10"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Editar
+                        <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteProduct(product)}
                         disabled={deletingId === product.id}
-                        className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-red-200 px-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                        title="Excluir"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-red-700 hover:bg-red-50 disabled:opacity-60"
                       >
                         {deletingId === product.id ? (
                           <Spinner className="size-3.5 text-red-700" />
                         ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         )}
-                        {deletingId === product.id ? "Excluindo..." : "Excluir"}
                       </button>
-                      </div>
                     </div>
                   </div>
-                </article>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
+
+          {!loading && (
+            <div className="mt-4">
+              <ProductCsvImport onImported={() => void fetchProducts()} />
             </div>
           )}
         </AdminSection>
@@ -3081,6 +3087,17 @@ export default function AdminPage() {
                   ? "Ajuste os campos e salve para atualizar o catálogo."
                   : "Preencha os dados abaixo para cadastrar um novo conteúdo no catálogo."}
               </p>
+              {editingProductId && (
+                <a
+                  href={`/dashboard/product/${editingProductId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex h-8 items-center gap-1.5 text-xs font-medium text-[#6B705C] underline decoration-[#6B705C]/40 underline-offset-2 hover:decoration-[#6B705C]"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Visualizar como cliente
+                </a>
+              )}
               {modalFormIsDirty && (
                 <button
                   type="button"
@@ -3098,6 +3115,8 @@ export default function AdminPage() {
               className={`space-y-4 ${saving ? "pointer-events-none opacity-80" : ""}`}
               aria-busy={saving}
             >
+              <FormFieldGroup title="Informações básicas" first />
+
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Título do Conteúdo</label>
                 <input
@@ -3129,6 +3148,8 @@ export default function AdminPage() {
                   disabled={saving}
                 />
               </div>
+
+              <FormFieldGroup title="Mídia de venda (antes da compra)" />
 
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem da página de venda</label>
@@ -3223,6 +3244,8 @@ export default function AdminPage() {
                 )}
               </div>
 
+              <FormFieldGroup title="Mídia de entrega (após a compra)" />
+
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem da página de entrega</label>
                 <p className="text-xs text-zinc-500">
@@ -3314,6 +3337,8 @@ export default function AdminPage() {
                 )}
               </div>
 
+              <FormFieldGroup title="Vídeo" />
+
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Vídeo deste produto</label>
                 <p className="text-xs text-zinc-500">
@@ -3354,6 +3379,8 @@ export default function AdminPage() {
                   </label>
                 )}
               </div>
+
+              <FormFieldGroup title="Links e acesso" />
 
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Link de compra (checkout)</label>
@@ -3448,6 +3475,8 @@ export default function AdminPage() {
                 disabled={saving}
               />
 
+              <FormFieldGroup title="Capa do catálogo" />
+
               <div className="space-y-1.5">
                 <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
                 <p className="text-xs text-zinc-500">
@@ -3464,6 +3493,8 @@ export default function AdminPage() {
                   <p className="text-[11px] text-zinc-500">Imagem atual salva; envie outro arquivo só se quiser trocar.</p>
                 )}
               </div>
+
+              <FormFieldGroup title="Preço, categoria e visibilidade" />
 
               <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
                 <label className="flex cursor-pointer items-start gap-2.5">

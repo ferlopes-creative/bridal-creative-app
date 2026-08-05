@@ -1,6 +1,7 @@
 import { ExternalLink, Lock, PlayCircle } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
+import { ProductPrice } from "@/components/ProductGrid";
 import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 
@@ -25,6 +26,8 @@ type ProductViewData = {
   access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
+  price?: number | null;
+  promo_price?: number | null;
 };
 
 interface ProductViewProps {
@@ -37,10 +40,6 @@ const PURIFY = {
   ALLOWED_TAGS: ["p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3"],
   ALLOWED_ATTR: ["href", "target", "rel", "class"],
 };
-
-const HERO_CONTAIN =
-  "mx-auto max-h-[min(70vh,560px)] w-full object-contain bg-[#f4f5ef]";
-const HERO_COVER = "h-[200px] w-full object-cover md:h-[260px]";
 
 /** Plain text / legacy descriptions without tags → wrap in <p> so wrapping CSS applies consistently */
 function escapePlainForHtml(text: string) {
@@ -63,6 +62,8 @@ function resolveProductDescription(product: ProductViewData, canAccess: boolean)
   return legacy;
 }
 
+type Slide = { kind: "image"; url: string; alt: string } | { kind: "video"; url: string };
+
 export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
   const safeHtml = sanitizeProductDescription(
@@ -78,76 +79,81 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   const deliveryHeroSrc = product.image_delivery_url?.trim() || coverSrc;
   const salesHeroSrc = salesHero || coverSrc;
   const heroSrc = canAccess ? deliveryHeroSrc : salesHeroSrc;
-  const useContainHero = canAccess || Boolean(salesHero);
   const galleryUrls = canAccess
     ? parseGalleryUrls(product.delivery_gallery_urls)
     : parseGalleryUrls(product.sales_gallery_urls);
-  const galleryTitle = canAccess ? "Modelos incluídos" : "Prévia dos modelos";
   const purchaseLink = (product.link_compra || product.link || "").trim() || null;
   const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
   const videoSrc = (product.video_url || product.video || "").trim() || null;
-  const hasVideo = Boolean(videoSrc);
+
+  const slides: Slide[] = [
+    { kind: "image", url: heroSrc, alt: title },
+    ...galleryUrls
+      .filter((url) => url !== heroSrc)
+      .map((url, index): Slide => ({ kind: "image", url, alt: `${title} — foto ${index + 2}` })),
+    ...(videoSrc ? [{ kind: "video", url: videoSrc } as Slide] : []),
+  ];
 
   const accessButtonClass = (enabled: boolean) =>
-    `inline-flex items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-xs tracking-[0.1em] transition-colors md:text-sm ${
+    `inline-flex items-center justify-center gap-2 border px-5 py-2.5 text-xs tracking-[0.1em] transition-colors md:text-sm ${
       enabled
         ? "border-bc-primary bg-white text-bc-primary hover:bg-bc-primary hover:text-white"
         : "cursor-not-allowed border-zinc-300 bg-zinc-100 text-zinc-400"
     }`;
 
   return (
-    <section className="mx-auto w-full min-w-0 max-w-3xl space-y-7 md:space-y-8">
-      <div className="app-surface overflow-hidden">
-        <img
-          src={heroSrc}
-          alt={canAccess ? `Entrega — ${title}` : `Página de venda — ${title}`}
-          className={useContainHero ? HERO_CONTAIN : HERO_COVER}
-        />
-      </div>
-
-      {galleryUrls.length > 0 ? (
-        <div className="space-y-3">
-          <h2 className="app-section-title">{galleryTitle}</h2>
-          <div className="md:hidden">
-            <HorizontalScrollRow contentKey={galleryUrls.join()}>
-              {galleryUrls.map((url, index) => (
-                <div
-                  key={`${url}-${index}`}
-                  className="min-w-[72vw] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-2xl border border-bc-primary/12 bg-white shadow-[0_2px_14px_rgba(80,88,60,0.05)]"
-                >
-                  <img
-                    src={url}
-                    alt={`Modelo ${index + 1} — ${title}`}
-                    className="aspect-[3/4] w-full object-contain bg-[#f4f5ef]"
-                  />
-                </div>
-              ))}
-            </HorizontalScrollRow>
-          </div>
-          <div className="hidden grid-cols-2 gap-3 md:grid lg:grid-cols-3">
-            {galleryUrls.map((url, index) => (
-              <div
-                key={`${url}-grid-${index}`}
-                className="overflow-hidden rounded-2xl border border-bc-primary/12 bg-white shadow-[0_2px_14px_rgba(80,88,60,0.05)]"
-              >
-                <img
-                  src={url}
-                  alt={`Modelo ${index + 1} — ${title}`}
-                  className="aspect-[3/4] w-full object-contain bg-[#f4f5ef]"
+    <section className="mx-auto w-full min-w-0 max-w-3xl">
+      <HorizontalScrollRow contentKey={slides.map((s) => s.url).join()}>
+        {slides.map((slide, index) => (
+          <div key={`${slide.url}-${index}`} className="w-full shrink-0 snap-start">
+            {slide.kind === "video" ? (
+              canAccess ? (
+                <video
+                  src={slide.url}
+                  controls
+                  preload="metadata"
+                  className="aspect-square w-full bg-[#1c1e17] object-contain"
                 />
-              </div>
-            ))}
+              ) : (
+                <div className="flex aspect-square w-full items-center justify-center bg-[#eef1e9] text-bc-primary">
+                  <div className="flex flex-col items-center gap-2 px-4 text-center">
+                    <Lock className="h-8 w-8" />
+                    <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
+                      Vídeo liberado após a compra
+                    </p>
+                  </div>
+                </div>
+              )
+            ) : (
+              <img src={slide.url} alt={slide.alt} className="aspect-square w-full bg-[#f4f5ef] object-cover" />
+            )}
           </div>
+        ))}
+      </HorizontalScrollRow>
+      {slides.length > 1 && (
+        <div className="mt-2 flex items-center justify-center gap-2 text-bc-primary/50">
+          {slides.map((slide, index) =>
+            slide.kind === "video" ? (
+              <PlayCircle key={`dot-${index}`} className="h-3 w-3" aria-hidden />
+            ) : (
+              <span key={`dot-${index}`} className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+            )
+          )}
         </div>
-      ) : null}
+      )}
 
-      <div className="app-surface-soft w-full min-w-0 p-5 md:p-7">
+      <div className="mt-6 md:mt-8">
         <h1
           className="break-words text-[1.375rem] leading-[1.15] text-bc-primary md:text-[1.625rem]"
           style={{ fontFamily: "var(--font-display)", letterSpacing: "0.05em" }}
         >
           {title}
         </h1>
+
+        {!canAccess && product.price != null ? (
+          <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-2" />
+        ) : null}
+
         <div
           className="product-html mt-5 w-full min-w-0 max-w-full text-[0.8125rem] leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-base [&_h2]:text-bc-primary [&_h3]:text-sm [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
           style={{ fontFamily: "var(--font-body)" }}
@@ -155,34 +161,8 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         />
       </div>
 
-      {hasVideo && (
-        <div className="app-surface overflow-hidden p-4 md:p-5">
-          <div className="mb-3 flex items-center justify-center gap-2 text-bc-primary">
-            <PlayCircle className="h-5 w-5" />
-            <span className="text-sm tracking-wide">VÍDEO</span>
-          </div>
-          {canAccess ? (
-            <video
-              src={videoSrc || undefined}
-              controls
-              preload="metadata"
-              className="mx-auto aspect-video w-full max-w-2xl rounded-xl bg-[#e8eadf]"
-            />
-          ) : (
-            <div className="flex h-[200px] items-center justify-center rounded-xl bg-[#eef1e9] text-bc-primary">
-              <div className="flex flex-col items-center gap-2 px-4 text-center">
-                <Lock className="h-8 w-8" />
-                <p className="text-sm" style={{ fontFamily: "var(--font-display)" }}>
-                  Vídeo liberado após a compra
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       <div
-        className={`flex flex-col items-stretch gap-3 sm:items-end ${
+        className={`mt-7 flex flex-col items-stretch gap-3 sm:items-end md:mt-8 ${
           canAccess && accessLinks.length > 1 ? "sm:flex-col" : "sm:flex-row sm:justify-end"
         }`}
       >
@@ -216,7 +196,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
             href={purchaseLink || "#"}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-bc-primary bg-bc-primary px-5 py-2.5 text-xs tracking-[0.1em] text-white transition-opacity hover:opacity-95 md:text-sm"
+            className="inline-flex items-center justify-center gap-2 border border-bc-primary bg-bc-primary px-5 py-2.5 text-xs tracking-[0.1em] text-white transition-opacity hover:opacity-95 md:text-sm"
             onClick={(e) => {
               if (!purchaseLink) e.preventDefault();
             }}
