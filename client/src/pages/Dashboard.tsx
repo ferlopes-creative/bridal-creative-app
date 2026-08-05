@@ -26,6 +26,7 @@ import {
   sectionShowsLockedOverlay,
   shouldRenderDashboardSection,
 } from "@/lib/dashboardSections";
+import DisplayNamePrompt from "@/components/DisplayNamePrompt";
 import WelcomePopup from "@/components/WelcomePopup";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { isGuestMode } from "@/lib/guestMode";
@@ -202,6 +203,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [weddingName, setWeddingName] = useState<string | null>(null);
   const [weddingDaysLeft, setWeddingDaysLeft] = useState<number | null>(null);
   const guestMode = isGuestMode();
@@ -232,6 +234,10 @@ export default function Dashboard() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (userData.user) {
+        if (!guestMode && !userData.user.user_metadata?.display_name) {
+          setShowNamePrompt(true);
+        }
+
         const { data: purchasesData } = await supabase
           .from("purchases")
           .select("product_id, status")
@@ -719,6 +725,7 @@ export default function Dashboard() {
       </div>
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />
+      <DisplayNamePrompt open={showNamePrompt} onSaved={() => setShowNamePrompt(false)} />
 
       <WhatsAppSupportButton aboveBottomNav />
       <BottomAppNav />

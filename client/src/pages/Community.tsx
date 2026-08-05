@@ -4,8 +4,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleUserRound,
   Filter,
+  Heart,
   ImagePlus,
   Lock,
   Plus,
@@ -75,6 +75,8 @@ type CommentNodeProps = {
   setReplyText: (t: string) => void;
   onReplySubmit: (parentId: string) => void;
   submittingReplyTo: string | null;
+  likesByComment: Map<string, { count: number; likedByMe: boolean }>;
+  onToggleLike: (commentId: string) => void;
 };
 
 function CommentNode({
@@ -89,6 +91,8 @@ function CommentNode({
   setReplyText,
   onReplySubmit,
   submittingReplyTo,
+  likesByComment,
+  onToggleLike,
 }: CommentNodeProps) {
   const replies = repliesByParent.get(item.id) ?? [];
   const isReplying = replyingToId === item.id;
@@ -152,9 +156,18 @@ function CommentNode({
     </form>
   ) : null;
 
+  const initial = (item.name || "?").trim().charAt(0).toUpperCase();
+  const likeState = likesByComment.get(item.id) ?? { count: 0, likedByMe: false };
+
   const authorBlock = (
     <div className="mb-1.5 flex min-w-0 items-center gap-2">
-      <CircleUserRound className={`shrink-0 text-bc-primary/70 ${isRoot ? "h-9 w-9" : "h-7 w-7"}`} strokeWidth={1.5} />
+      <span
+        className={`flex shrink-0 items-center justify-center rounded-full bg-bc-primary/15 font-semibold text-bc-primary ${
+          isRoot ? "h-9 w-9 text-sm" : "h-7 w-7 text-xs"
+        }`}
+      >
+        {initial}
+      </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-1.5">
           <p className="text-sm font-semibold break-words text-zinc-900 [overflow-wrap:anywhere] [word-break:break-word]">
@@ -170,18 +183,32 @@ function CommentNode({
   const bodyBlock = (
     <>
       {item.image_url && (
-        <div className="mb-2 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
+        <div className="mb-2 overflow-hidden bg-zinc-50">
           <img
             src={item.image_url}
             alt={`Imagem enviada por ${item.name}`}
-            className="h-44 w-full object-cover"
+            className="aspect-square w-full object-cover"
           />
         </div>
       )}
       <p className="min-w-0 max-w-full whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700 [overflow-wrap:anywhere] [word-break:break-word]">
         {item.comment}
       </p>
-      <div className="mt-2 flex items-center gap-4">
+      <div className="mt-2 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onToggleLike(item.id)}
+          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors hover:bg-bc-primary/10 ${
+            likeState.likedByMe ? "text-bc-primary" : "text-zinc-500 hover:text-bc-primary"
+          }`}
+        >
+          <Heart
+            className="h-3.5 w-3.5"
+            strokeWidth={2}
+            fill={likeState.likedByMe ? "currentColor" : "none"}
+          />
+          {likeState.count > 0 ? likeState.count : "Curtir"}
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -196,7 +223,7 @@ function CommentNode({
           className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-bc-primary/10 hover:text-bc-primary"
         >
           <Reply className="h-3.5 w-3.5" strokeWidth={2} />
-          Responder
+          Comentar
         </button>
       </div>
     </>
@@ -246,6 +273,8 @@ function CommentNode({
                     setReplyText={setReplyText}
                     onReplySubmit={onReplySubmit}
                     submittingReplyTo={submittingReplyTo}
+                    likesByComment={likesByComment}
+                    onToggleLike={onToggleLike}
                   />
                 ))}
               </div>
@@ -281,6 +310,8 @@ function CommentNode({
               setReplyText={setReplyText}
               onReplySubmit={onReplySubmit}
               submittingReplyTo={submittingReplyTo}
+              likesByComment={likesByComment}
+              onToggleLike={onToggleLike}
             />
           ))}
         </div>
@@ -296,6 +327,8 @@ export default function Community() {
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
   const [comments, setComments] = useState<ChatComment[]>([]);
+  const [likes, setLikes] = useState<{ comment_id: string; user_id: string }[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [accessLoading, setAccessLoading] = useState(true);
   const [canOpenCommunity, setCanOpenCommunity] = useState(false);
@@ -327,6 +360,11 @@ export default function Community() {
         setLoading(false);
         return;
       }
+
+      setCurrentUserId(userData.user.id);
+
+      const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
+      if (registeredName) setName(registeredName);
 
       const { data: purchasesData, error } = await supabase
         .from("purchases")
@@ -388,6 +426,22 @@ export default function Community() {
     }
   }, []);
 
+  const fetchLikes = useCallback(async () => {
+    const { data, error } = await supabase.from("community_comment_likes").select("comment_id, user_id");
+    if (error) {
+      if (!error.message?.includes("community_comment_likes")) {
+        console.error("Erro ao carregar curtidas:", error);
+      }
+      return;
+    }
+    setLikes(
+      (data || []).map((item: Record<string, unknown>) => ({
+        comment_id: String(item.comment_id),
+        user_id: String(item.user_id),
+      }))
+    );
+  }, []);
+
   useEffect(() => {
     if (accessLoading || !canOpenCommunity) {
       setLoading(false);
@@ -395,6 +449,7 @@ export default function Community() {
     }
 
     fetchComments();
+    fetchLikes();
 
     const channel = supabase
       .channel("community-comments-realtime")
@@ -403,12 +458,17 @@ export default function Community() {
         { event: "*", schema: "public", table: TABLE_NAME },
         () => fetchComments({ silent: true })
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "community_comment_likes" },
+        () => fetchLikes()
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [accessLoading, canOpenCommunity, fetchComments]);
+  }, [accessLoading, canOpenCommunity, fetchComments, fetchLikes]);
 
   useEffect(() => {
     return () => {
@@ -437,6 +497,54 @@ export default function Community() {
     roots.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return { roots, repliesByParent };
   }, [comments]);
+
+  const likesByComment = useMemo(() => {
+    const map = new Map<string, { count: number; likedByMe: boolean }>();
+    for (const like of likes) {
+      const entry = map.get(like.comment_id) ?? { count: 0, likedByMe: false };
+      entry.count += 1;
+      if (currentUserId && like.user_id === currentUserId) entry.likedByMe = true;
+      map.set(like.comment_id, entry);
+    }
+    return map;
+  }, [likes, currentUserId]);
+
+  const toggleLike = useCallback(
+    async (commentId: string) => {
+      if (!currentUserId) return;
+      const alreadyLiked = likes.some(
+        (l) => l.comment_id === commentId && l.user_id === currentUserId
+      );
+
+      if (alreadyLiked) {
+        setLikes((prev) => prev.filter((l) => !(l.comment_id === commentId && l.user_id === currentUserId)));
+        const { error } = await supabase
+          .from("community_comment_likes")
+          .delete()
+          .eq("comment_id", commentId)
+          .eq("user_id", currentUserId);
+        if (error) {
+          console.error("Erro ao descurtir:", error);
+          void fetchLikes();
+        }
+      } else {
+        setLikes((prev) => [...prev, { comment_id: commentId, user_id: currentUserId }]);
+        const { error } = await supabase
+          .from("community_comment_likes")
+          .insert({ comment_id: commentId, user_id: currentUserId });
+        if (error) {
+          console.error("Erro ao curtir:", error);
+          if (error.message?.includes("community_comment_likes")) {
+            toast.error(
+              "Coluna/tabela de curtidas ausente. Execute a migração 20260804140000_community_comment_likes.sql no Supabase."
+            );
+          }
+          void fetchLikes();
+        }
+      }
+    },
+    [currentUserId, likes, fetchLikes]
+  );
 
   const filteredRoots = useMemo(() => {
     const now = Date.now();
@@ -887,6 +995,8 @@ export default function Community() {
                   setReplyText={setReplyText}
                   onReplySubmit={handleReplySubmit}
                   submittingReplyTo={submittingReplyTo}
+                  likesByComment={likesByComment}
+                  onToggleLike={toggleLike}
                 />
               ))}
             </div>

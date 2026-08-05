@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { CircleUserRound, LogOut } from "lucide-react";
+import { CircleUserRound, LogOut, Pencil } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
+import { Spinner } from "@/components/ui/spinner";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
@@ -17,6 +18,7 @@ type ProfileUser = {
   email: string;
   createdAt: string | null;
   productCount: number;
+  displayName: string | null;
 };
 
 function ProfileField({ label, value }: { label: string; value: string }) {
@@ -68,12 +70,101 @@ function GuestProfileCTA({ onLogin }: { onLogin: () => void }) {
   );
 }
 
+function DisplayNameField({
+  displayName,
+  onSaved,
+}: {
+  displayName: string | null;
+  onSaved: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(displayName || "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ data: { display_name: trimmed } });
+    setSaving(false);
+    if (error) {
+      console.error("Erro ao salvar nome:", error);
+      return;
+    }
+    setEditing(false);
+    onSaved(trimmed);
+  };
+
+  if (editing) {
+    return (
+      <div>
+        <p
+          className="text-[10px] font-light uppercase tracking-[0.16em] text-bc-primary/70"
+          style={{ fontFamily: sansFont }}
+        >
+          Nome
+        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void save();
+            }}
+            autoFocus
+            disabled={saving}
+            className="h-9 flex-1 rounded-md border border-bc-primary/20 bg-white px-2.5 text-sm text-[#3F3F39] outline-none focus:ring-2 focus:ring-bc-primary/25"
+            style={{ fontFamily: sansFont }}
+          />
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving || !value.trim()}
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-bc-primary px-3 text-xs text-white disabled:opacity-60"
+          >
+            {saving ? <Spinner className="size-3.5 text-white" /> : "Salvar"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div>
+        <p
+          className="text-[10px] font-light uppercase tracking-[0.16em] text-bc-primary/70"
+          style={{ fontFamily: sansFont }}
+        >
+          Nome
+        </p>
+        <p className="mt-0.5 text-sm text-[#3F3F39]" style={{ fontFamily: sansFont, fontWeight: 400 }}>
+          {displayName || "Adicionar nome"}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          setValue(displayName || "");
+          setEditing(true);
+        }}
+        className="shrink-0 rounded-full p-1.5 text-bc-primary/60 transition-colors hover:bg-bc-primary/10 hover:text-bc-primary"
+        aria-label="Editar nome"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function LoggedInProfile({
   user,
   formatMemberSince,
+  onDisplayNameSaved,
 }: {
   user: ProfileUser;
   formatMemberSince: (iso: string | null) => string | null;
+  onDisplayNameSaved: (name: string) => void;
 }) {
   const memberSince = formatMemberSince(user.createdAt);
 
@@ -87,6 +178,7 @@ function LoggedInProfile({
       </h2>
 
       <div className="mt-5 space-y-3 rounded-xl border border-[#e9e9e6] bg-white/60 px-4 py-4 backdrop-blur-sm">
+        <DisplayNameField displayName={user.displayName} onSaved={onDisplayNameSaved} />
         <ProfileField label="E-mail" value={user.email} />
         {memberSince ? <ProfileField label="Membro desde" value={memberSince} /> : null}
         <ProfileField
@@ -137,6 +229,7 @@ export default function Profile() {
         email: data.user.email ?? "—",
         createdAt: data.user.created_at ?? null,
         productCount: purchasesData?.length ?? 0,
+        displayName: (data.user.user_metadata?.display_name as string | undefined)?.trim() || null,
       });
       setLoading(false);
     };
@@ -209,7 +302,11 @@ export default function Profile() {
               }}
             />
           ) : user ? (
-            <LoggedInProfile user={user} formatMemberSince={formatMemberSince} />
+            <LoggedInProfile
+              user={user}
+              formatMemberSince={formatMemberSince}
+              onDisplayNameSaved={(name) => setUser((prev) => (prev ? { ...prev, displayName: name } : prev))}
+            />
           ) : null}
         </div>
 
