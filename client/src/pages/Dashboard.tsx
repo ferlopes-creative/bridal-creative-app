@@ -144,7 +144,7 @@ function SuggestedProductCard({
       >
         {product.name || "Produto"}
       </p>
-      {product.price != null ? (
+      {locked && product.price != null ? (
         <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-0.5" />
       ) : null}
     </article>
@@ -362,9 +362,9 @@ export default function Dashboard() {
     const byId = new Map(products.map((product) => [product.id, product]));
     return colecoesCategory.product_ids
       .map((id) => byId.get(id))
-      .filter((product): product is Product => product != null)
+      .filter((product): product is Product => product != null && !purchasedIds.has(product.id))
       .slice(0, 4);
-  }, [colecoesCategory, products]);
+  }, [colecoesCategory, products, purchasedIds]);
 
   const visibleTestimonials = useMemo(
     () => settings.testimonials_config.filter((testimonial) => testimonial.visible),
@@ -427,7 +427,7 @@ export default function Dashboard() {
             ...bonusProducts.filter((p) => !existingIds.has(p.id)),
           ];
         }
-        if (isSuggestedSection) {
+        if (!isPurchasedSection) {
           sectionProducts = sectionProducts.filter((p) => !purchasedIds.has(p.id));
         }
 

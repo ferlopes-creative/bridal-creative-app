@@ -55,6 +55,8 @@ export default function CategoryProducts() {
             image: item.image ?? null,
             thumbnail_url: item.thumbnail_url ?? null,
             link_compra: item.link_compra ?? item.link ?? null,
+            price: item.price != null ? Number(item.price) : null,
+            promo_price: item.promo_price != null ? Number(item.promo_price) : null,
           }))
         );
       }
@@ -74,8 +76,8 @@ export default function CategoryProducts() {
     const byId = new Map(products.map((product) => [product.id, product]));
     return category.product_ids
       .map((id) => byId.get(id))
-      .filter((product): product is Product => product != null);
-  }, [category, products]);
+      .filter((product): product is Product => product != null && !purchasedIds.has(product.id));
+  }, [category, products, purchasedIds]);
 
   const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
 

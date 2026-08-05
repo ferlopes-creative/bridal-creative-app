@@ -38,18 +38,18 @@ export function ProductPrice({
 }) {
   if (price == null) return null;
   const hasPromo = promoPrice != null && promoPrice < price;
-  const mutedClass = light ? "text-white/60" : "text-bc-primary/50";
-  const strongClass = light ? "text-white" : "text-bc-primary";
+  const mutedClass = light ? "text-white/45" : "text-bc-primary/40";
+  const strongClass = light ? "text-white/80" : "text-bc-primary/75";
 
   return (
-    <p className={`flex items-baseline gap-1.5 ${className}`}>
+    <p className={`flex items-baseline gap-1.5 font-mono font-normal ${className}`}>
       {hasPromo ? (
         <>
           <span className={`text-[10px] line-through ${mutedClass}`}>{formatPriceBRL(price)}</span>
-          <span className={`text-xs font-semibold ${strongClass}`}>{formatPriceBRL(promoPrice!)}</span>
+          <span className={`text-[11px] ${strongClass}`}>{formatPriceBRL(promoPrice!)}</span>
         </>
       ) : (
-        <span className={`text-xs font-semibold ${strongClass}`}>{formatPriceBRL(price)}</span>
+        <span className={`text-[11px] ${strongClass}`}>{formatPriceBRL(price)}</span>
       )}
     </p>
   );
@@ -114,7 +114,7 @@ export function ProductCard({
   ) : null;
 
   const priceBlock =
-    product.price != null ? (
+    showLockedOverlay && product.price != null ? (
       <ProductPrice
         price={product.price}
         promoPrice={product.promo_price}
