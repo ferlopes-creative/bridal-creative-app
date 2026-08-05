@@ -13,7 +13,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import {
   useSiteSettings,
-  resolveAppPageBackground,
+  resolveDashboardBackground,
   resolveHeroBannerMobileUrls,
   resolveHeroBannerDesktopUrls,
 } from "@/contexts/SiteSettingsContext";
@@ -208,7 +208,7 @@ export default function Dashboard() {
   const [weddingDaysLeft, setWeddingDaysLeft] = useState<number | null>(null);
   const guestMode = isGuestMode();
 
-  const pageBgUrl = resolveAppPageBackground(settings);
+  const pageBgUrl = resolveDashboardBackground(settings);
   const logoUrl = settings.logo_url;
   const whatsappUrl = resolveWhatsAppUrl(settings);
   const heroMobileUrls = useMemo(
@@ -234,7 +234,8 @@ export default function Dashboard() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (userData.user) {
-        if (!guestMode && !userData.user.user_metadata?.display_name) {
+        const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
+        if (!guestMode && !registeredName) {
           setShowNamePrompt(true);
         }
 
@@ -254,7 +255,7 @@ export default function Dashboard() {
           .eq("user_id", userData.user.id)
           .maybeSingle();
 
-        setWeddingName(weddingData?.bride_name?.trim() || null);
+        setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
         if (weddingData?.wedding_date) {
           const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
           const target = new Date(y, m - 1, d);
@@ -725,7 +726,13 @@ export default function Dashboard() {
       </div>
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />
-      <DisplayNamePrompt open={showNamePrompt} onSaved={() => setShowNamePrompt(false)} />
+      <DisplayNamePrompt
+        open={showNamePrompt}
+        onSaved={(savedName) => {
+          setShowNamePrompt(false);
+          setWeddingName(savedName);
+        }}
+      />
 
       <WhatsAppSupportButton aboveBottomNav />
       <BottomAppNav />

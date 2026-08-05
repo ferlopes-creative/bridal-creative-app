@@ -7,7 +7,7 @@ import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import { Spinner } from "@/components/ui/spinner";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
-import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveProfileBackground } from "@/contexts/SiteSettingsContext";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
 import { supabase } from "@/lib/supabase";
 
@@ -193,7 +193,7 @@ function LoggedInProfile({
 export default function Profile() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
-  const pageBgUrl = resolveAppPageBackground(settings);
+  const pageBgUrl = resolveProfileBackground(settings);
   const logoUrl = settings.logo_url;
 
   const [loading, setLoading] = useState(true);

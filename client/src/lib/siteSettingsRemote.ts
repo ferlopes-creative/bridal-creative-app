@@ -32,6 +32,10 @@ export type SiteSettingsRow = {
   product_categories_config: ProductCategoryConfig[];
   testimonials_config: TestimonialConfig[];
   testimonials_banner_url: string | null;
+  page_background_dashboard_url: string | null;
+  page_background_profile_url: string | null;
+  page_background_community_url: string | null;
+  page_background_planejamento_url: string | null;
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -102,6 +106,14 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     testimonials_config: parseTestimonialsConfig(data.testimonials_config),
     testimonials_banner_url:
       (data.testimonials_banner_url as string | null | undefined)?.trim() || null,
+    page_background_dashboard_url:
+      (data.page_background_dashboard_url as string | null | undefined)?.trim() || null,
+    page_background_profile_url:
+      (data.page_background_profile_url as string | null | undefined)?.trim() || null,
+    page_background_community_url:
+      (data.page_background_community_url as string | null | undefined)?.trim() || null,
+    page_background_planejamento_url:
+      (data.page_background_planejamento_url as string | null | undefined)?.trim() || null,
   };
 }
 
@@ -150,6 +162,17 @@ export function isWhatsappUrlSchemaError(message: string | undefined): boolean {
 export function isFaviconUrlSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("favicon_url");
+}
+
+export function isPageBackgroundsPerPageError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return (
+    m.includes("page_background_dashboard") ||
+    m.includes("page_background_profile") ||
+    m.includes("page_background_community") ||
+    m.includes("page_background_planejamento") ||
+    m.includes("schema cache")
+  );
 }
 
 export {

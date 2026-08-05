@@ -4,7 +4,7 @@ import { Calculator, CheckSquare, ChevronRight, Heart, Store, Users } from "luci
 import BottomAppNav from "@/components/BottomAppNav";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
-import { resolveAppPageBackground, useSiteSettings } from "@/contexts/SiteSettingsContext";
+import { resolvePlanejamentoBackground, useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { LOGIN_PATH } from "@/lib/authGuard";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
@@ -185,66 +185,61 @@ function GuestEmailGate({ onDone }: { onDone: () => void }) {
 }
 
 /* ============================================================ QUIZ DE ONBOARDING ============================================================ */
-type OnboardStep = {
+type OnboardField = {
   key: "name1" | "name2" | "weddingDate" | "budgetTotal";
   type: "text" | "date" | "number";
   label: string;
   placeholder?: string;
+};
+
+type OnboardStep = {
   title: string;
   blurb: string;
+  fields: OnboardField[];
 };
 
 const ONBOARD_STEPS: OnboardStep[] = [
   {
-    key: "name1",
-    type: "text",
-    label: "Nome da noiva",
-    placeholder: "Ex: Fernanda",
     title: "Bem-vinda!",
     blurb:
-      "Vamos montar seu dashboard de casamento em poucos passos. Começamos com o nome de vocês, pra deixar tudo com a sua cara.",
+      "Vamos montar seu dashboard de casamento em poucos passos. Começamos com os nomes de vocês, pra deixar tudo com a sua cara.",
+    fields: [
+      { key: "name1", type: "text", label: "Seu nome", placeholder: "Ex: Fernanda" },
+      { key: "name2", type: "text", label: "Nome dele/dela", placeholder: "Ex: Daniel" },
+    ],
   },
-  { key: "name2", type: "text", label: "Nome do noivo", placeholder: "Ex: Daniel", title: "E o nome dele?", blurb: "" },
   {
-    key: "weddingDate",
-    type: "date",
-    label: "Data do casamento",
     title: "Quando é o grande dia?",
     blurb:
       "Vamos usar essa data pra montar sua contagem regressiva e organizar o checklist mês a mês, conforme o prazo se aproxima.",
+    fields: [{ key: "weddingDate", type: "date", label: "Data do casamento" }],
   },
   {
-    key: "budgetTotal",
-    type: "number",
-    label: "Orçamento total (R$)",
-    placeholder: "Ex: 68000",
     title: "Qual o orçamento do casamento?",
     blurb: "Conforme você for cadastrando fornecedores e valores pagos, calculamos quanto já foi pago e quanto falta.",
+    fields: [{ key: "budgetTotal", type: "number", label: "Orçamento total (R$)", placeholder: "Ex: 68000" }],
   },
 ];
 
 function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, string>) => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [value, setValue] = useState("");
   const step = ONBOARD_STEPS[stepIndex];
 
-  useEffect(() => {
-    setValue(answers[step.key] || "");
-  }, [stepIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  function setFieldValue(key: string, val: string) {
+    setAnswers((prev) => ({ ...prev, [key]: val }));
+  }
 
   function next() {
-    const trimmed = value.trim();
-    if (!trimmed) {
+    const missing = step.fields.some((f) => !(answers[f.key] || "").trim());
+    if (missing) {
       window.alert("Preenche esse campo pra continuar 🙂");
       return;
     }
-    const nextAnswers = { ...answers, [step.key]: trimmed };
-    setAnswers(nextAnswers);
     if (stepIndex < ONBOARD_STEPS.length - 1) {
       setStepIndex(stepIndex + 1);
     } else {
-      onFinish(nextAnswers);
+      onFinish(answers);
     }
   }
   function back() {
@@ -263,19 +258,21 @@ function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, strin
       </div>
       <h3>{step.title}</h3>
       {step.blurb ? <p className="wp-modal-sub">{step.blurb}</p> : null}
-      <div className="wp-field">
-        <label>{step.label}</label>
-        <input
-          type={step.type}
-          placeholder={step.placeholder || ""}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") next();
-          }}
-          autoFocus
-        />
-      </div>
+      {step.fields.map((field, i) => (
+        <div className="wp-field" key={field.key}>
+          <label>{field.label}</label>
+          <input
+            type={field.type}
+            placeholder={field.placeholder || ""}
+            value={answers[field.key] || ""}
+            onChange={(e) => setFieldValue(field.key, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") next();
+            }}
+            autoFocus={i === 0}
+          />
+        </div>
+      ))}
       <div className="wp-modal-actions">
         <button className="wp-btn-ghost" style={{ visibility: stepIndex === 0 ? "hidden" : "visible" }} onClick={back}>
           Voltar
@@ -292,7 +289,7 @@ function OnboardingQuiz({ onFinish }: { onFinish: (answers: Record<string, strin
 export default function Planejamento() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
-  const pageBgUrl = resolveAppPageBackground(settings);
+  const pageBgUrl = resolvePlanejamentoBackground(settings);
   const [phase, setPhase] = useState<Phase>("loading");
   const [userId, setUserId] = useState<string | null>(null);
   const [view, setView] = useState<DashView>("dashboard");

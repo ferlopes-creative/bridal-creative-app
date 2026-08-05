@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Compass,
   EyeOff,
+  Image,
   LayoutGrid,
   LogOut,
   type LucideIcon,
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
 import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
+import PageBackgroundsEditor from "@/components/admin/PageBackgroundsEditor";
 import ProductCategoriesEditor from "@/components/admin/ProductCategoriesEditor";
 import TestimonialsEditor from "@/components/admin/TestimonialsEditor";
 import BrandLogo from "@/components/BrandLogo";
@@ -48,6 +50,7 @@ import {
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
+  isPageBackgroundsPerPageError,
   isPageBackgroundSplitError,
   isSiteColorsSchemaError,
   isWhatsappUrlSchemaError,
@@ -639,6 +642,11 @@ export default function AdminPage() {
   const [testimonialsConfig, setTestimonialsConfig] = useState<TestimonialConfig[]>([]);
   const [testimonialsBannerUrl, setTestimonialsBannerUrl] = useState<string | null>(null);
   const [testimonialsSaving, setTestimonialsSaving] = useState(false);
+  const [pageBgDashboardUrl, setPageBgDashboardUrl] = useState<string | null>(null);
+  const [pageBgProfileUrl, setPageBgProfileUrl] = useState<string | null>(null);
+  const [pageBgCommunityUrl, setPageBgCommunityUrl] = useState<string | null>(null);
+  const [pageBgPlanejamentoUrl, setPageBgPlanejamentoUrl] = useState<string | null>(null);
+  const [pageBackgroundsSaving, setPageBackgroundsSaving] = useState(false);
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const faviconFileInputRef = useRef<HTMLInputElement>(null);
@@ -950,6 +958,10 @@ export default function AdminPage() {
         setProductCategoriesConfig(row.product_categories_config);
         setTestimonialsConfig(row.testimonials_config);
         setTestimonialsBannerUrl(row.testimonials_banner_url);
+        setPageBgDashboardUrl(row.page_background_dashboard_url);
+        setPageBgProfileUrl(row.page_background_profile_url);
+        setPageBgCommunityUrl(row.page_background_community_url);
+        setPageBgPlanejamentoUrl(row.page_background_planejamento_url);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -1559,6 +1571,34 @@ export default function AdminPage() {
       toast.error("Não foi possível salvar os depoimentos.");
     } finally {
       setTestimonialsSaving(false);
+    }
+  };
+
+  const handleSavePageBackgrounds = async () => {
+    setPageBackgroundsSaving(true);
+    try {
+      const { error } = await supabase.from("site_settings").upsert({
+        id: 1,
+        page_background_dashboard_url: pageBgDashboardUrl,
+        page_background_profile_url: pageBgProfileUrl,
+        page_background_community_url: pageBgCommunityUrl,
+        page_background_planejamento_url: pageBgPlanejamentoUrl,
+        updated_at: new Date().toISOString(),
+      });
+      if (error && isPageBackgroundsPerPageError(error.message)) {
+        toast.error(
+          "Colunas de fundo por página ausentes. Execute a migração 20260804150000_page_backgrounds_per_page.sql no Supabase."
+        );
+        return;
+      }
+      if (error) throw error;
+      await refreshSiteSettings();
+      toast.success("Fundos das páginas salvos.");
+    } catch (error) {
+      console.error("Erro ao salvar fundos das páginas:", error);
+      toast.error("Não foi possível salvar os fundos das páginas.");
+    } finally {
+      setPageBackgroundsSaving(false);
     }
   };
 
@@ -2465,6 +2505,31 @@ export default function AdminPage() {
               saving={testimonialsSaving}
               onSave={() => void handleSaveTestimonials()}
               onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "testimonials")}
+            />
+          )}
+        </AdminSection>
+
+        <AdminSection
+          id="page-backgrounds"
+          icon={Image}
+          title="Fundo por página"
+          description="Defina uma imagem de fundo própria para Início, Perfil, Chat e Planejamento — opcional, sem substituir o fundo padrão do app."
+        >
+          {siteLoading ? (
+            <p className="text-sm text-zinc-500">Carregando…</p>
+          ) : (
+            <PageBackgroundsEditor
+              dashboardUrl={pageBgDashboardUrl}
+              onDashboardChange={setPageBgDashboardUrl}
+              profileUrl={pageBgProfileUrl}
+              onProfileChange={setPageBgProfileUrl}
+              communityUrl={pageBgCommunityUrl}
+              onCommunityChange={setPageBgCommunityUrl}
+              planejamentoUrl={pageBgPlanejamentoUrl}
+              onPlanejamentoChange={setPageBgPlanejamentoUrl}
+              saving={pageBackgroundsSaving}
+              onSave={() => void handleSavePageBackgrounds()}
+              onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "page-backgrounds")}
             />
           )}
         </AdminSection>

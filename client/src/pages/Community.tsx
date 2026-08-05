@@ -22,7 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveCommunityBackground } from "@/contexts/SiteSettingsContext";
 import { safeStorageObjectName } from "@/lib/safeStorageKey";
 import { hasCommunityAccess } from "@/lib/communityAccess";
 
@@ -324,7 +324,7 @@ export default function Community() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
-  const pageBgUrl = resolveAppPageBackground(settings);
+  const pageBgUrl = resolveCommunityBackground(settings);
   const logoUrl = settings.logo_url;
   const [comments, setComments] = useState<ChatComment[]>([]);
   const [likes, setLikes] = useState<{ comment_id: string; user_id: string }[]>([]);
@@ -755,14 +755,14 @@ export default function Community() {
           </button>
         </header>
 
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-bc-primary/15 bg-white p-3">
+        <div className="mb-4 flex items-center justify-between rounded-[2px] border border-bc-primary/15 bg-white p-3">
           <button
             onClick={() => setLocation("/dashboard")}
             className="inline-flex items-center gap-1 text-bc-primary"
             aria-label="Voltar"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span className="text-xl" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-base" style={{ fontFamily: "var(--font-display)" }}>
               Chat
             </span>
           </button>
@@ -790,7 +790,7 @@ export default function Community() {
         )}
 
         {showFilters && (
-          <section className="mb-4 space-y-3 rounded-2xl border border-bc-primary/15 bg-white p-3">
+          <section className="mb-4 space-y-3 rounded-[2px] border border-bc-primary/15 bg-white p-3">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -822,7 +822,7 @@ export default function Community() {
         )}
 
         {!accessLoading && !canOpenCommunity && (
-          <section className="mb-5 rounded-2xl border border-bc-primary/15 bg-white p-4">
+          <section className="mb-5 rounded-[2px] border border-bc-primary/15 bg-white p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-bc-primary/12 p-2">
                 <Lock className="h-5 w-5 text-bc-primary" />
@@ -844,7 +844,7 @@ export default function Community() {
         )}
 
         <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
-          <DialogContent showCloseButton className="max-w-md gap-0 overflow-hidden rounded-2xl border border-bc-primary/15 bg-white p-0">
+          <DialogContent showCloseButton className="max-w-md gap-0 overflow-hidden rounded-[2px] border border-bc-primary/15 bg-white p-0">
             <div className="relative p-4" aria-busy={submitting}>
               <DialogTitle
                 className="mb-3 text-base font-semibold text-bc-primary"
@@ -853,8 +853,8 @@ export default function Community() {
                 Nova publicação
               </DialogTitle>
               {submitting && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/85 backdrop-blur-[2px]">
-                  <div className="flex flex-col items-center gap-2 rounded-xl border border-bc-primary/20 bg-white px-6 py-4 shadow-sm">
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[2px] bg-white/85 backdrop-blur-[2px]">
+                  <div className="flex flex-col items-center gap-2 rounded-[2px] border border-bc-primary/20 bg-white px-6 py-4 shadow-sm">
                     <Spinner className="size-9 text-bc-primary" />
                     <span className="text-xs font-medium tracking-wide text-bc-primary">Enviando comentário...</span>
                   </div>
@@ -944,14 +944,14 @@ export default function Community() {
 
         <section className="space-y-3" aria-busy={loading || accessLoading}>
           {accessLoading && (
-            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-bc-primary/20 bg-white/80 py-10">
+            <div className="flex flex-col items-center justify-center gap-3 rounded-[2px] border border-bc-primary/20 bg-white/80 py-10">
               <Spinner className="size-11 text-bc-primary" />
               <p className="text-sm font-medium text-bc-primary">Verificando acesso ao chat...</p>
             </div>
           )}
           {loading && (
             <div className="space-y-4">
-              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-bc-primary/20 bg-white/80 py-10">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-[2px] border border-bc-primary/20 bg-white/80 py-10">
                 <Spinner className="size-11 text-bc-primary" />
                 <p className="text-sm font-medium text-bc-primary">Carregando mensagens...</p>
                 <p className="max-w-xs text-center text-xs text-bc-primary/70">
@@ -960,7 +960,7 @@ export default function Community() {
               </div>
               <div className="space-y-3">
                 {[1, 2, 3].map((key) => (
-                  <div key={key} className="rounded-2xl border border-bc-primary/20 bg-white/70 p-4">
+                  <div key={key} className="rounded-[2px] border border-bc-primary/20 bg-white/70 p-4">
                     <div className="mb-3 flex items-center gap-2">
                       <Skeleton className="size-8 shrink-0 rounded-full bg-bc-primary/15" />
                       <div className="flex-1 space-y-2">
@@ -980,7 +980,7 @@ export default function Community() {
           )}
 
           {!accessLoading && canOpenCommunity && !loading && filteredRoots.length > 0 && (
-            <div className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-bc-primary/15 bg-white">
+            <div className="divide-y divide-zinc-100 overflow-hidden rounded-[2px] border border-bc-primary/15 bg-white">
               {filteredRoots.map((root) => (
                 <CommentNode
                   key={root.id}

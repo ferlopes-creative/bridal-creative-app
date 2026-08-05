@@ -50,6 +50,10 @@ export type SiteSettings = {
   product_categories_config: ProductCategoryConfig[];
   testimonials_config: TestimonialConfig[];
   testimonials_banner_url: string | null;
+  page_background_dashboard_url: string | null;
+  page_background_profile_url: string | null;
+  page_background_community_url: string | null;
+  page_background_planejamento_url: string | null;
 };
 
 const defaultSettings: SiteSettings = {
@@ -69,6 +73,10 @@ const defaultSettings: SiteSettings = {
   product_categories_config: [],
   testimonials_config: [],
   testimonials_banner_url: null,
+  page_background_dashboard_url: null,
+  page_background_profile_url: null,
+  page_background_community_url: null,
+  page_background_planejamento_url: null,
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -120,6 +128,22 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
       typeof partial.testimonials_banner_url === "string"
         ? partial.testimonials_banner_url
         : defaultSettings.testimonials_banner_url,
+    page_background_dashboard_url:
+      typeof partial.page_background_dashboard_url === "string"
+        ? partial.page_background_dashboard_url
+        : defaultSettings.page_background_dashboard_url,
+    page_background_profile_url:
+      typeof partial.page_background_profile_url === "string"
+        ? partial.page_background_profile_url
+        : defaultSettings.page_background_profile_url,
+    page_background_community_url:
+      typeof partial.page_background_community_url === "string"
+        ? partial.page_background_community_url
+        : defaultSettings.page_background_community_url,
+    page_background_planejamento_url:
+      typeof partial.page_background_planejamento_url === "string"
+        ? partial.page_background_planejamento_url
+        : defaultSettings.page_background_planejamento_url,
     colors: parsedColors,
   };
 }
@@ -175,6 +199,26 @@ export function resolveAppPageBackground(settings: SiteSettings): string | null 
   );
 }
 
+/** Fundo próprio da Início; sem um definido, usa o fundo padrão do app. */
+export function resolveDashboardBackground(settings: SiteSettings): string | null {
+  return settings.page_background_dashboard_url?.trim() || resolveAppPageBackground(settings);
+}
+
+/** Fundo próprio do Perfil; sem um definido, usa o fundo padrão do app. */
+export function resolveProfileBackground(settings: SiteSettings): string | null {
+  return settings.page_background_profile_url?.trim() || resolveAppPageBackground(settings);
+}
+
+/** Fundo próprio do Chat; sem um definido, usa o fundo padrão do app. */
+export function resolveCommunityBackground(settings: SiteSettings): string | null {
+  return settings.page_background_community_url?.trim() || resolveAppPageBackground(settings);
+}
+
+/** Fundo próprio do Planejamento; sem um definido, usa o fundo padrão do app. */
+export function resolvePlanejamentoBackground(settings: SiteSettings): string | null {
+  return settings.page_background_planejamento_url?.trim() || resolveAppPageBackground(settings);
+}
+
 const SiteSettingsContext = createContext<{
   settings: SiteSettings;
   loading: boolean;
@@ -209,6 +253,10 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         product_categories_config: row.product_categories_config,
         testimonials_config: row.testimonials_config,
         testimonials_banner_url: row.testimonials_banner_url,
+        page_background_dashboard_url: row.page_background_dashboard_url,
+        page_background_profile_url: row.page_background_profile_url,
+        page_background_community_url: row.page_background_community_url,
+        page_background_planejamento_url: row.page_background_planejamento_url,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);
