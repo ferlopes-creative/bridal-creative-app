@@ -9,6 +9,7 @@ import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { ProductList, ProductPrice, type Product } from "@/components/ProductGrid";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import {
@@ -17,7 +18,6 @@ import {
   resolveHeroBannerMobileUrls,
   resolveHeroBannerDesktopUrls,
 } from "@/contexts/SiteSettingsContext";
-import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
@@ -200,10 +200,8 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { settings, refresh: refreshSiteSettings } = useSiteSettings();
   const { hasUnread } = useNotificationBellBadge();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
-  const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, purchasedIds, kitBonusRows, ready } = useAppData();
+  const loading = !ready;
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
@@ -233,79 +231,39 @@ export default function Dashboard() {
   const openProduct = (id: string) => setLocation(`/dashboard/product/${id}`);
 
   useEffect(() => {
-    const loadProducts = async () => {
-      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
-        supabase.from("products").select("*").order("name", { ascending: true }),
-      ]);
+    const loadWeddingInfo = async () => {
+      const { data: userData } = await supabase.auth.getUser();
 
-      setKitBonusRows(kbData ? (kbData as KitBonusRow[]) : []);
-
-      if (error) {
-        console.error("Erro ao carregar dashboard/products:", error);
-      } else if (data) {
-        setProducts(
-          data.map((item: any) => ({
-            id: item.id,
-            name: item.name ?? item.title ?? "Produto",
-            description: item.description ?? item.descricao ?? null,
-            type: (item.type ?? item.tipo ?? "PRO") as "PRO" | "BON" | string,
-            image_url: item.image_url ?? item.image ?? null,
-            image: item.image ?? null,
-            thumbnail_url: item.thumbnail_url ?? null,
-            video_url: item.video_url ?? item.video ?? null,
-            link_compra: item.link_compra ?? item.link ?? null,
-            is_hidden: item.is_hidden === true,
-            price: item.price != null ? Number(item.price) : null,
-            promo_price: item.promo_price != null ? Number(item.promo_price) : null,
-          }))
-        );
-      }
-
-      if (userData.user) {
-        const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
-        if (!guestMode && !registeredName) {
-          setShowNamePrompt(true);
-        }
-
-        const [{ data: purchasesData }, { data: weddingData }] = await Promise.all([
-          supabase
-            .from("purchases")
-            .select("product_id, status")
-            .eq("user_id", userData.user.id)
-            .eq("status", "active"),
-          supabase
-            .from("wedding_details")
-            .select("bride_name, wedding_date")
-            .eq("user_id", userData.user.id)
-            .maybeSingle(),
-        ]);
-
-        if (purchasesData) {
-          setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
-        }
-
-        setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
-        if (weddingData?.wedding_date) {
-          const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
-          const target = new Date(y, m - 1, d);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
-        } else {
-          setWeddingDaysLeft(null);
-        }
-      } else {
-        setPurchasedIds(new Set());
+      if (!userData.user) {
         setWeddingName(null);
         setWeddingDaysLeft(null);
+        return;
       }
 
-      setLoading(false);
+      const registeredName = (userData.user.user_metadata?.display_name as string | undefined)?.trim();
+      if (!guestMode && !registeredName) {
+        setShowNamePrompt(true);
+      }
+
+      const { data: weddingData } = await supabase
+        .from("wedding_details")
+        .select("bride_name, wedding_date")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+
+      setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
+      if (weddingData?.wedding_date) {
+        const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
+        const target = new Date(y, m - 1, d);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
+      } else {
+        setWeddingDaysLeft(null);
+      }
     };
 
-    loadProducts();
+    loadWeddingInfo();
   }, []);
 
   useEffect(() => {

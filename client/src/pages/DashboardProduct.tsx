@@ -5,8 +5,8 @@ import BrandLogo from "@/components/BrandLogo";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import ProductView from "@/components/ProductView";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
-import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
 import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { supabase } from "@/lib/supabase";
@@ -40,10 +40,9 @@ export default function DashboardProduct() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
   const [match, params] = useRoute("/dashboard/product/:id");
+  const { purchasedIds, kitBonusRows, ready: appDataReady } = useAppData();
   const [product, setProduct] = useState<Product | null>(null);
-  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
-  const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [productLoading, setProductLoading] = useState(true);
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
@@ -56,25 +55,9 @@ export default function DashboardProduct() {
       }
 
       const productId = decodeURIComponent(String(params.id)).trim();
+      setProductLoading(true);
 
-      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
-        supabase.from("products").select("*").eq("id", productId).maybeSingle(),
-      ]);
-
-      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
-
-      if (userData.user) {
-        const { data: purchasesData } = await supabase
-          .from("purchases")
-          .select("product_id, status")
-          .eq("user_id", userData.user.id)
-          .eq("status", "active");
-        if (purchasesData) {
-          setPurchasedIds(new Set(purchasesData.map((p) => p.product_id)));
-        }
-      }
+      const { data, error } = await supabase.from("products").select("*").eq("id", productId).maybeSingle();
 
       if (error) {
         console.error("DashboardProduct / products:", error.message, error);
@@ -106,13 +89,16 @@ export default function DashboardProduct() {
           price: item.price != null ? Number(item.price) : null,
           promo_price: item.promo_price != null ? Number(item.promo_price) : null,
         });
+      } else {
+        setProduct(null);
       }
-      setLoading(false);
+      setProductLoading(false);
     };
 
     loadProduct();
   }, [match, params?.id]);
 
+  const loading = productLoading || !appDataReady;
   const canAccess = product ? canAccessProduct(product, purchasedIds, kitBonusRows) : false;
   const productUnavailable =
     product != null && !isVisibleInCatalog(product, canAccess);

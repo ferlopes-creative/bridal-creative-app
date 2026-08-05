@@ -11,6 +11,7 @@ import RequireAuth from "./components/RequireAuth";
 import RequireAppAccess from "./components/RequireAppAccess";
 import SplashIntro from "./components/SplashIntro";
 import { AppAccessProvider } from "./contexts/AppAccessContext";
+import { AppDataProvider } from "./contexts/AppDataContext";
 import { CommunityAccessProvider } from "./contexts/CommunityAccessContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Login from "./pages/Login";
@@ -131,16 +132,18 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <SiteSettingsProvider>
           <AppAccessProvider>
-            <CommunityAccessProvider>
-              <TooltipProvider>
-                <div className="min-h-screen w-full bg-background">
-                  <Router />
-                  <Toaster />
-                  <InstallPrompt />
-                  <SplashIntro onFinished={prefetchRoutes} />
-                </div>
-              </TooltipProvider>
-            </CommunityAccessProvider>
+            <AppDataProvider>
+              <CommunityAccessProvider>
+                <TooltipProvider>
+                  <div className="min-h-screen w-full bg-background">
+                    <Router />
+                    <Toaster />
+                    <InstallPrompt />
+                    <SplashIntro onFinished={prefetchRoutes} />
+                  </div>
+                </TooltipProvider>
+              </CommunityAccessProvider>
+            </AppDataProvider>
           </AppAccessProvider>
         </SiteSettingsProvider>
       </ThemeProvider>

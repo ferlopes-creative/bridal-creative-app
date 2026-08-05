@@ -1,70 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
 import BrandLogo from "@/components/BrandLogo";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
 import { ProductList, type Product } from "@/components/ProductGrid";
+import { useAppData } from "@/contexts/AppDataContext";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
-import type { KitBonusRow } from "@/lib/kitBonus";
 import { canAccessProduct } from "@/lib/productAccess";
-import { supabase } from "@/lib/supabase";
 
 export default function CategoryProducts() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/dashboard/categoria/:id");
   const { settings } = useSiteSettings();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
-  const [kitBonusRows, setKitBonusRows] = useState<KitBonusRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, purchasedIds, kitBonusRows, ready } = useAppData();
 
   const pageBgUrl = resolveAppPageBackground(settings);
   const logoUrl = settings.logo_url;
-
-  useEffect(() => {
-    const load = async () => {
-      const [{ data: userData }, { data: kbData }, { data, error }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.from("kit_bonus_products").select("kit_product_id, bonus_product_id"),
-        supabase.from("products").select("*").order("name", { ascending: true }),
-      ]);
-
-      if (kbData) setKitBonusRows(kbData as KitBonusRow[]);
-
-      if (userData.user) {
-        const { data: purchasesData } = await supabase
-          .from("purchases")
-          .select("product_id, status")
-          .eq("user_id", userData.user.id)
-          .eq("status", "active");
-        if (purchasesData) {
-          setPurchasedIds(new Set(purchasesData.map((item) => item.product_id)));
-        }
-      }
-
-      if (error) {
-        console.error("CategoryProducts / products:", error.message, error);
-      } else if (data) {
-        setProducts(
-          data.map((item: any) => ({
-            id: item.id,
-            name: item.name ?? item.title ?? "Produto",
-            type: (item.type ?? item.tipo ?? "PRO") as "PRO" | "BON" | string,
-            image_url: item.image_url ?? item.image ?? null,
-            image: item.image ?? null,
-            thumbnail_url: item.thumbnail_url ?? null,
-            link_compra: item.link_compra ?? item.link ?? null,
-            price: item.price != null ? Number(item.price) : null,
-            promo_price: item.promo_price != null ? Number(item.promo_price) : null,
-          }))
-        );
-      }
-      setLoading(false);
-    };
-
-    void load();
-  }, []);
 
   const category = useMemo(
     () => settings.product_categories_config.find((item) => item.id === params?.id) ?? null,
@@ -86,7 +38,7 @@ export default function CategoryProducts() {
     return null;
   }
 
-  if (loading) {
+  if (!ready) {
     return (
       <div className="relative min-h-screen bg-bc-page-bg">
         <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
