@@ -8,8 +8,7 @@ import {
   Filter,
   ImagePlus,
   Lock,
-  MessageCirclePlus,
-  MessageSquareText,
+  Plus,
   Reply,
   X,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useSiteSettings, resolveAppPageBackground } from "@/contexts/SiteSettingsContext";
@@ -153,22 +153,16 @@ function CommentNode({
   ) : null;
 
   const authorBlock = (
-    <div className="mb-2 flex min-w-0 items-start gap-2">
-      <CircleUserRound
-        className={`shrink-0 text-bc-primary ${isRoot ? "h-9 w-9" : "h-7 w-7"}`}
-      />
+    <div className="mb-1.5 flex min-w-0 items-center gap-2">
+      <CircleUserRound className={`shrink-0 text-bc-primary/70 ${isRoot ? "h-9 w-9" : "h-7 w-7"}`} strokeWidth={1.5} />
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
           <p className="text-sm font-semibold break-words text-zinc-900 [overflow-wrap:anywhere] [word-break:break-word]">
             {item.name}
           </p>
-          {!isRoot && (
-            <span className="inline-flex items-center rounded-full bg-bc-primary/12 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-[#4e563f]">
-              Resposta
-            </span>
-          )}
+          <span className="text-xs text-zinc-400">·</span>
+          <p className="text-xs text-zinc-400">{formatTime(item.created_at)}</p>
         </div>
-        <p className="text-xs text-zinc-500">{formatTime(item.created_at)}</p>
       </div>
     </div>
   );
@@ -176,7 +170,7 @@ function CommentNode({
   const bodyBlock = (
     <>
       {item.image_url && (
-        <div className="mb-2 overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
+        <div className="mb-2 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
           <img
             src={item.image_url}
             alt={`Imagem enviada por ${item.name}`}
@@ -187,7 +181,7 @@ function CommentNode({
       <p className="min-w-0 max-w-full whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-700 [overflow-wrap:anywhere] [word-break:break-word]">
         {item.comment}
       </p>
-      <div className="mt-3 flex justify-end border-t border-bc-primary/10 pt-2">
+      <div className="mt-2 flex items-center gap-4">
         <button
           type="button"
           onClick={() => {
@@ -199,7 +193,7 @@ function CommentNode({
               setReplyText("");
             }
           }}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-bc-primary transition-colors hover:bg-bc-primary/12"
+          className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-bc-primary/10 hover:text-bc-primary"
         >
           <Reply className="h-3.5 w-3.5" strokeWidth={2} />
           Responder
@@ -210,71 +204,50 @@ function CommentNode({
 
   if (isRoot) {
     return (
-      <div className="mb-4 overflow-hidden rounded-2xl border border-bc-primary/35 bg-white shadow-md ring-1 ring-black/[0.04]">
-        <div className="border-b border-bc-primary/12 bg-gradient-to-b from-white to-[#faf9f6] px-3 py-3 md:px-4 md:py-4">
-          <div className="mb-2 flex items-center gap-2 text-bc-primary">
-            <MessageSquareText className="h-4 w-4 shrink-0 opacity-90" strokeWidth={2} />
-            <span className="text-[11px] font-semibold tracking-[0.12em] uppercase">Publicação</span>
-          </div>
+      <div>
+        <div className="px-4 py-3">
           {authorBlock}
           {bodyBlock}
         </div>
 
-        {replyForm && <div className="border-b border-bc-primary/12 bg-[#f7f6f2] px-3 py-3 md:px-4">{replyForm}</div>}
+        {replyForm && <div className="border-t border-zinc-100 bg-[#fafbf8] px-4 py-3">{replyForm}</div>}
 
         {replies.length > 0 && (
-          <div className="bg-[#eef0e8]/90">
+          <div className="border-t border-zinc-100 px-4">
             <button
               type="button"
               onClick={() => setThreadOpen((o) => !o)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-bc-primary/10 md:px-4"
+              className="flex w-full items-center gap-1.5 py-2.5 text-left text-xs font-medium text-bc-primary transition-colors hover:text-bc-primary/80"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-bc-primary/20">
-                {threadOpen ? (
-                  <ChevronDown className="h-4 w-4 text-bc-primary" strokeWidth={2.5} />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-bc-primary" strokeWidth={2.5} />
-                )}
-              </span>
-              <span className="min-w-0 flex-1 text-sm font-semibold text-[#4a5342]">
-                {threadOpen ? "Ocultar respostas" : "Ver respostas"}
-                <span className="ml-2 font-normal text-zinc-500">
-                  ({replyCountTotal} {replyCountTotal === 1 ? "resposta" : "respostas"})
-                </span>
+              {threadOpen ? (
+                <ChevronDown className="h-3.5 w-3.5" strokeWidth={2.5} />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+              )}
+              {threadOpen ? "Ocultar respostas" : "Ver respostas"}
+              <span className="font-normal text-zinc-400">
+                ({replyCountTotal})
               </span>
             </button>
 
             {threadOpen && (
-              <div className="border-t border-bc-primary/15 bg-[#e8eae3]/65 px-3 pb-4 pt-1 md:px-4">
-                <p className="mb-3 mt-2 flex items-center gap-2 text-[11px] font-semibold tracking-wide text-bc-primary">
-                  <span className="h-px flex-1 bg-bc-primary/25" aria-hidden />
-                  <span className="shrink-0 uppercase">Na mesma conversa</span>
-                  <span className="h-px flex-1 bg-bc-primary/25" aria-hidden />
-                </p>
-                <div className="relative pl-2">
-                  <div
-                    className="absolute top-1 bottom-1 left-[11px] w-[3px] rounded-full bg-[#8f9a82]/50"
-                    aria-hidden
+              <div className="space-y-3 pb-3">
+                {replies.map((r) => (
+                  <CommentNode
+                    key={r.id}
+                    item={r}
+                    depth={1}
+                    repliesByParent={repliesByParent}
+                    formatTime={formatTime}
+                    nameForReply={nameForReply}
+                    replyingToId={replyingToId}
+                    setReplyingToId={setReplyingToId}
+                    replyText={replyText}
+                    setReplyText={setReplyText}
+                    onReplySubmit={onReplySubmit}
+                    submittingReplyTo={submittingReplyTo}
                   />
-                  <div className="relative space-y-3 pl-6">
-                    {replies.map((r) => (
-                      <CommentNode
-                        key={r.id}
-                        item={r}
-                        depth={1}
-                        repliesByParent={repliesByParent}
-                        formatTime={formatTime}
-                        nameForReply={nameForReply}
-                        replyingToId={replyingToId}
-                        setReplyingToId={setReplyingToId}
-                        replyText={replyText}
-                        setReplyText={setReplyText}
-                        onReplySubmit={onReplySubmit}
-                        submittingReplyTo={submittingReplyTo}
-                      />
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
             )}
           </div>
@@ -284,36 +257,34 @@ function CommentNode({
   }
 
   return (
-    <div className={depth >= 2 ? "relative border-l-2 border-[#b8c4a8]/90 pl-3" : "relative"}>
-      <article
-        className={`w-full min-w-0 max-w-full overflow-x-hidden rounded-xl border p-3 shadow-sm ${
-          depth === 1
-            ? "border-[#8f9a82]/50 bg-white ring-1 ring-bc-primary/15"
-            : "border-bc-primary/25 bg-[#fcfcfa] ring-1 ring-black/[0.03]"
-        }`}
-      >
+    <div className="relative border-l-2 border-zinc-100 pl-3">
+      <article className="w-full min-w-0 max-w-full overflow-x-hidden">
         {authorBlock}
         {bodyBlock}
       </article>
 
       {replyForm && <div className="mt-2">{replyForm}</div>}
 
-      {replies.map((r) => (
-        <CommentNode
-          key={r.id}
-          item={r}
-          depth={depth + 1}
-          repliesByParent={repliesByParent}
-          formatTime={formatTime}
-          nameForReply={nameForReply}
-          replyingToId={replyingToId}
-          setReplyingToId={setReplyingToId}
-          replyText={replyText}
-          setReplyText={setReplyText}
-          onReplySubmit={onReplySubmit}
-          submittingReplyTo={submittingReplyTo}
-        />
-      ))}
+      {replies.length > 0 && (
+        <div className="mt-3 space-y-3">
+          {replies.map((r) => (
+            <CommentNode
+              key={r.id}
+              item={r}
+              depth={depth + 1}
+              repliesByParent={repliesByParent}
+              formatTime={formatTime}
+              nameForReply={nameForReply}
+              replyingToId={replyingToId}
+              setReplyingToId={setReplyingToId}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              onReplySubmit={onReplySubmit}
+              submittingReplyTo={submittingReplyTo}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -330,6 +301,7 @@ export default function Community() {
   const [canOpenCommunity, setCanOpenCommunity] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
   const [name, setName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -637,6 +609,7 @@ export default function Community() {
     setCommentText("");
     clearChosenImage();
     setSubmitting(false);
+    setComposeOpen(false);
     toast.success("Comentário enviado.");
   };
 
@@ -674,7 +647,7 @@ export default function Community() {
           </button>
         </header>
 
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-bc-primary/40 bg-white/70 p-3">
+        <div className="mb-4 flex items-center justify-between rounded-2xl border border-bc-primary/15 bg-white p-3">
           <button
             onClick={() => setLocation("/dashboard")}
             className="inline-flex items-center gap-1 text-bc-primary"
@@ -690,7 +663,7 @@ export default function Community() {
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
             disabled={loading}
-            className="inline-flex items-center gap-1 rounded-md border border-bc-primary/40 px-3 py-1 text-sm text-bc-primary disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full border border-bc-primary/25 px-3 py-1 text-sm text-bc-primary disabled:opacity-50"
           >
             <Filter className="h-4 w-4" />
             Filtrar
@@ -699,7 +672,7 @@ export default function Community() {
 
         {refreshing && (
           <div
-            className="mb-3 flex items-center gap-2 rounded-lg border border-bc-primary/25 bg-white/90 px-3 py-2 text-xs text-bc-primary"
+            className="mb-3 flex items-center gap-2 rounded-lg border border-bc-primary/15 bg-white px-3 py-2 text-xs text-bc-primary"
             role="status"
             aria-live="polite"
           >
@@ -709,7 +682,7 @@ export default function Community() {
         )}
 
         {showFilters && (
-          <section className="mb-4 space-y-3 rounded-2xl border border-bc-primary/35 bg-white/75 p-3">
+          <section className="mb-4 space-y-3 rounded-2xl border border-bc-primary/15 bg-white p-3">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -741,7 +714,7 @@ export default function Community() {
         )}
 
         {!accessLoading && !canOpenCommunity && (
-          <section className="mb-5 rounded-2xl border border-bc-primary/35 bg-white/90 p-4">
+          <section className="mb-5 rounded-2xl border border-bc-primary/15 bg-white p-4">
             <div className="flex items-start gap-3">
               <div className="rounded-full bg-bc-primary/12 p-2">
                 <Lock className="h-5 w-5 text-bc-primary" />
@@ -762,98 +735,104 @@ export default function Community() {
           </section>
         )}
 
-        {canOpenCommunity && (
-          <section
-            className="relative mb-5 rounded-2xl border border-bc-primary/35 bg-white/75 p-3"
-            aria-busy={submitting || loading}
-          >
-          <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
-            {submitting && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/75 backdrop-blur-[2px]">
-                <div className="flex flex-col items-center gap-2 rounded-xl border border-bc-primary/20 bg-white px-6 py-4 shadow-sm">
-                  <Spinner className="size-9 text-bc-primary" />
-                  <span className="text-xs font-medium tracking-wide text-bc-primary">Enviando comentário...</span>
+        <Dialog open={composeOpen} onOpenChange={setComposeOpen}>
+          <DialogContent showCloseButton className="max-w-md gap-0 overflow-hidden rounded-2xl border border-bc-primary/15 bg-white p-0">
+            <div className="relative p-4" aria-busy={submitting}>
+              <DialogTitle
+                className="mb-3 text-base font-semibold text-bc-primary"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Nova publicação
+              </DialogTitle>
+              {submitting && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/85 backdrop-blur-[2px]">
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-bc-primary/20 bg-white px-6 py-4 shadow-sm">
+                    <Spinner className="size-9 text-bc-primary" />
+                    <span className="text-xs font-medium tracking-wide text-bc-primary">Enviando comentário...</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            <div>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => persistDisplayName(name)}
-                placeholder="Nome"
-                disabled={loading || submitting}
-                autoComplete="name"
-                className="h-10 w-full rounded-md border border-[#d7d9d2] bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
-              />
-              <p className="mt-1 text-[11px] text-zinc-500">
-                Guardado neste dispositivo para não precisar repetir; pode alterar quando quiser.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <input
-                id="community-chat-image"
-                ref={imageInputRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={onImageFileChange}
-                disabled={loading || submitting}
-              />
-              {!imagePreviewUrl ? (
-                <button
-                  type="button"
-                  disabled={loading || submitting}
-                  onClick={() => imageInputRef.current?.click()}
-                  aria-controls="community-chat-image"
-                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-dashed border-[#b8baa8] bg-white px-3 text-sm text-bc-primary transition-colors hover:border-bc-primary/50 hover:bg-bc-primary/5 disabled:bg-zinc-50"
-                >
-                  <ImagePlus className="h-4 w-4 shrink-0 opacity-90" strokeWidth={1.5} />
-                  Adicionar foto (opcional)
-                </button>
-              ) : (
-                <div className="relative overflow-hidden rounded-md border border-[#d7d9d2] bg-zinc-50">
-                  <img src={imagePreviewUrl} alt="" className="max-h-40 w-full object-contain" />
-                  <button
-                    type="button"
-                    onClick={clearChosenImage}
+              )}
+              <form onSubmit={handleSubmit} className={`space-y-3 ${submitting ? "pointer-events-none" : ""}`}>
+                <div>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => persistDisplayName(name)}
+                    placeholder="Nome"
                     disabled={loading || submitting}
-                    className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-bc-primary shadow-sm ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
-                    aria-label="Remover imagem"
-                  >
-                    <X className="h-4 w-4" strokeWidth={2} />
-                  </button>
-                  <p className="border-t border-[#e8e8e3] bg-white px-3 py-2 text-[11px] text-zinc-500">
-                    Foto será enviada ao publicar o comentário.
+                    autoComplete="name"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
+                  />
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    Guardado neste dispositivo para não precisar repetir; pode alterar quando quiser.
                   </p>
                 </div>
-              )}
+                <div className="space-y-2">
+                  <input
+                    id="community-chat-image"
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={onImageFileChange}
+                    disabled={loading || submitting}
+                  />
+                  {!imagePreviewUrl ? (
+                    <button
+                      type="button"
+                      disabled={loading || submitting}
+                      onClick={() => imageInputRef.current?.click()}
+                      aria-controls="community-chat-image"
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-dashed border-zinc-300 bg-white px-3 text-sm text-bc-primary transition-colors hover:border-bc-primary/50 hover:bg-bc-primary/5 disabled:bg-zinc-50"
+                    >
+                      <ImagePlus className="h-4 w-4 shrink-0 opacity-90" strokeWidth={1.5} />
+                      Adicionar foto (opcional)
+                    </button>
+                  ) : (
+                    <div className="relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+                      <img src={imagePreviewUrl} alt="" className="max-h-40 w-full object-contain" />
+                      <button
+                        type="button"
+                        onClick={clearChosenImage}
+                        disabled={loading || submitting}
+                        className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-bc-primary shadow-sm ring-1 ring-black/5 hover:bg-white disabled:opacity-50"
+                        aria-label="Remover imagem"
+                      >
+                        <X className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                      <p className="border-t border-zinc-100 bg-white px-3 py-2 text-[11px] text-zinc-500">
+                        Foto será enviada ao publicar o comentário.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Nova postagem"
+                  disabled={loading || submitting}
+                  autoFocus
+                  className="min-h-22 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
+                />
+                <button
+                  type="submit"
+                  disabled={submitting || loading}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-bc-primary px-4 text-sm tracking-wide text-white disabled:opacity-70"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {submitting ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Publicar"
+                  )}
+                </button>
+              </form>
             </div>
-            <textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Nova postagem"
-              disabled={loading || submitting}
-              className="min-h-22 w-full rounded-md border border-[#d7d9d2] bg-white px-3 py-2 text-sm text-[#4c4f46] outline-none focus:ring-2 focus:ring-bc-primary/25 disabled:bg-zinc-50"
-            />
-            <button
-              type="submit"
-              disabled={submitting || loading}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-bc-primary px-4 text-sm tracking-wide text-white disabled:opacity-70 sm:w-auto"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              {submitting ? (
-                <>
-                  <Spinner className="size-4 text-white" />
-                  Enviando...
-                </>
-              ) : (
-                "Publicar"
-              )}
-            </button>
-          </form>
-          </section>
-        )}
+          </DialogContent>
+        </Dialog>
 
         <section className="space-y-3" aria-busy={loading || accessLoading}>
           {accessLoading && (
@@ -892,36 +871,37 @@ export default function Community() {
             <p className="text-sm text-bc-primary">Sem comentários para os filtros selecionados.</p>
           )}
 
-          {!accessLoading &&
-            canOpenCommunity &&
-            !loading &&
-            filteredRoots.map((root) => (
-              <CommentNode
-                key={root.id}
-                item={root}
-                depth={0}
-                repliesByParent={repliesByParent}
-                formatTime={formatTime}
-                nameForReply={name}
-                replyingToId={replyingToId}
-                setReplyingToId={setReplyingToId}
-                replyText={replyText}
-                setReplyText={setReplyText}
-                onReplySubmit={handleReplySubmit}
-                submittingReplyTo={submittingReplyTo}
-              />
-            ))}
+          {!accessLoading && canOpenCommunity && !loading && filteredRoots.length > 0 && (
+            <div className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-bc-primary/15 bg-white">
+              {filteredRoots.map((root) => (
+                <CommentNode
+                  key={root.id}
+                  item={root}
+                  depth={0}
+                  repliesByParent={repliesByParent}
+                  formatTime={formatTime}
+                  nameForReply={name}
+                  replyingToId={replyingToId}
+                  setReplyingToId={setReplyingToId}
+                  replyText={replyText}
+                  setReplyText={setReplyText}
+                  onReplySubmit={handleReplySubmit}
+                  submittingReplyTo={submittingReplyTo}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {canOpenCommunity && (
           <button
             type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border border-bc-primary/35 bg-white text-bc-primary shadow-md md:right-6"
+            onClick={() => setComposeOpen(true)}
+            className="fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-bc-primary text-white shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.97] md:right-6"
             style={{ bottom: "max(6.25rem, calc(5.5rem + env(safe-area-inset-bottom)))" }}
-            aria-label="Subir ao formulário"
+            aria-label="Nova publicação"
           >
-            <MessageCirclePlus className="h-5 w-5" />
+            <Plus className="h-6 w-6" strokeWidth={2.5} />
           </button>
         )}
       </div>
