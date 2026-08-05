@@ -13,10 +13,47 @@ export type Product = {
   video_url?: string | null;
   link_compra?: string | null;
   is_hidden?: boolean | null;
+  price?: number | null;
+  promo_price?: number | null;
 };
 
 const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
 const cardWrapLarge = "min-w-[136px] w-[36vw] max-w-[160px] shrink-0 snap-start";
+
+function formatPriceBRL(value: number): string {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function ProductPrice({
+  price,
+  promoPrice,
+  className = "",
+  light = false,
+}: {
+  price?: number | null;
+  promoPrice?: number | null;
+  className?: string;
+  /** Texto claro, pra usar sobre fundos escuros/coloridos. */
+  light?: boolean;
+}) {
+  if (price == null) return null;
+  const hasPromo = promoPrice != null && promoPrice < price;
+  const mutedClass = light ? "text-white/60" : "text-bc-primary/50";
+  const strongClass = light ? "text-white" : "text-bc-primary";
+
+  return (
+    <p className={`flex items-baseline gap-1.5 ${className}`}>
+      {hasPromo ? (
+        <>
+          <span className={`text-[10px] line-through ${mutedClass}`}>{formatPriceBRL(price)}</span>
+          <span className={`text-xs font-semibold ${strongClass}`}>{formatPriceBRL(promoPrice!)}</span>
+        </>
+      ) : (
+        <span className={`text-xs font-semibold ${strongClass}`}>{formatPriceBRL(price)}</span>
+      )}
+    </p>
+  );
+}
 
 export function ProductCard({
   product,
@@ -74,6 +111,16 @@ export function ProductCard({
     </h3>
   ) : null;
 
+  const priceBlock =
+    showLockedOverlay && product.price != null ? (
+      <ProductPrice
+        price={product.price}
+        promoPrice={product.promo_price}
+        className="mt-1 justify-center"
+        light
+      />
+    ) : null;
+
   if (!showFrame) {
     return (
       <article
@@ -112,6 +159,7 @@ export function ProductCard({
       </div>
 
       {title}
+      {priceBlock}
     </article>
   );
 }

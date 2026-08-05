@@ -6,7 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
-import { ProductList, type Product } from "@/components/ProductGrid";
+import { ProductList, ProductPrice, type Product } from "@/components/ProductGrid";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -144,6 +144,9 @@ function SuggestedProductCard({
       >
         {product.name || "Produto"}
       </p>
+      {locked && product.price != null ? (
+        <ProductPrice price={product.price} promoPrice={product.promo_price} className="mt-0.5" />
+      ) : null}
     </article>
   );
 }
@@ -297,6 +300,8 @@ export default function Dashboard() {
             video_url: item.video_url ?? item.video ?? null,
             link_compra: item.link_compra ?? item.link ?? null,
             is_hidden: item.is_hidden === true,
+            price: item.price != null ? Number(item.price) : null,
+            promo_price: item.promo_price != null ? Number(item.promo_price) : null,
           }))
         );
       }

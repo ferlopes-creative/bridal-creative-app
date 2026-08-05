@@ -109,6 +109,8 @@ type Product = {
   hotmart_sales_id?: string | null;
   is_hidden?: boolean | null;
   is_wedding_planning_premium?: boolean | null;
+  price?: number | null;
+  promo_price?: number | null;
 };
 
 /** Texto visível do HTML; vazio se for só markup vazio (ex. `<p></p>` do TipTap ao abrir). */
@@ -185,6 +187,11 @@ function isMissingHotmartSalesIdColumnError(err: unknown): boolean {
 function isMissingIsHiddenColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("is_hidden");
+}
+
+function isMissingPriceColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("'price'") || m.includes(".price") || m.includes("promo_price");
 }
 
 function isMissingWeddingPlanningPremiumColumnError(err: unknown): boolean {
@@ -495,6 +502,101 @@ function WeddingPlanningPremiumSection({
   );
 }
 
+const ADMIN_SHORTCUTS: { id: string; icon: LucideIcon; label: string }[] = [
+  { id: "catalog", icon: LayoutGrid, label: "Catálogo de produtos" },
+  { id: "dashboard-layout", icon: Rows3, label: "Seções do dashboard" },
+  { id: "product-categories", icon: Compass, label: "Atalhos Explore" },
+  { id: "testimonials", icon: Quote, label: "Depoimentos" },
+  { id: "appearance", icon: Palette, label: "Aparência do app" },
+  { id: "page-backgrounds", icon: Image, label: "Fundo por página" },
+  { id: "registered-users", icon: Users, label: "Usuárias cadastradas" },
+  { id: "wedding-planning", icon: CalendarHeart, label: "Planejamento Premium" },
+  { id: "kit-bonus", icon: Package, label: "Bônus por kit" },
+  { id: "notifications", icon: Bell, label: "Notificações" },
+  { id: "legacy-access", icon: UserCheck, label: "Compradores antigos" },
+];
+
+/** Abre (se estiver fechada) e rola até a seção correspondente do accordion. */
+function scrollToAdminSection(id: string) {
+  const heading = document.getElementById(`${id}-heading`);
+  if (!heading) return;
+  if (heading.getAttribute("aria-expanded") === "false") {
+    heading.click();
+  }
+  requestAnimationFrame(() => {
+    heading.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+/** Visão geral no topo do Admin: números principais do app + atalhos pra cada seção,
+ * pra não depender de rolar por uma lista longa de blocos pra achar o que precisa. */
+function AdminOverview({
+  productsCount,
+  categoriesCount,
+  testimonialsCount,
+}: {
+  productsCount: number;
+  categoriesCount: number;
+  testimonialsCount: number;
+}) {
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [activeCustomers, setActiveCustomers] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const [totalRes, purchasesRes] = await Promise.all([
+        supabase.rpc("count_registered_users"),
+        supabase.from("purchases").select("user_id").eq("status", "active"),
+      ]);
+      setTotalUsers(!totalRes.error && typeof totalRes.data === "number" ? totalRes.data : null);
+      if (!purchasesRes.error && purchasesRes.data) {
+        setActiveCustomers(new Set(purchasesRes.data.map((p) => String(p.user_id))).size);
+      }
+    };
+    void load();
+  }, []);
+
+  const stats: { label: string; value: number | null }[] = [
+    { label: "Usuárias cadastradas", value: totalUsers },
+    { label: "Clientes ativas", value: activeCustomers },
+    { label: "Produtos no catálogo", value: productsCount },
+    { label: "Atalhos Explore", value: categoriesCount },
+    { label: "Depoimentos", value: testimonialsCount },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-[#6B705C]/15 bg-white/90 p-4 shadow-sm md:p-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-xl bg-[#faf9f6] p-3">
+            <p className="font-mono text-xl text-[#6B705C]">{stat.value ?? "—"}</p>
+            <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-5 mb-2.5 text-[11px] font-medium uppercase tracking-[0.1em] text-zinc-400">
+        Ir direto para
+      </p>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+        {ADMIN_SHORTCUTS.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => scrollToAdminSection(id)}
+            className="flex flex-col items-center gap-1.5 rounded-xl border border-[#6B705C]/10 bg-white p-3 text-center transition-colors hover:border-[#6B705C]/30 hover:bg-[#6B705C]/5"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6B705C]/10">
+              <Icon className="h-4 w-4 text-[#6B705C]" aria-hidden />
+            </span>
+            <span className="text-[11px] leading-tight text-zinc-700">{label}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** Contagem de contas no app: total (auth.users, via RPC restrita a admin)
  * e quantas têm ao menos 1 compra ativa (purchases, já legível pelo admin). */
 function RegisteredUsersSection() {
@@ -610,6 +712,8 @@ export default function AdminPage() {
   const [caktoSalesId, setCaktoSalesId] = useState("");
   const [legacyExternalSalesId, setLegacyExternalSalesId] = useState<string | null>(null);
   const [isHidden, setIsHidden] = useState(false);
+  const [price, setPrice] = useState("");
+  const [promoPrice, setPromoPrice] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -734,6 +838,8 @@ export default function AdminPage() {
     setLegacyExternalSalesId(null);
     setIsHidden(false);
     setSelectedCategoryId("");
+    setPrice("");
+    setPromoPrice("");
   };
 
   const closeModal = () => {
@@ -780,6 +886,8 @@ export default function AdminPage() {
     setLegacyExternalSalesId(product.external_sales_id?.trim() || null);
     setIsHidden(product.is_hidden === true);
     setSelectedCategoryId(findCategoryIdForProduct(productCategoriesConfig, product.id));
+    setPrice(product.price != null ? String(product.price) : "");
+    setPromoPrice(product.promo_price != null ? String(product.promo_price) : "");
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
@@ -806,6 +914,8 @@ export default function AdminPage() {
     setType(emptyFormSnapshot.type);
     setIsHidden(emptyFormSnapshot.isHidden);
     setSelectedCategoryId("");
+    setPrice("");
+    setPromoPrice("");
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
@@ -1137,6 +1247,7 @@ export default function AdminPage() {
         includeImageSalesUrl: boolean;
         includeSalesGalleryUrls: boolean;
         includeIsHidden: boolean;
+        includePrice: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -1176,6 +1287,10 @@ export default function AdminPage() {
       if (opts.includeIsHidden) {
         payload.is_hidden = isHidden;
       }
+      if (opts.includePrice) {
+        payload.price = price.trim() ? parseFloat(price) : null;
+        payload.promo_price = promoPrice.trim() ? parseFloat(promoPrice) : null;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -1201,6 +1316,7 @@ export default function AdminPage() {
         includeImageSalesUrl: true,
         includeSalesGalleryUrls: true,
         includeIsHidden: true,
+        includePrice: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -1260,6 +1376,10 @@ export default function AdminPage() {
         }
         if (isMissingIsHiddenColumnError(dbError) && flags.includeIsHidden) {
           flags.includeIsHidden = false;
+          continue;
+        }
+        if (isMissingPriceColumnError(dbError) && flags.includePrice) {
+          flags.includePrice = false;
           continue;
         }
         break;
@@ -1361,7 +1481,8 @@ export default function AdminPage() {
           !flags.includeDeliveryGalleryUrls ||
           !flags.includeImageSalesUrl ||
           !flags.includeSalesGalleryUrls ||
-          !flags.includeIsHidden)
+          !flags.includeIsHidden ||
+          !flags.includePrice)
       ) {
         await fetchProducts();
         closeModal();
@@ -1395,6 +1516,9 @@ export default function AdminPage() {
         }
         if (!flags.includeIsHidden) {
           parts.push("visibilidade no catálogo (migração is_hidden)");
+        }
+        if (!flags.includePrice) {
+          parts.push("preço (migração product_price)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -1437,6 +1561,7 @@ export default function AdminPage() {
             if (!flags.includeImageSalesUrl) parts.push("imagem de venda");
             if (!flags.includeSalesGalleryUrls) parts.push("galeria de venda");
             if (!flags.includeIsHidden) parts.push("visibilidade no catálogo");
+            if (!flags.includePrice) parts.push("preço");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -2001,6 +2126,12 @@ export default function AdminPage() {
             </button>
           </div>
         </header>
+
+        <AdminOverview
+          productsCount={products.length}
+          categoriesCount={productCategoriesConfig.length}
+          testimonialsCount={testimonialsConfig.length}
+        />
 
         <AdminSection
           id="appearance"
@@ -3368,6 +3499,39 @@ export default function AdminPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm text-zinc-700">
+                    Preço <span className="text-xs text-zinc-400">(exibido nos cards não comprados)</span>
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Ex: 97.00"
+                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm text-zinc-700">
+                    Preço promocional <span className="text-xs text-zinc-400">(opcional · de/por)</span>
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    value={promoPrice}
+                    onChange={(e) => setPromoPrice(e.target.value)}
+                    placeholder="Ex: 67.00"
+                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
