@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Color from "@tiptap/extension-color";
+import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
+import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
-import { ImagePlus, Smile } from "lucide-react";
+import { ImagePlus, Smile, Square } from "lucide-react";
 
 type Props = {
   value: string;
@@ -22,6 +26,58 @@ const CURATED_ICONS = [
   "❤", "👰", "🤍", "🕊", "🌿", "⭐", "📷", "🎀",
 ];
 
+const FONT_FAMILIES = [
+  { label: "Fonte", value: "" },
+  { label: "Cinzel", value: "Cinzel" },
+  { label: "Montserrat", value: "Montserrat" },
+  { label: "Cormorant Garamond", value: "Cormorant Garamond" },
+  { label: "IBM Plex Mono", value: "IBM Plex Mono" },
+  { label: "Georgia", value: "Georgia" },
+  { label: "Arial", value: "Arial" },
+];
+
+const FONT_SIZES = [
+  { label: "Tamanho", value: "" },
+  { label: "12px", value: "12px" },
+  { label: "14px", value: "14px" },
+  { label: "16px", value: "16px" },
+  { label: "18px", value: "18px" },
+  { label: "20px", value: "20px" },
+  { label: "24px", value: "24px" },
+  { label: "28px", value: "28px" },
+];
+
+const IMAGE_SIZES = ["25%", "50%", "75%", "100%"];
+
+/** Extensão de imagem com atributo "width" (renderiza como width + style),
+ * pra dar pra redimensionar imagens inseridas no meio do texto. */
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("width"),
+        renderHTML: (attributes: { width?: string | null }) => {
+          if (!attributes.width) return {};
+          return { width: attributes.width, style: `width: ${attributes.width}` };
+        },
+      },
+    };
+  },
+});
+
+/** Moldura fina e reta ao redor do texto selecionado (span com borda). */
+const TextFrame = Mark.create({
+  name: "textFrame",
+  parseHTML() {
+    return [{ tag: "span[data-frame]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ["span", mergeAttributes(HTMLAttributes, { "data-frame": "true" }), 0];
+  },
+});
+
 export default function AdminRichTextEditor({ value, onChange, disabled, id, onUploadImage }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -35,9 +91,13 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
       }),
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),
-      Image.configure({ HTMLAttributes: { class: "rounded-md" } }),
+      ResizableImage.configure({ HTMLAttributes: { class: "rounded-md" } }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      TextStyle,
+      Color,
+      FontFamily,
+      TextFrame,
     ],
     content: value ?? "",
     editable: !disabled,
@@ -102,12 +162,26 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
     }
   };
 
+  const setFontFamily = (value: string) => {
+    if (value) editor.chain().focus().setFontFamily(value).run();
+    else editor.chain().focus().unsetFontFamily().run();
+  };
+
+  const setFontSize = (value: string) => {
+    editor.chain().focus().setMark("textStyle", { fontSize: value || null }).run();
+  };
+
   const btnClass = (active: boolean) =>
     `rounded px-2 py-1 text-xs ${active ? "bg-[#6B705C]/20 text-[#6B705C]" : "text-zinc-600 hover:bg-zinc-100"}`;
 
+  const selectClass =
+    "h-7 rounded border border-zinc-200 bg-white px-1.5 text-xs text-zinc-600 outline-none focus:border-[#6B705C]/50";
+
+  const isImageSelected = editor.isActive("image");
+
   return (
     <div className="tiptap-admin-scope overflow-hidden rounded-md border border-zinc-200 bg-white">
-      <div className="flex flex-wrap gap-1 border-b border-zinc-100 bg-zinc-50/80 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-1 border-b border-zinc-100 bg-zinc-50/80 px-2 py-1.5">
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -139,6 +213,63 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
           className={btnClass(editor.isActive("heading", { level: 2 }))}
         >
           H2
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().toggleMark("textFrame").run()}
+          disabled={disabled}
+          title="Moldura fina ao redor do texto selecionado"
+          className={`${btnClass(editor.isActive("textFrame"))} inline-flex items-center gap-1`}
+        >
+          <Square className="h-3 w-3" />
+          Moldura
+        </button>
+        <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
+        <select
+          value=""
+          onChange={(e) => {
+            setFontFamily(e.target.value);
+            e.target.value = "";
+          }}
+          disabled={disabled}
+          className={selectClass}
+        >
+          {FONT_FAMILIES.map((font) => (
+            <option key={font.label} value={font.value}>
+              {font.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value=""
+          onChange={(e) => {
+            setFontSize(e.target.value);
+            e.target.value = "";
+          }}
+          disabled={disabled}
+          className={selectClass}
+        >
+          {FONT_SIZES.map((size) => (
+            <option key={size.label} value={size.value}>
+              {size.label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="color"
+          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+          disabled={disabled}
+          title="Cor da fonte"
+          className="h-7 w-7 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+        />
+        <button
+          type="button"
+          onClick={() => editor.chain().focus().unsetColor().run()}
+          disabled={disabled}
+          className={btnClass(false)}
+          title="Remover cor da fonte"
+        >
+          Padrão
         </button>
         <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
         <button
@@ -224,6 +355,23 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
                 if (file) void handleImageFile(file);
               }}
             />
+          </>
+        )}
+        {isImageSelected && (
+          <>
+            <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
+            <span className="text-xs text-zinc-500">Tamanho da imagem:</span>
+            {IMAGE_SIZES.map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => editor.chain().focus().updateAttributes("image", { width: size }).run()}
+                disabled={disabled}
+                className={btnClass(editor.getAttributes("image").width === size)}
+              >
+                {size}
+              </button>
+            ))}
           </>
         )}
       </div>

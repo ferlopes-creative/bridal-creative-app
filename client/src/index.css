@@ -258,10 +258,22 @@
     letter-spacing: 0.05em;
   }
 
-  .tiptap-admin-scope .ProseMirror ul {
-    list-style-type: disc;
+  .tiptap-admin-scope .ProseMirror ul:not([data-type="taskList"]) {
+    list-style: none;
     padding-left: 1.35rem;
     margin: 0.45rem 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror ul:not([data-type="taskList"]) > li {
+    position: relative;
+  }
+
+  .tiptap-admin-scope .ProseMirror ul:not([data-type="taskList"]) > li::before {
+    content: "✓";
+    position: absolute;
+    left: -1.2rem;
+    color: #6B705C;
+    font-weight: 600;
   }
 
   .tiptap-admin-scope .ProseMirror ol {
@@ -273,6 +285,17 @@
   .tiptap-admin-scope .ProseMirror li {
     display: list-item;
     margin: 0.15rem 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror ul[data-type="taskList"] {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  .tiptap-admin-scope .ProseMirror ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
   }
 
   .tiptap-admin-scope .ProseMirror li p {
@@ -295,6 +318,29 @@
   .product-html h3 {
     overflow-wrap: anywhere;
     max-width: 100%;
+  }
+
+  .product-html ul:not([data-type="taskList"]) {
+    list-style: none;
+  }
+
+  .product-html ul:not([data-type="taskList"]) > li {
+    position: relative;
+  }
+
+  .product-html ul:not([data-type="taskList"]) > li::before {
+    content: "✓";
+    position: absolute;
+    left: -1.1em;
+    color: currentColor;
+    opacity: 0.7;
+    font-weight: 600;
+  }
+
+  .product-html span[data-frame] {
+    display: inline-block;
+    border: 1px solid currentColor;
+    padding: 0 0.35em;
   }
 }
 

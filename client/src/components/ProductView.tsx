@@ -47,7 +47,10 @@ const PURIFY = {
     "p", "br", "strong", "b", "em", "i", "u", "a", "ul", "ol", "li", "span", "h1", "h2", "h3",
     "img", "label", "input", "div",
   ],
-  ALLOWED_ATTR: ["href", "target", "rel", "class", "src", "alt", "type", "checked", "data-type", "data-checked"],
+  ALLOWED_ATTR: [
+    "href", "target", "rel", "class", "src", "alt", "type", "checked", "data-type", "data-checked",
+    "style", "width", "data-frame",
+  ],
 };
 
 /** Plain text / legacy descriptions without tags → wrap in <p> so wrapping CSS applies consistently */
