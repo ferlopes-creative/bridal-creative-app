@@ -10,7 +10,8 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
-import { ImagePlus, Smile, Square } from "lucide-react";
+import { ImagePlus, Smile, Square, Upload } from "lucide-react";
+import type { CustomFont } from "@/lib/customFonts";
 
 type Props = {
   value: string;
@@ -19,6 +20,10 @@ type Props = {
   id?: string;
   /** Se informado, habilita o botão de inserir imagem no corpo do texto. */
   onUploadImage?: (file: File) => Promise<string>;
+  /** Fontes personalizadas já cadastradas (arquivo enviado), disponíveis pra escolher. */
+  customFonts?: CustomFont[];
+  /** Se informado, habilita o botão de enviar um arquivo de fonte (.woff2, .woff, .ttf, .otf). */
+  onUploadFont?: (file: File) => Promise<CustomFont>;
 };
 
 const CURATED_ICONS = [
@@ -78,9 +83,20 @@ const TextFrame = Mark.create({
   },
 });
 
-export default function AdminRichTextEditor({ value, onChange, disabled, id, onUploadImage }: Props) {
+export default function AdminRichTextEditor({
+  value,
+  onChange,
+  disabled,
+  id,
+  onUploadImage,
+  customFonts,
+  onUploadFont,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fontFileInputRef = useRef<HTMLInputElement | null>(null);
+  const fontInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingFont, setUploadingFont] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const fontListId = useId();
 
@@ -163,6 +179,18 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
     }
   };
 
+  const handleFontFile = async (file: File) => {
+    if (!onUploadFont) return;
+    setUploadingFont(true);
+    try {
+      const font = await onUploadFont(file);
+      setFontFamily(font.name);
+      if (fontInputRef.current) fontInputRef.current.value = font.name;
+    } finally {
+      setUploadingFont(false);
+    }
+  };
+
   const setFontFamily = (value: string) => {
     if (value) editor.chain().focus().setFontFamily(value).run();
     else editor.chain().focus().unsetFontFamily().run();
@@ -227,6 +255,7 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
         </button>
         <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
         <input
+          ref={fontInputRef}
           list={fontListId}
           type="text"
           placeholder="Fonte (digite ou escolha)"
@@ -244,7 +273,35 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
           {FONT_FAMILIES.filter((font) => font.value).map((font) => (
             <option key={font.value} value={font.value} />
           ))}
+          {(customFonts ?? []).map((font) => (
+            <option key={font.id} value={font.name} />
+          ))}
         </datalist>
+        {onUploadFont && (
+          <>
+            <button
+              type="button"
+              onClick={() => fontFileInputRef.current?.click()}
+              disabled={disabled || uploadingFont}
+              title="Enviar arquivo de fonte (.woff2, .woff, .ttf, .otf)"
+              className={`${btnClass(false)} inline-flex items-center gap-1`}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {uploadingFont ? "Enviando..." : "Enviar fonte"}
+            </button>
+            <input
+              ref={fontFileInputRef}
+              type="file"
+              accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void handleFontFile(file);
+              }}
+            />
+          </>
+        )}
         <select
           value=""
           onChange={(e) => {

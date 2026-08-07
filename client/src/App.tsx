@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Redirect, Route, Switch } from "wouter";
+import CustomFontFaces from "./components/CustomFontFaces";
 import DisableImageSaving from "./components/DisableImageSaving";
 import ErrorBoundary from "./components/ErrorBoundary";
 import GuestOnly from "./components/GuestOnly";
@@ -137,6 +138,7 @@ function App() {
               <CommunityAccessProvider>
                 <TooltipProvider>
                   <div className="min-h-screen w-full bg-background">
+                    <CustomFontFaces />
                     <Router />
                     <Toaster />
                     <InstallPrompt />

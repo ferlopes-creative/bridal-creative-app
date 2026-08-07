@@ -86,6 +86,11 @@ import {
   parseProductModules,
   type ProductModule,
 } from "@/lib/productModules";
+import {
+  createCustomFont,
+  isCustomFontsConfigSchemaError,
+  type CustomFont,
+} from "@/lib/customFonts";
 import ProductFaqEditor from "@/components/admin/ProductFaqEditor";
 import ProductModulesEditor from "@/components/admin/ProductModulesEditor";
 import ProductTestimonialsEditor from "@/components/admin/ProductTestimonialsEditor";
@@ -801,6 +806,7 @@ export default function AdminPage() {
   const [testimonialsConfig, setTestimonialsConfig] = useState<TestimonialConfig[]>([]);
   const [testimonialsBannerUrl, setTestimonialsBannerUrl] = useState<string | null>(null);
   const [testimonialsSaving, setTestimonialsSaving] = useState(false);
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
   const [pageBgDashboardUrl, setPageBgDashboardUrl] = useState<string | null>(null);
   const [pageBgProfileUrl, setPageBgProfileUrl] = useState<string | null>(null);
   const [pageBgCommunityUrl, setPageBgCommunityUrl] = useState<string | null>(null);
@@ -1153,6 +1159,7 @@ export default function AdminPage() {
         setPageBgProfileUrl(row.page_background_profile_url);
         setPageBgCommunityUrl(row.page_background_community_url);
         setPageBgPlanejamentoUrl(row.page_background_planejamento_url);
+        setCustomFonts(row.custom_fonts_config);
         setHeroPendingFiles([]);
         setHeroDesktopPendingFiles([]);
       }
@@ -1281,7 +1288,7 @@ export default function AdminPage() {
   const uploadFileToStorage = async (
     file: File,
     bucket: string,
-    folder: "images" | "videos",
+    folder: "images" | "videos" | "fonts",
     /** ex.: site → images/site/arquivo.png */
     nestedFolder?: string
   ) => {
@@ -1302,6 +1309,35 @@ export default function AdminPage() {
 
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(data.path);
     return publicData.publicUrl;
+  };
+
+  const handleUploadCustomFont = async (file: File): Promise<CustomFont> => {
+    const url = await uploadFileToStorage(file, IMAGE_BUCKET, "fonts");
+    const name =
+      file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Fonte personalizada";
+    const font = createCustomFont(name, url);
+    const next = [...customFonts, font];
+
+    const { error } = await supabase.from("site_settings").upsert({
+      id: 1,
+      custom_fonts_config: next,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      if (isCustomFontsConfigSchemaError(error.message)) {
+        toast.error(
+          "Coluna custom_fonts_config ausente. Execute a migração 20260807140000_custom_fonts.sql no Supabase."
+        );
+      } else {
+        toast.error("Não foi possível salvar a fonte.");
+      }
+      throw error;
+    }
+
+    setCustomFonts(next);
+    await refreshSiteSettings();
+    toast.success("Fonte enviada!");
+    return font;
   };
 
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
@@ -3571,6 +3607,8 @@ export default function AdminPage() {
                       onChange={setDescription}
                       disabled={saving}
                       onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
+                      customFonts={customFonts}
+                      onUploadFont={handleUploadCustomFont}
                     />
 
                     <FormFieldGroup title="Mídia de venda" />
@@ -3740,6 +3778,8 @@ export default function AdminPage() {
                       onChange={setDescriptionDelivery}
                       disabled={saving}
                       onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
+                      customFonts={customFonts}
+                      onUploadFont={handleUploadCustomFont}
                     />
 
                     <FormFieldGroup title="Mídia de entrega" />

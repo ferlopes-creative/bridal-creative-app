@@ -3,6 +3,7 @@ import DOMPurify from "isomorphic-dompurify";
 import { Maximize2, X } from "lucide-react";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import type { CustomFont } from "@/lib/customFonts";
 
 const PURIFY = {
   ALLOWED_TAGS: [
@@ -29,6 +30,8 @@ type CollapsedRichTextFieldProps = {
   onChange: (html: string) => void;
   disabled?: boolean;
   onUploadImage?: (file: File) => Promise<string>;
+  customFonts?: CustomFont[];
+  onUploadFont?: (file: File) => Promise<CustomFont>;
 };
 
 /** Mostra o texto fechado (prévia igual à página do produto) com botão "Editar" que
@@ -41,6 +44,8 @@ export default function CollapsedRichTextField({
   onChange,
   disabled,
   onUploadImage,
+  customFonts,
+  onUploadFont,
 }: CollapsedRichTextFieldProps) {
   const [open, setOpen] = useState(false);
   const safeHtml = sanitize(value);
@@ -77,7 +82,7 @@ export default function CollapsedRichTextField({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="flex h-[100dvh] w-[100vw] max-w-none flex-col overflow-hidden rounded-none p-0 sm:h-[94vh] sm:w-[min(97vw,1700px)] sm:rounded-xl"
+          className="flex h-[100dvh] w-[100vw] max-w-none flex-col overflow-hidden rounded-none p-0"
           showCloseButton={false}
         >
           <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">
@@ -100,6 +105,8 @@ export default function CollapsedRichTextField({
                 onChange={onChange}
                 disabled={disabled}
                 onUploadImage={onUploadImage}
+                customFonts={customFonts}
+                onUploadFont={onUploadFont}
               />
             </div>
             <div className="space-y-2 bg-[#faf9f6] p-5">

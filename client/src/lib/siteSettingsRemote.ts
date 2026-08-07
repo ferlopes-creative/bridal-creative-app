@@ -10,6 +10,7 @@ import {
   type ProductCategoryConfig,
 } from "@/lib/productCategories";
 import { parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
+import { parseCustomFonts, type CustomFont } from "@/lib/customFonts";
 import { supabase } from "@/lib/supabase";
 
 /** Opacidade padrão da textura (~22 %; antes era 14 % fixo no CSS). */
@@ -36,6 +37,7 @@ export type SiteSettingsRow = {
   page_background_profile_url: string | null;
   page_background_community_url: string | null;
   page_background_planejamento_url: string | null;
+  custom_fonts_config: CustomFont[];
 };
 
 function parseOpacityPercent(raw: unknown): number {
@@ -114,6 +116,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
       (data.page_background_community_url as string | null | undefined)?.trim() || null,
     page_background_planejamento_url:
       (data.page_background_planejamento_url as string | null | undefined)?.trim() || null,
+    custom_fonts_config: parseCustomFonts(data.custom_fonts_config),
   };
 }
 
@@ -196,3 +199,4 @@ export {
 } from "@/lib/dashboardSections";
 
 export { isSiteColorsSchemaError } from "@/lib/siteColors";
+export { isCustomFontsConfigSchemaError, type CustomFont } from "@/lib/customFonts";

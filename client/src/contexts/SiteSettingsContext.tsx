@@ -10,6 +10,7 @@ import {
 } from "@/lib/dashboardSections";
 import { parseProductCategoriesConfig, type ProductCategoryConfig } from "@/lib/productCategories";
 import { parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
+import { parseCustomFonts, type CustomFont } from "@/lib/customFonts";
 import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   DEFAULT_DASHBOARD_SECTION_ORDER,
@@ -25,6 +26,7 @@ export {
   type DashboardSectionId,
   type ProductCategoryConfig,
   type TestimonialConfig,
+  type CustomFont,
 };
 
 export { DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT };
@@ -54,6 +56,7 @@ export type SiteSettings = {
   page_background_profile_url: string | null;
   page_background_community_url: string | null;
   page_background_planejamento_url: string | null;
+  custom_fonts_config: CustomFont[];
 };
 
 const defaultSettings: SiteSettings = {
@@ -77,6 +80,7 @@ const defaultSettings: SiteSettings = {
   page_background_profile_url: null,
   page_background_community_url: null,
   page_background_planejamento_url: null,
+  custom_fonts_config: [],
 };
 
 function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
@@ -144,6 +148,7 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
       typeof partial.page_background_planejamento_url === "string"
         ? partial.page_background_planejamento_url
         : defaultSettings.page_background_planejamento_url,
+    custom_fonts_config: parseCustomFonts(partial.custom_fonts_config),
     colors: parsedColors,
   };
 }
@@ -257,6 +262,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         page_background_profile_url: row.page_background_profile_url,
         page_background_community_url: row.page_background_community_url,
         page_background_planejamento_url: row.page_background_planejamento_url,
+        custom_fonts_config: row.custom_fonts_config,
       };
       setSettings(next);
       writeSiteSettingsCache(next as unknown as Record<string, unknown>);
