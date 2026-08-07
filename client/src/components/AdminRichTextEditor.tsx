@@ -6,7 +6,7 @@ import Link from "@tiptap/extension-link";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Smile } from "lucide-react";
 
 type Props = {
   value: string;
@@ -17,9 +17,15 @@ type Props = {
   onUploadImage?: (file: File) => Promise<string>;
 };
 
+const CURATED_ICONS = [
+  "✓", "✨", "💍", "💌", "🌸", "🥂", "🎉", "📌",
+  "❤", "👰", "🤍", "🕊", "🌿", "⭐", "📷", "🎀",
+];
+
 export default function AdminRichTextEditor({ value, onChange, disabled, id, onUploadImage }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -78,6 +84,11 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
       return;
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+  };
+
+  const insertIcon = (icon: string) => {
+    editor.chain().focus().insertContent(`${icon} `).run();
+    setShowIconPicker(false);
   };
 
   const handleImageFile = async (file: File) => {
@@ -163,6 +174,34 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
         >
           Link
         </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowIconPicker((v) => !v)}
+            disabled={disabled}
+            className={`${btnClass(showIconPicker)} inline-flex items-center gap-1`}
+          >
+            <Smile className="h-3.5 w-3.5" />
+            Ícone
+          </button>
+          {showIconPicker && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowIconPicker(false)} />
+              <div className="absolute left-0 top-full z-20 mt-1 grid grid-cols-8 gap-0.5 rounded-md border border-zinc-200 bg-white p-1.5 shadow-lg">
+                {CURATED_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={() => insertIcon(icon)}
+                    className="flex h-7 w-7 items-center justify-center rounded text-base hover:bg-zinc-100"
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         {onUploadImage && (
           <>
             <button

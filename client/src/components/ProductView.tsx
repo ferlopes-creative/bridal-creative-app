@@ -1,9 +1,12 @@
-import { ExternalLink, PlayCircle } from "lucide-react";
+import { ExternalLink, PlayCircle, Star } from "lucide-react";
 import DOMPurify from "isomorphic-dompurify";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { ProductPrice } from "@/components/ProductGrid";
 import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
+import { parseProductFaq } from "@/lib/productFaq";
+import { formatTestimonialDate, parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
 
 type ProductViewData = {
   id?: string;
@@ -29,6 +32,8 @@ type ProductViewData = {
   link?: string | null;
   price?: number | null;
   promo_price?: number | null;
+  faq_config?: unknown;
+  product_testimonials_config?: unknown;
 };
 
 interface ProductViewProps {
@@ -68,6 +73,46 @@ function resolveProductDescription(product: ProductViewData, canAccess: boolean)
 
 type Slide = { kind: "image"; url: string; alt: string } | { kind: "video"; url: string };
 
+function ProductTestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
+  const initial = (testimonial.author_name || "?").trim().charAt(0).toUpperCase();
+
+  return (
+    <div className="flex h-full w-[200px] shrink-0 flex-col border border-[#e8e3d8] bg-white p-3.5">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bc-primary/15 text-xs font-semibold text-bc-primary">
+          {testimonial.photo_url ? (
+            <img src={testimonial.photo_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
+        </span>
+        <div className="min-w-0">
+          <p
+            className="truncate text-xs font-semibold text-bc-primary"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {testimonial.author_name || "Anônimo"}
+          </p>
+          {testimonial.submitted_at ? (
+            <p className="text-[9px] text-bc-primary/60">{formatTestimonialDate(testimonial.submitted_at)}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((value) => (
+          <Star
+            key={value}
+            className={`h-3 w-3 ${value <= testimonial.rating ? "fill-amber-400 text-amber-400" : "text-zinc-300"}`}
+          />
+        ))}
+      </div>
+
+      <p className="mt-2 line-clamp-4 flex-1 text-xs leading-snug text-bc-primary/85">{testimonial.text}</p>
+    </div>
+  );
+}
+
 export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
   const safeHtml = sanitizeProductDescription(
@@ -91,6 +136,8 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   const videoSrc = canAccess
     ? (product.video_url || product.video || "").trim() || null
     : product.video_sales_url?.trim() || null;
+  const faqItems = parseProductFaq(product.faq_config);
+  const testimonials = parseTestimonialsConfig(product.product_testimonials_config).filter((t) => t.visible);
 
   const slides: Slide[] = [
     { kind: "image", url: heroSrc, alt: title },
@@ -206,6 +253,45 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
+
+        {testimonials.length > 0 && (
+          <div className="mt-8">
+            <h2
+              className="text-xs uppercase tracking-[0.1em] text-bc-primary"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              O que dizem sobre este produto
+            </h2>
+            <div className="mt-3 -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1">
+              {testimonials.map((testimonial) => (
+                <ProductTestimonialCard key={testimonial.id} testimonial={testimonial} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {faqItems.length > 0 && (
+          <div className="mt-8">
+            <h2
+              className="mb-1 text-xs uppercase tracking-[0.1em] text-bc-primary"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Perguntas frequentes
+            </h2>
+            <Accordion type="single" collapsible className="w-full">
+              {faqItems.map((item, index) => (
+                <AccordionItem key={item.id} value={item.id || String(index)} className="border-[#e8e3d8]">
+                  <AccordionTrigger className="text-xs text-bc-primary md:text-sm">
+                    {item.question || "Pergunta"}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-xs text-[#4a4a44] md:text-sm">
+                    {item.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        )}
       </div>
     </section>
   );

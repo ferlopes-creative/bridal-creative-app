@@ -34,6 +34,8 @@ type Product = {
   is_hidden?: boolean | null;
   price?: number | null;
   promo_price?: number | null;
+  faq_config?: unknown;
+  product_testimonials_config?: unknown;
 };
 
 export default function DashboardProduct() {
@@ -88,6 +90,8 @@ export default function DashboardProduct() {
           is_hidden: item.is_hidden === true,
           price: item.price != null ? Number(item.price) : null,
           promo_price: item.promo_price != null ? Number(item.promo_price) : null,
+          faq_config: item.faq_config,
+          product_testimonials_config: item.product_testimonials_config,
         });
       } else {
         setProduct(null);

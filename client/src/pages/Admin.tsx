@@ -27,6 +27,7 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
+import CollapsedRichTextField from "@/components/admin/CollapsedRichTextField";
 import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
 import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
 import PageBackgroundsEditor from "@/components/admin/PageBackgroundsEditor";
@@ -70,8 +71,17 @@ import {
 import {
   isTestimonialsBannerUrlSchemaError,
   isTestimonialsConfigSchemaError,
+  parseTestimonialsConfig,
   type TestimonialConfig,
 } from "@/lib/testimonials";
+import {
+  isMissingFaqConfigColumnError,
+  isMissingProductTestimonialsConfigColumnError,
+  parseProductFaq,
+  type ProductFaqItem,
+} from "@/lib/productFaq";
+import ProductFaqEditor from "@/components/admin/ProductFaqEditor";
+import ProductTestimonialsEditor from "@/components/admin/ProductTestimonialsEditor";
 import {
   accessLinksEqual,
   accessLinksToFormRows,
@@ -114,6 +124,8 @@ type Product = {
   is_wedding_planning_premium?: boolean | null;
   price?: number | null;
   promo_price?: number | null;
+  faq_config?: unknown;
+  product_testimonials_config?: unknown;
 };
 
 /** Texto visível do HTML; vazio se for só markup vazio (ex. `<p></p>` do TipTap ao abrir). */
@@ -739,6 +751,12 @@ export default function AdminPage() {
   const [isHidden, setIsHidden] = useState(false);
   const [price, setPrice] = useState("");
   const [promoPrice, setPromoPrice] = useState("");
+  const [faqRows, setFaqRows] = useState<ProductFaqItem[]>([]);
+  const [productTestimonials, setProductTestimonials] = useState<TestimonialConfig[]>([]);
+  /** Aba ativa no formulário completo de personalização do produto. */
+  const [productFormTab, setProductFormTab] = useState<
+    "geral" | "antes" | "depois" | "faq" | "depoimentos"
+  >("geral");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   /** Cadastro de produto em 2 etapas: "basic" = só o essencial; "full" = personalização completa. */
@@ -870,6 +888,9 @@ export default function AdminPage() {
     setSelectedCategoryId("");
     setPrice("");
     setPromoPrice("");
+    setFaqRows([]);
+    setProductTestimonials([]);
+    setProductFormTab("geral");
     setCreateStep("basic");
   };
 
@@ -923,6 +944,9 @@ export default function AdminPage() {
     setSelectedCategoryId(findCategoryIdForProduct(productCategoriesConfig, product.id));
     setPrice(product.price != null ? String(product.price) : "");
     setPromoPrice(product.promo_price != null ? String(product.promo_price) : "");
+    setFaqRows(parseProductFaq(product.faq_config));
+    setProductTestimonials(parseTestimonialsConfig(product.product_testimonials_config));
+    setProductFormTab("geral");
     setModalSnapshot({
       name: product.name || "",
       description: product.description || "",
@@ -969,6 +993,8 @@ export default function AdminPage() {
       setExistingVideoUrl(null);
       setExistingSalesVideoUrl(null);
       setLegacyExternalSalesId(null);
+      setFaqRows([]);
+      setProductTestimonials([]);
     }
     setModalSnapshot(emptyFormSnapshot);
   };
@@ -1311,6 +1337,8 @@ export default function AdminPage() {
         includeSalesGalleryUrls: boolean;
         includeIsHidden: boolean;
         includePrice: boolean;
+        includeFaqConfig: boolean;
+        includeProductTestimonialsConfig: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -1357,6 +1385,12 @@ export default function AdminPage() {
         payload.price = price.trim() ? parseFloat(price) : null;
         payload.promo_price = promoPrice.trim() ? parseFloat(promoPrice) : null;
       }
+      if (opts.includeFaqConfig) {
+        payload.faq_config = faqRows;
+      }
+      if (opts.includeProductTestimonialsConfig) {
+        payload.product_testimonials_config = productTestimonials;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -1385,6 +1419,8 @@ export default function AdminPage() {
         includeSalesGalleryUrls: true,
         includeIsHidden: true,
         includePrice: true,
+        includeFaqConfig: true,
+        includeProductTestimonialsConfig: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -1453,6 +1489,17 @@ export default function AdminPage() {
         }
         if (isMissingPriceColumnError(dbError) && flags.includePrice) {
           flags.includePrice = false;
+          continue;
+        }
+        if (isMissingFaqConfigColumnError(getErrorMessage(dbError)) && flags.includeFaqConfig) {
+          flags.includeFaqConfig = false;
+          continue;
+        }
+        if (
+          isMissingProductTestimonialsConfigColumnError(getErrorMessage(dbError)) &&
+          flags.includeProductTestimonialsConfig
+        ) {
+          flags.includeProductTestimonialsConfig = false;
           continue;
         }
         break;
@@ -1597,7 +1644,9 @@ export default function AdminPage() {
           !flags.includeImageSalesUrl ||
           !flags.includeSalesGalleryUrls ||
           !flags.includeIsHidden ||
-          !flags.includePrice)
+          !flags.includePrice ||
+          !flags.includeFaqConfig ||
+          !flags.includeProductTestimonialsConfig)
       ) {
         await fetchProducts();
         if (wasNewProductBasicCreate && insertedId) {
@@ -1642,6 +1691,12 @@ export default function AdminPage() {
         }
         if (!flags.includePrice) {
           parts.push("preço (migração product_price)");
+        }
+        if (!flags.includeFaqConfig) {
+          parts.push("FAQ (migração faq_config)");
+        }
+        if (!flags.includeProductTestimonialsConfig) {
+          parts.push("depoimentos do produto (migração product_testimonials_config)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -1693,6 +1748,8 @@ export default function AdminPage() {
             if (!flags.includeSalesGalleryUrls) parts.push("galeria de venda");
             if (!flags.includeIsHidden) parts.push("visibilidade no catálogo");
             if (!flags.includePrice) parts.push("preço");
+            if (!flags.includeFaqConfig) parts.push("FAQ");
+            if (!flags.includeProductTestimonialsConfig) parts.push("depoimentos do produto");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -3315,519 +3372,585 @@ export default function AdminPage() {
             ) : (
             <form
               onSubmit={handleSave}
-              className={`space-y-4 ${saving ? "pointer-events-none opacity-80" : ""}`}
+              className={`flex flex-col ${saving ? "pointer-events-none opacity-80" : ""}`}
               aria-busy={saving}
             >
-              <FormFieldGroup title="Informações básicas" first />
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Título do Conteúdo</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nome do produto"
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  required
-                />
+              <div className="mb-4 flex flex-wrap gap-1.5 border-b border-zinc-200 pb-3">
+                {(
+                  [
+                    { id: "geral", label: "Geral" },
+                    { id: "antes", label: "Antes da compra" },
+                    { id: "depois", label: "Depois da compra" },
+                    { id: "faq", label: "FAQ" },
+                    { id: "depoimentos", label: "Depoimentos" },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setProductFormTab(tab.id)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      productFormTab === tab.id
+                        ? "bg-[#6B705C] text-white"
+                        : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Descrição na compra (editor)</label>
-                <p className="text-xs text-zinc-500">
-                  Exibida para quem ainda não comprou o conteúdo (página com CTA de compra).
-                </p>
-                <AdminRichTextEditor
-                  value={description}
-                  onChange={setDescription}
-                  disabled={saving}
-                  onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
-                />
-              </div>
+              <div className="space-y-4">
+                {productFormTab === "geral" && (
+                  <>
+                    <FormFieldGroup title="Informações gerais" first />
 
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Descrição na entrega (editor)</label>
-                <p className="text-xs text-zinc-500">
-                  Exibida após a compra, quando vídeo e link de acesso estão liberados.
-                </p>
-                <AdminRichTextEditor
-                  value={descriptionDelivery}
-                  onChange={setDescriptionDelivery}
-                  disabled={saving}
-                  onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
-                />
-              </div>
-
-              <FormFieldGroup title="Mídia de venda (antes da compra)" />
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Imagem da página de venda</label>
-                <p className="text-xs text-zinc-500">
-                  Exibida antes da compra, em proporção completa (sem o recorte da capa do catálogo). Se
-                  vazio, usa a capa.
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setSalesImageFile(e.target.files?.[0] ?? null)}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                />
-                {existingSalesImageUrl && !salesImageFile && (
-                  <img
-                    src={existingSalesImageUrl}
-                    alt="Imagem de venda atual"
-                    className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
-                  />
-                )}
-                {existingSalesImageUrl && !salesImageFile && (
-                  <p className="text-[11px] text-zinc-500">
-                    Imagem de venda salva; envie outro arquivo só se quiser trocar.
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <div>
-                  <label className="text-sm text-zinc-700">Galeria de modelos (venda)</label>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode
-                    enviar várias de uma vez.
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const next = Array.from(e.target.files ?? []);
-                    if (next.length) setSalesGalleryPendingFiles((prev) => [...prev, ...next]);
-                    e.target.value = "";
-                  }}
-                  className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                  disabled={saving}
-                />
-                {salesGalleryUrls.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    {salesGalleryUrls.map((url, i) => (
-                      <li
-                        key={`sg-${url}-${i}`}
-                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-                      >
-                        <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
-                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                          {url.slice(0, 72)}
-                          {url.length > 72 ? "…" : ""}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeSalesGalleryUrlAt(i)}
-                          disabled={saving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {salesGalleryPendingFiles.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    <li className="text-zinc-500">A enviar ao salvar:</li>
-                    {salesGalleryPendingFiles.map((file, i) => (
-                      <li
-                        key={`sgp-${file.name}-${i}`}
-                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeSalesGalleryPendingAt(i)}
-                          disabled={saving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <FormFieldGroup title="Mídia de entrega (após a compra)" />
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Imagem da página de entrega</label>
-                <p className="text-xs text-zinc-500">
-                  Exibida após a compra, em proporção completa (sem o recorte da capa do catálogo). Se vazio, usa a capa.
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setDeliveryImageFile(e.target.files?.[0] ?? null)}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                />
-                {existingDeliveryImageUrl && !deliveryImageFile && (
-                  <img
-                    src={existingDeliveryImageUrl}
-                    alt="Imagem de entrega atual"
-                    className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
-                  />
-                )}
-                {existingDeliveryImageUrl && !deliveryImageFile && (
-                  <p className="text-[11px] text-zinc-500">
-                    Imagem de entrega salva; envie outro arquivo só se quiser trocar.
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <div>
-                  <label className="text-sm text-zinc-700">Galeria de modelos (entrega)</label>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Imagens extras exibidas na entrega para mostrar os modelos que a cliente recebe. Pode enviar várias de uma vez.
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const next = Array.from(e.target.files ?? []);
-                    if (next.length) setDeliveryGalleryPendingFiles((prev) => [...prev, ...next]);
-                    e.target.value = "";
-                  }}
-                  className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                  disabled={saving}
-                />
-                {deliveryGalleryUrls.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    {deliveryGalleryUrls.map((url, i) => (
-                      <li
-                        key={`dg-${url}-${i}`}
-                        className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-                      >
-                        <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
-                        <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                          {url.slice(0, 72)}
-                          {url.length > 72 ? "…" : ""}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeDeliveryGalleryUrlAt(i)}
-                          disabled={saving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {deliveryGalleryPendingFiles.length > 0 && (
-                  <ul className="space-y-1.5 text-xs">
-                    <li className="text-zinc-500">A enviar ao salvar:</li>
-                    {deliveryGalleryPendingFiles.map((file, i) => (
-                      <li
-                        key={`dgp-${file.name}-${i}`}
-                        className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeDeliveryGalleryPendingAt(i)}
-                          disabled={saving}
-                          className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                        >
-                          Remover
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <FormFieldGroup title="Vídeo" />
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Vídeo da página de vendas</label>
-                <p className="text-xs text-zinc-500">
-                  Exibido no carrossel antes da compra (fica bloqueado com cadeado se o item ainda não foi liberado).
-                </p>
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    setSalesVideoFile(e.target.files?.[0] ?? null);
-                    if (e.target.files?.[0]) setClearSalesVideo(false);
-                  }}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                />
-                {existingSalesVideoUrl && !salesVideoFile && !clearSalesVideo && (
-                  <p className="text-[11px] text-zinc-500">
-                    Vídeo de vendas atual salvo; envie outro arquivo só se quiser trocar.
-                  </p>
-                )}
-                {existingSalesVideoUrl && !clearSalesVideo && (
-                  <video
-                    src={existingSalesVideoUrl}
-                    controls
-                    preload="metadata"
-                    className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
-                  />
-                )}
-                {existingSalesVideoUrl && !salesVideoFile && (
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={clearSalesVideo}
-                      onChange={(e) => setClearSalesVideo(e.target.checked)}
-                      disabled={saving}
-                      className="rounded border-zinc-300"
-                    />
-                    Remover vídeo de vendas
-                  </label>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Vídeo da página de entrega</label>
-                <p className="text-xs text-zinc-500">
-                  Exibido no carrossel após a compra. Se vazio, nenhum vídeo aparece na entrega.
-                </p>
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    setVideoFile(e.target.files?.[0] ?? null);
-                    if (e.target.files?.[0]) setClearVideo(false);
-                  }}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                />
-                {existingVideoUrl && !videoFile && !clearVideo && (
-                  <p className="text-[11px] text-zinc-500">
-                    Vídeo de entrega atual salvo; envie outro arquivo só se quiser trocar.
-                  </p>
-                )}
-                {existingVideoUrl && !clearVideo && (
-                  <video
-                    src={existingVideoUrl}
-                    controls
-                    preload="metadata"
-                    className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
-                  />
-                )}
-                {existingVideoUrl && !videoFile && (
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={clearVideo}
-                      onChange={(e) => setClearVideo(e.target.checked)}
-                      disabled={saving}
-                      className="rounded border-zinc-300"
-                    />
-                    Remover vídeo de entrega
-                  </label>
-                )}
-              </div>
-
-              <FormFieldGroup title="Links e acesso" />
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Link de compra (checkout)</label>
-                <p className="text-xs text-zinc-500">
-                  URL da página de vendas. Usada no botão &quot;Quero ter acesso agora&quot; antes da compra.
-                </p>
-                <input
-                  type="url"
-                  value={linkCompra}
-                  onChange={(e) => setLinkCompra(e.target.value)}
-                  placeholder="https://..."
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div>
-                  <label className="text-sm text-zinc-700">Links de acesso (após a compra)</label>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    Cadastre quantos links precisar (Drive, Notion, aulas, etc.). Cada um vira um botão na página do
-                    produto.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  {accessLinkRows.map((row, index) => (
-                    <div
-                      key={row.id}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 space-y-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-zinc-600">Link {index + 1}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setAccessLinkRows((prev) =>
-                              prev.length <= 1 ? prev : prev.filter((item) => item.id !== row.id)
-                            )
-                          }
-                          disabled={saving || accessLinkRows.length <= 1}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
-                          aria-label={`Remover link ${index + 1}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Título do Conteúdo</label>
                       <input
                         type="text"
-                        value={row.label}
-                        onChange={(e) =>
-                          setAccessLinkRows((prev) =>
-                            prev.map((item) =>
-                              item.id === row.id ? { ...item, label: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="Nome do link (ex: Google Drive)"
-                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                      />
-                      <input
-                        type="url"
-                        value={row.url}
-                        onChange={(e) =>
-                          setAccessLinkRows((prev) =>
-                            prev.map((item) =>
-                              item.id === row.id ? { ...item, url: e.target.value } : item
-                            )
-                          )
-                        }
-                        placeholder="https://..."
-                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Nome do produto"
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        required
                       />
                     </div>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAccessLinkRows((prev) => [...prev, emptyAccessLinkRow()])}
-                  disabled={saving}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Adicionar link
-                </button>
-              </div>
 
-              <ExternalSalesIdField
-                hotmartValue={hotmartSalesId}
-                caktoValue={caktoSalesId}
-                onHotmartChange={setHotmartSalesId}
-                onCaktoChange={setCaktoSalesId}
-                legacyExternalSalesId={legacyExternalSalesId}
-                disabled={saving}
-              />
+                    <FormFieldGroup title="Capa do catálogo" />
 
-              <FormFieldGroup title="Capa do catálogo" />
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
+                      <p className="text-xs text-zinc-500">
+                        Usada no dashboard/catálogo. Na página de compra só quando não houver imagem de venda.
+                        Proporção retrato, com recorte.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                      />
+                      {existingImageUrl && !imageFile && (
+                        <p className="text-[11px] text-zinc-500">Imagem atual salva; envie outro arquivo só se quiser trocar.</p>
+                      )}
+                    </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Imagem de capa do catálogo</label>
-                <p className="text-xs text-zinc-500">
-                  Usada no dashboard/catálogo. Na página de compra só quando não houver imagem de venda.
-                  Proporção retrato, com recorte.
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                />
-                {existingImageUrl && !imageFile && (
-                  <p className="text-[11px] text-zinc-500">Imagem atual salva; envie outro arquivo só se quiser trocar.</p>
+                    <FormFieldGroup title="Preço, categoria e visibilidade" />
+
+                    <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                      <label className="flex cursor-pointer items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isHidden}
+                          onChange={(e) => setIsHidden(e.target.checked)}
+                          disabled={saving}
+                          className="mt-0.5 rounded border-zinc-300"
+                        />
+                        <span>
+                          <span className="text-sm font-medium text-zinc-800">
+                            Ocultar no catálogo antes da compra
+                          </span>
+                          <span className="mt-0.5 block text-xs text-zinc-500">
+                            O produto não aparece para quem ainda não tem acesso. Quem já comprou continua vendo em &quot;Seus produtos&quot;.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Categoria (atalho &quot;Explore&quot;)</label>
+                      <select
+                        value={selectedCategoryId}
+                        onChange={(e) => setSelectedCategoryId(e.target.value)}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      >
+                        <option value="">Nenhuma</option>
+                        {productCategoriesConfig.map((category) => (
+                          <option key={category.id} value={category.id}>
+                            {category.name || "Sem nome"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-zinc-700">
+                          Preço <span className="text-xs text-zinc-400">(exibido nos cards não comprados)</span>
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                          placeholder="Ex: 97.00"
+                          className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-zinc-700">
+                          Preço promocional <span className="text-xs text-zinc-400">(opcional · de/por)</span>
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          value={promoPrice}
+                          onChange={(e) => setPromoPrice(e.target.value)}
+                          placeholder="Ex: 67.00"
+                          className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Tipo de Conteúdo</label>
+                      <select
+                        value={type}
+                        onChange={(e) => setType(e.target.value as "PRO" | "BON")}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      >
+                        <option value="PRO">PRO</option>
+                        <option value="BON">BON</option>
+                      </select>
+                    </div>
+
+                    <FormFieldGroup title="Integrações de venda" />
+
+                    <ExternalSalesIdField
+                      hotmartValue={hotmartSalesId}
+                      caktoValue={caktoSalesId}
+                      onHotmartChange={setHotmartSalesId}
+                      onCaktoChange={setCaktoSalesId}
+                      legacyExternalSalesId={legacyExternalSalesId}
+                      disabled={saving}
+                    />
+                  </>
+                )}
+
+                {productFormTab === "antes" && (
+                  <>
+                    <FormFieldGroup title="Descrição na compra" first />
+
+                    <CollapsedRichTextField
+                      label="Descrição na compra"
+                      description="Exibida para quem ainda não comprou o conteúdo (página com CTA de compra)."
+                      value={description}
+                      onChange={setDescription}
+                      disabled={saving}
+                      onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
+                    />
+
+                    <FormFieldGroup title="Mídia de venda" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Imagem da página de venda</label>
+                      <p className="text-xs text-zinc-500">
+                        Exibida antes da compra, em proporção completa (sem o recorte da capa do catálogo). Se
+                        vazio, usa a capa.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSalesImageFile(e.target.files?.[0] ?? null)}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                      />
+                      {existingSalesImageUrl && !salesImageFile && (
+                        <img
+                          src={existingSalesImageUrl}
+                          alt="Imagem de venda atual"
+                          className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
+                        />
+                      )}
+                      {existingSalesImageUrl && !salesImageFile && (
+                        <p className="text-[11px] text-zinc-500">
+                          Imagem de venda salva; envie outro arquivo só se quiser trocar.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                      <div>
+                        <label className="text-sm text-zinc-700">Galeria de modelos (venda)</label>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode
+                          enviar várias de uma vez.
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const next = Array.from(e.target.files ?? []);
+                          if (next.length) setSalesGalleryPendingFiles((prev) => [...prev, ...next]);
+                          e.target.value = "";
+                        }}
+                        className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                        disabled={saving}
+                      />
+                      {salesGalleryUrls.length > 0 && (
+                        <ul className="space-y-1.5 text-xs">
+                          {salesGalleryUrls.map((url, i) => (
+                            <li
+                              key={`sg-${url}-${i}`}
+                              className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                            >
+                              <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                                {url.slice(0, 72)}
+                                {url.length > 72 ? "…" : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeSalesGalleryUrlAt(i)}
+                                disabled={saving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {salesGalleryPendingFiles.length > 0 && (
+                        <ul className="space-y-1.5 text-xs">
+                          <li className="text-zinc-500">A enviar ao salvar:</li>
+                          {salesGalleryPendingFiles.map((file, i) => (
+                            <li
+                              key={`sgp-${file.name}-${i}`}
+                              className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                            >
+                              <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeSalesGalleryPendingAt(i)}
+                                disabled={saving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <FormFieldGroup title="Vídeo de vendas" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Vídeo da página de vendas</label>
+                      <p className="text-xs text-zinc-500">
+                        Exibido no carrossel antes da compra (fica bloqueado com cadeado se o item ainda não foi liberado).
+                      </p>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => {
+                          setSalesVideoFile(e.target.files?.[0] ?? null);
+                          if (e.target.files?.[0]) setClearSalesVideo(false);
+                        }}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                      />
+                      {existingSalesVideoUrl && !salesVideoFile && !clearSalesVideo && (
+                        <p className="text-[11px] text-zinc-500">
+                          Vídeo de vendas atual salvo; envie outro arquivo só se quiser trocar.
+                        </p>
+                      )}
+                      {existingSalesVideoUrl && !clearSalesVideo && (
+                        <video
+                          src={existingSalesVideoUrl}
+                          controls
+                          preload="metadata"
+                          className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
+                        />
+                      )}
+                      {existingSalesVideoUrl && !salesVideoFile && (
+                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={clearSalesVideo}
+                            onChange={(e) => setClearSalesVideo(e.target.checked)}
+                            disabled={saving}
+                            className="rounded border-zinc-300"
+                          />
+                          Remover vídeo de vendas
+                        </label>
+                      )}
+                    </div>
+
+                    <FormFieldGroup title="Checkout" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Link de compra (checkout)</label>
+                      <p className="text-xs text-zinc-500">
+                        URL da página de vendas. Usada no botão &quot;Quero ter acesso agora&quot; antes da compra.
+                      </p>
+                      <input
+                        type="url"
+                        value={linkCompra}
+                        onChange={(e) => setLinkCompra(e.target.value)}
+                        placeholder="https://..."
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {productFormTab === "depois" && (
+                  <>
+                    <FormFieldGroup title="Descrição na entrega" first />
+
+                    <CollapsedRichTextField
+                      label="Descrição na entrega"
+                      description="Exibida após a compra, quando vídeo e link de acesso estão liberados."
+                      value={descriptionDelivery}
+                      onChange={setDescriptionDelivery}
+                      disabled={saving}
+                      onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images")}
+                    />
+
+                    <FormFieldGroup title="Mídia de entrega" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Imagem da página de entrega</label>
+                      <p className="text-xs text-zinc-500">
+                        Exibida após a compra, em proporção completa (sem o recorte da capa do catálogo). Se vazio, usa a capa.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setDeliveryImageFile(e.target.files?.[0] ?? null)}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                      />
+                      {existingDeliveryImageUrl && !deliveryImageFile && (
+                        <img
+                          src={existingDeliveryImageUrl}
+                          alt="Imagem de entrega atual"
+                          className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
+                        />
+                      )}
+                      {existingDeliveryImageUrl && !deliveryImageFile && (
+                        <p className="text-[11px] text-zinc-500">
+                          Imagem de entrega salva; envie outro arquivo só se quiser trocar.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
+                      <div>
+                        <label className="text-sm text-zinc-700">Galeria de modelos (entrega)</label>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          Imagens extras exibidas na entrega para mostrar os modelos que a cliente recebe. Pode enviar várias de uma vez.
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const next = Array.from(e.target.files ?? []);
+                          if (next.length) setDeliveryGalleryPendingFiles((prev) => [...prev, ...next]);
+                          e.target.value = "";
+                        }}
+                        className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                        disabled={saving}
+                      />
+                      {deliveryGalleryUrls.length > 0 && (
+                        <ul className="space-y-1.5 text-xs">
+                          {deliveryGalleryUrls.map((url, i) => (
+                            <li
+                              key={`dg-${url}-${i}`}
+                              className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                            >
+                              <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                                {url.slice(0, 72)}
+                                {url.length > 72 ? "…" : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeDeliveryGalleryUrlAt(i)}
+                                disabled={saving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {deliveryGalleryPendingFiles.length > 0 && (
+                        <ul className="space-y-1.5 text-xs">
+                          <li className="text-zinc-500">A enviar ao salvar:</li>
+                          {deliveryGalleryPendingFiles.map((file, i) => (
+                            <li
+                              key={`dgp-${file.name}-${i}`}
+                              className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                            >
+                              <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeDeliveryGalleryPendingAt(i)}
+                                disabled={saving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <FormFieldGroup title="Vídeo de entrega" />
+
+                    <div className="space-y-1.5">
+                      <label className="text-sm text-zinc-700">Vídeo da página de entrega</label>
+                      <p className="text-xs text-zinc-500">
+                        Exibido no carrossel após a compra. Se vazio, nenhum vídeo aparece na entrega.
+                      </p>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => {
+                          setVideoFile(e.target.files?.[0] ?? null);
+                          if (e.target.files?.[0]) setClearVideo(false);
+                        }}
+                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                      />
+                      {existingVideoUrl && !videoFile && !clearVideo && (
+                        <p className="text-[11px] text-zinc-500">
+                          Vídeo de entrega atual salvo; envie outro arquivo só se quiser trocar.
+                        </p>
+                      )}
+                      {existingVideoUrl && !clearVideo && (
+                        <video
+                          src={existingVideoUrl}
+                          controls
+                          preload="metadata"
+                          className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
+                        />
+                      )}
+                      {existingVideoUrl && !videoFile && (
+                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={clearVideo}
+                            onChange={(e) => setClearVideo(e.target.checked)}
+                            disabled={saving}
+                            className="rounded border-zinc-300"
+                          />
+                          Remover vídeo de entrega
+                        </label>
+                      )}
+                    </div>
+
+                    <FormFieldGroup title="Links de acesso" />
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-sm text-zinc-700">Links de acesso (após a compra)</label>
+                        <p className="mt-0.5 text-xs text-zinc-500">
+                          Cadastre quantos links precisar (Drive, Notion, aulas, etc.). Cada um vira um botão na página do
+                          produto.
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        {accessLinkRows.map((row, index) => (
+                          <div
+                            key={row.id}
+                            className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium text-zinc-600">Link {index + 1}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAccessLinkRows((prev) =>
+                                    prev.length <= 1 ? prev : prev.filter((item) => item.id !== row.id)
+                                  )
+                                }
+                                disabled={saving || accessLinkRows.length <= 1}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
+                                aria-label={`Remover link ${index + 1}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={row.label}
+                              onChange={(e) =>
+                                setAccessLinkRows((prev) =>
+                                  prev.map((item) =>
+                                    item.id === row.id ? { ...item, label: e.target.value } : item
+                                  )
+                                )
+                              }
+                              placeholder="Nome do link (ex: Google Drive)"
+                              className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                            />
+                            <input
+                              type="url"
+                              value={row.url}
+                              onChange={(e) =>
+                                setAccessLinkRows((prev) =>
+                                  prev.map((item) =>
+                                    item.id === row.id ? { ...item, url: e.target.value } : item
+                                  )
+                                )
+                              }
+                              placeholder="https://..."
+                              className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAccessLinkRows((prev) => [...prev, emptyAccessLinkRow()])}
+                        disabled={saving}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Adicionar link
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {productFormTab === "faq" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-500">
+                      Perguntas frequentes exibidas como accordion (abre/fecha ao clicar) na página do produto.
+                    </p>
+                    <ProductFaqEditor items={faqRows} onChange={setFaqRows} disabled={saving} />
+                  </div>
+                )}
+
+                {productFormTab === "depoimentos" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-500">
+                      Depoimentos exclusivos deste produto — diferentes dos depoimentos globais da Início.
+                    </p>
+                    <ProductTestimonialsEditor
+                      testimonials={productTestimonials}
+                      onChange={setProductTestimonials}
+                      disabled={saving}
+                      onUploadPhoto={(file) =>
+                        uploadFileToStorage(file, IMAGE_BUCKET, "images", "product-testimonials")
+                      }
+                    />
+                  </div>
                 )}
               </div>
 
-              <FormFieldGroup title="Preço, categoria e visibilidade" />
-
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <label className="flex cursor-pointer items-start gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={isHidden}
-                    onChange={(e) => setIsHidden(e.target.checked)}
-                    disabled={saving}
-                    className="mt-0.5 rounded border-zinc-300"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-zinc-800">
-                      Ocultar no catálogo antes da compra
-                    </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">
-                      O produto não aparece para quem ainda não tem acesso. Quem já comprou continua vendo em &quot;Seus produtos&quot;.
-                    </span>
-                  </span>
-                </label>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm text-zinc-700">Categoria (atalho &quot;Explore&quot;)</label>
-                <select
-                  value={selectedCategoryId}
-                  onChange={(e) => setSelectedCategoryId(e.target.value)}
-                  className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                >
-                  <option value="">Nenhuma</option>
-                  {productCategoriesConfig.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name || "Sem nome"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm text-zinc-700">
-                    Preço <span className="text-xs text-zinc-400">(exibido nos cards não comprados)</span>
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Ex: 97.00"
-                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm text-zinc-700">
-                    Preço promocional <span className="text-xs text-zinc-400">(opcional · de/por)</span>
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    value={promoPrice}
-                    onChange={(e) => setPromoPrice(e.target.value)}
-                    placeholder="Ex: 67.00"
-                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_auto]">
-                <div className="space-y-1.5">
-                  <label className="text-sm text-zinc-700">Tipo de Conteúdo</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as "PRO" | "BON")}
-                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  >
-                    <option value="PRO">PRO</option>
-                    <option value="BON">BON</option>
-                  </select>
-                </div>
-
+              <div className="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:px-6">
                 <button
                   type="submit"
                   disabled={saving}
