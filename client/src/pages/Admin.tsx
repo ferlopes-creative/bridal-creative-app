@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Image,
+  ImagePlus,
   LayoutGrid,
   LogOut,
   type LucideIcon,
@@ -80,7 +81,13 @@ import {
   parseProductFaq,
   type ProductFaqItem,
 } from "@/lib/productFaq";
+import {
+  isMissingModulesConfigColumnError,
+  parseProductModules,
+  type ProductModule,
+} from "@/lib/productModules";
 import ProductFaqEditor from "@/components/admin/ProductFaqEditor";
+import ProductModulesEditor from "@/components/admin/ProductModulesEditor";
 import ProductTestimonialsEditor from "@/components/admin/ProductTestimonialsEditor";
 import {
   accessLinksEqual,
@@ -126,6 +133,7 @@ type Product = {
   promo_price?: number | null;
   faq_config?: unknown;
   product_testimonials_config?: unknown;
+  modules_config?: unknown;
 };
 
 /** Texto visível do HTML; vazio se for só markup vazio (ex. `<p></p>` do TipTap ao abrir). */
@@ -737,6 +745,7 @@ export default function AdminPage() {
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
   const [linkCompra, setLinkCompra] = useState("");
   const [accessLinkRows, setAccessLinkRows] = useState<ProductAccessLinkRow[]>([emptyAccessLinkRow()]);
+  const [uploadingAccessLinkCoverId, setUploadingAccessLinkCoverId] = useState<string | null>(null);
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [deliveryImageFile, setDeliveryImageFile] = useState<File | null>(null);
@@ -753,9 +762,10 @@ export default function AdminPage() {
   const [promoPrice, setPromoPrice] = useState("");
   const [faqRows, setFaqRows] = useState<ProductFaqItem[]>([]);
   const [productTestimonials, setProductTestimonials] = useState<TestimonialConfig[]>([]);
+  const [modulesConfig, setModulesConfig] = useState<ProductModule[]>([]);
   /** Aba ativa no formulário completo de personalização do produto. */
   const [productFormTab, setProductFormTab] = useState<
-    "geral" | "antes" | "depois" | "faq" | "depoimentos"
+    "geral" | "antes" | "depois" | "aulas" | "faq" | "depoimentos"
   >("geral");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -890,6 +900,7 @@ export default function AdminPage() {
     setPromoPrice("");
     setFaqRows([]);
     setProductTestimonials([]);
+    setModulesConfig([]);
     setProductFormTab("geral");
     setCreateStep("basic");
   };
@@ -946,6 +957,7 @@ export default function AdminPage() {
     setPromoPrice(product.promo_price != null ? String(product.promo_price) : "");
     setFaqRows(parseProductFaq(product.faq_config));
     setProductTestimonials(parseTestimonialsConfig(product.product_testimonials_config));
+    setModulesConfig(parseProductModules(product.modules_config));
     setProductFormTab("geral");
     setModalSnapshot({
       name: product.name || "",
@@ -995,6 +1007,7 @@ export default function AdminPage() {
       setLegacyExternalSalesId(null);
       setFaqRows([]);
       setProductTestimonials([]);
+      setModulesConfig([]);
     }
     setModalSnapshot(emptyFormSnapshot);
   };
@@ -1339,6 +1352,7 @@ export default function AdminPage() {
         includePrice: boolean;
         includeFaqConfig: boolean;
         includeProductTestimonialsConfig: boolean;
+        includeModulesConfig: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -1391,6 +1405,9 @@ export default function AdminPage() {
       if (opts.includeProductTestimonialsConfig) {
         payload.product_testimonials_config = productTestimonials;
       }
+      if (opts.includeModulesConfig) {
+        payload.modules_config = modulesConfig;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -1421,6 +1438,7 @@ export default function AdminPage() {
         includePrice: true,
         includeFaqConfig: true,
         includeProductTestimonialsConfig: true,
+        includeModulesConfig: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -1500,6 +1518,10 @@ export default function AdminPage() {
           flags.includeProductTestimonialsConfig
         ) {
           flags.includeProductTestimonialsConfig = false;
+          continue;
+        }
+        if (isMissingModulesConfigColumnError(getErrorMessage(dbError)) && flags.includeModulesConfig) {
+          flags.includeModulesConfig = false;
           continue;
         }
         break;
@@ -1646,7 +1668,8 @@ export default function AdminPage() {
           !flags.includeIsHidden ||
           !flags.includePrice ||
           !flags.includeFaqConfig ||
-          !flags.includeProductTestimonialsConfig)
+          !flags.includeProductTestimonialsConfig ||
+          !flags.includeModulesConfig)
       ) {
         await fetchProducts();
         if (wasNewProductBasicCreate && insertedId) {
@@ -1697,6 +1720,9 @@ export default function AdminPage() {
         }
         if (!flags.includeProductTestimonialsConfig) {
           parts.push("depoimentos do produto (migração product_testimonials_config)");
+        }
+        if (!flags.includeModulesConfig) {
+          parts.push("módulos/aulas (migração modules_config)");
         }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
@@ -1750,6 +1776,7 @@ export default function AdminPage() {
             if (!flags.includePrice) parts.push("preço");
             if (!flags.includeFaqConfig) parts.push("FAQ");
             if (!flags.includeProductTestimonialsConfig) parts.push("depoimentos do produto");
+            if (!flags.includeModulesConfig) parts.push("módulos/aulas");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -3381,6 +3408,7 @@ export default function AdminPage() {
                     { id: "geral", label: "Geral" },
                     { id: "antes", label: "Antes da compra" },
                     { id: "depois", label: "Depois da compra" },
+                    { id: "aulas", label: "Aulas" },
                     { id: "faq", label: "FAQ" },
                     { id: "depoimentos", label: "Depoimentos" },
                   ] as const
@@ -3908,6 +3936,57 @@ export default function AdminPage() {
                               placeholder="https://..."
                               className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                             />
+                            <div className="flex items-center gap-2">
+                              <label className="group relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
+                                {row.cover_url ? (
+                                  <img src={row.cover_url} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <ImagePlus className="h-4 w-4 text-zinc-400" />
+                                )}
+                                {uploadingAccessLinkCoverId === row.id ? (
+                                  <span className="absolute inset-0 flex items-center justify-center bg-white/70">
+                                    <Spinner className="size-3.5 text-[#6B705C]" />
+                                  </span>
+                                ) : null}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={saving || uploadingAccessLinkCoverId === row.id}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = "";
+                                    if (!file) return;
+                                    setUploadingAccessLinkCoverId(row.id);
+                                    try {
+                                      const url = await uploadFileToStorage(file, IMAGE_BUCKET, "images", "access-links");
+                                      setAccessLinkRows((prev) =>
+                                        prev.map((item) => (item.id === row.id ? { ...item, cover_url: url } : item))
+                                      );
+                                    } finally {
+                                      setUploadingAccessLinkCoverId(null);
+                                    }
+                                  }}
+                                />
+                              </label>
+                              <span className="text-xs text-zinc-500">
+                                Capa opcional pra ilustrar este link na entrega
+                              </span>
+                              {row.cover_url && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAccessLinkRows((prev) =>
+                                      prev.map((item) => (item.id === row.id ? { ...item, cover_url: null } : item))
+                                    )
+                                  }
+                                  disabled={saving}
+                                  className="text-xs text-red-700 hover:underline disabled:opacity-50"
+                                >
+                                  Remover
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -3922,6 +4001,22 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </>
+                )}
+
+                {productFormTab === "aulas" && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-zinc-500">
+                      Aulas gravadas organizadas em módulos, exibidas como trilhas (estilo Netflix, com capa)
+                      na página do produto depois da compra.
+                    </p>
+                    <ProductModulesEditor
+                      modules={modulesConfig}
+                      onChange={setModulesConfig}
+                      disabled={saving}
+                      onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "modules")}
+                      onUploadVideo={(file) => uploadFileToStorage(file, VIDEO_BUCKET, "videos", "modules")}
+                    />
+                  </div>
                 )}
 
                 {productFormTab === "faq" && (

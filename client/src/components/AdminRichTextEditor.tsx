@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Mark, mergeAttributes } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -82,6 +82,7 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const fontListId = useId();
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -104,7 +105,7 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
     editorProps: {
       attributes: {
         class:
-          "tiptap-input min-h-[140px] px-3 py-2 text-sm text-zinc-800 outline-none focus:outline-none",
+          "tiptap-input min-h-[45vh] px-3 py-2 text-sm text-zinc-800 outline-none focus:outline-none",
         ...(id ? { id } : {}),
       },
     },
@@ -225,21 +226,25 @@ export default function AdminRichTextEditor({ value, onChange, disabled, id, onU
           Moldura
         </button>
         <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
-        <select
-          value=""
-          onChange={(e) => {
-            setFontFamily(e.target.value);
-            e.target.value = "";
-          }}
+        <input
+          list={fontListId}
+          type="text"
+          placeholder="Fonte (digite ou escolha)"
           disabled={disabled}
-          className={selectClass}
-        >
-          {FONT_FAMILIES.map((font) => (
-            <option key={font.label} value={font.value}>
-              {font.label}
-            </option>
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            setFontFamily(e.currentTarget.value.trim());
+          }}
+          onBlur={(e) => setFontFamily(e.currentTarget.value.trim())}
+          title="Digite o nome de qualquer fonte, ou escolha uma sugestão"
+          className={`${selectClass} w-40`}
+        />
+        <datalist id={fontListId}>
+          {FONT_FAMILIES.filter((font) => font.value).map((font) => (
+            <option key={font.value} value={font.value} />
           ))}
-        </select>
+        </datalist>
         <select
           value=""
           onChange={(e) => {

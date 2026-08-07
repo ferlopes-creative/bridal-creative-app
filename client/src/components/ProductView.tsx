@@ -1,11 +1,14 @@
 import { ExternalLink, PlayCircle, Star } from "lucide-react";
+import { useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { ProductPrice } from "@/components/ProductGrid";
 import { parseGalleryUrls } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 import { parseProductFaq } from "@/lib/productFaq";
+import { parseProductModules, type ProductLesson } from "@/lib/productModules";
 import { formatTestimonialDate, parseTestimonialsConfig, type TestimonialConfig } from "@/lib/testimonials";
 
 type ProductViewData = {
@@ -34,6 +37,7 @@ type ProductViewData = {
   promo_price?: number | null;
   faq_config?: unknown;
   product_testimonials_config?: unknown;
+  modules_config?: unknown;
 };
 
 interface ProductViewProps {
@@ -116,6 +120,31 @@ function ProductTestimonialCard({ testimonial }: { testimonial: TestimonialConfi
   );
 }
 
+function LessonCard({ lesson, onPlay }: { lesson: ProductLesson; onPlay: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      disabled={!lesson.video_url}
+      className="group w-[150px] shrink-0 text-left disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <div className="relative aspect-video w-full overflow-hidden bg-[#1c1e17]">
+        {lesson.cover_url ? (
+          <img src={lesson.cover_url} alt="" className="h-full w-full object-cover" />
+        ) : null}
+        {lesson.video_url ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white transition-opacity group-hover:bg-black/40">
+            <PlayCircle className="h-7 w-7" />
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1.5 line-clamp-2 text-xs leading-snug text-bc-primary" style={{ fontFamily: "var(--font-display)" }}>
+        {lesson.title || "Aula"}
+      </p>
+    </button>
+  );
+}
+
 export default function ProductView({ product, canAccess }: ProductViewProps) {
   const title = product.name || product.title || "Produto";
   const safeHtml = sanitizeProductDescription(
@@ -141,6 +170,8 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     : product.video_sales_url?.trim() || null;
   const faqItems = parseProductFaq(product.faq_config);
   const testimonials = parseTestimonialsConfig(product.product_testimonials_config).filter((t) => t.visible);
+  const modules = canAccess ? parseProductModules(product.modules_config) : [];
+  const [playingLesson, setPlayingLesson] = useState<ProductLesson | null>(null);
 
   const slides: Slide[] = [
     { kind: "image", url: heroSrc, alt: title },
@@ -169,6 +200,23 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
             const label =
               link.label ||
               (accessLinks.length === 1 ? "ACESSO / LINK" : `ACESSO ${index + 1}`);
+            if (link.cover_url) {
+              return (
+                <a
+                  key={`${link.url}-${index}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex w-full items-center gap-3 border border-bc-primary/30 bg-white p-2 transition-colors hover:border-bc-primary sm:w-auto sm:min-w-[220px]"
+                >
+                  <img src={link.cover_url} alt="" className="h-12 w-12 shrink-0 bg-[#f4f5ef] object-cover" />
+                  <span className="min-w-0 flex-1 truncate text-xs tracking-[0.05em] text-bc-primary md:text-sm">
+                    {label.toUpperCase()}
+                  </span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-bc-primary" />
+                </a>
+              );
+            }
             return (
               <a
                 key={`${link.url}-${index}`}
@@ -252,10 +300,49 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
         <div className="mt-4">{ctaBlock}</div>
 
         <div
-          className="product-html mt-5 w-full min-w-0 max-w-full text-xs leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:text-bc-primary [&_h3]:text-xs [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_img]:my-3 [&_img]:w-full [&_img]:object-cover [&_ul[data-type=taskList]]:my-2 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_li[data-type=taskItem]]:my-1 [&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2 [&_input[type=checkbox]]:mt-0.5 [&_input[type=checkbox]]:pointer-events-none [&_li[data-type=taskItem]_div]:min-w-0 [&_li[data-type=taskItem]_p]:mb-0"
+          className="product-html mt-5 w-full min-w-0 max-w-full text-xs leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:text-bc-primary [&_h3]:text-xs [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:pl-5 [&_img]:my-3 [&_img]:w-full [&_img]:object-cover [&_ul[data-type=taskList]]:my-2 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_li[data-type=taskItem]]:my-1 [&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2 [&_input[type=checkbox]]:mt-0.5 [&_input[type=checkbox]]:pointer-events-none [&_li[data-type=taskItem]_div]:min-w-0 [&_li[data-type=taskItem]_p]:mb-0"
           style={{ fontFamily: "var(--font-body)" }}
           dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
+
+        {modules.length > 0 && (
+          <div className="mt-8 space-y-6">
+            <h2
+              className="text-xs uppercase tracking-[0.1em] text-bc-primary"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Aulas
+            </h2>
+            {modules.map((module) => (
+              <div key={module.id}>
+                <div className="flex items-center gap-2.5">
+                  {module.cover_url ? (
+                    <img
+                      src={module.cover_url}
+                      alt=""
+                      className="h-8 w-8 shrink-0 rounded object-cover"
+                    />
+                  ) : null}
+                  <h3
+                    className="truncate text-[11px] uppercase tracking-[0.06em] text-bc-primary/80"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {module.title || "Módulo"}
+                  </h3>
+                </div>
+                {module.lessons.length > 0 ? (
+                  <HorizontalScrollRow className="mt-2.5" contentKey={module.lessons.map((l) => l.id).join()}>
+                    {module.lessons.map((lesson) => (
+                      <LessonCard key={lesson.id} lesson={lesson} onPlay={() => setPlayingLesson(lesson)} />
+                    ))}
+                  </HorizontalScrollRow>
+                ) : (
+                  <p className="mt-2 text-xs text-bc-primary/50">Nenhuma aula ainda.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {testimonials.length > 0 && (
           <div className="mt-8">
@@ -265,11 +352,11 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
             >
               O que dizem sobre este produto
             </h2>
-            <div className="mt-3 -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1">
+            <HorizontalScrollRow className="mt-3" contentKey={testimonials.map((t) => t.id).join()}>
               {testimonials.map((testimonial) => (
                 <ProductTestimonialCard key={testimonial.id} testimonial={testimonial} />
               ))}
-            </div>
+            </HorizontalScrollRow>
           </div>
         )}
 
@@ -296,6 +383,18 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
           </div>
         )}
       </div>
+
+      <Dialog open={playingLesson != null} onOpenChange={(open) => !open && setPlayingLesson(null)}>
+        <DialogContent className="max-w-2xl gap-2 border-none bg-black p-2 sm:rounded-lg">
+          <DialogTitle className="sr-only">{playingLesson?.title || "Aula"}</DialogTitle>
+          {playingLesson?.video_url ? (
+            <video src={playingLesson.video_url} controls autoPlay className="aspect-video w-full bg-black" />
+          ) : null}
+          {playingLesson?.description ? (
+            <p className="px-1 pb-1 text-xs leading-relaxed text-white/80">{playingLesson.description}</p>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

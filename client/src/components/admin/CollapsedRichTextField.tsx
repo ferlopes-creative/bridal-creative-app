@@ -20,7 +20,7 @@ function sanitize(html: string) {
 }
 
 const PREVIEW_CLASS =
-  "product-html w-full min-w-0 max-w-full text-xs leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:text-bc-primary [&_h3]:text-xs [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_img]:my-3 [&_img]:w-full [&_img]:object-cover [&_ul[data-type=taskList]]:my-2 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_li[data-type=taskItem]]:my-1 [&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2 [&_input[type=checkbox]]:mt-0.5 [&_input[type=checkbox]]:pointer-events-none [&_li[data-type=taskItem]_div]:min-w-0 [&_li[data-type=taskItem]_p]:mb-0";
+  "product-html w-full min-w-0 max-w-full text-xs leading-[1.7] text-[#4a4a44] [&_a]:text-[#5a6349] [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:text-bc-primary [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:text-bc-primary [&_h3]:text-xs [&_h3]:text-bc-primary [&_li]:my-0.5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2.5 [&_p]:last:mb-0 [&_ul]:my-2 [&_ul]:pl-5 [&_img]:my-3 [&_img]:w-full [&_img]:object-cover [&_ul[data-type=taskList]]:my-2 [&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0 [&_li[data-type=taskItem]]:my-1 [&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2 [&_input[type=checkbox]]:mt-0.5 [&_input[type=checkbox]]:pointer-events-none [&_li[data-type=taskItem]_div]:min-w-0 [&_li[data-type=taskItem]_p]:mb-0";
 
 type CollapsedRichTextFieldProps = {
   label: string;
@@ -77,7 +77,7 @@ export default function CollapsedRichTextField({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="flex max-h-[90vh] w-[min(96vw,1100px)] max-w-none flex-col overflow-hidden p-0 sm:rounded-xl"
+          className="flex h-[100dvh] w-[100vw] max-w-none flex-col overflow-hidden rounded-none p-0 sm:h-[94vh] sm:w-[min(97vw,1700px)] sm:rounded-xl"
           showCloseButton={false}
         >
           <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3.5">

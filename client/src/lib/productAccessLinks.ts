@@ -1,6 +1,8 @@
 export type ProductAccessLink = {
   label: string;
   url: string;
+  /** Capa opcional pra ilustrar o link (ex.: card do manual, do menu, etc.). */
+  cover_url: string | null;
 };
 
 export type ProductAccessLinkRow = ProductAccessLink & { id: string };
@@ -35,7 +37,8 @@ export function parseAccessLinks(raw: unknown): ProductAccessLink[] {
     const url = typeof row.url === "string" ? row.url.trim() : "";
     if (!url) continue;
     const label = typeof row.label === "string" ? row.label.trim() : "";
-    out.push({ label, url });
+    const cover_url = typeof row.cover_url === "string" && row.cover_url.trim() ? row.cover_url.trim() : null;
+    out.push({ label, url, cover_url });
   }
   return out;
 }
@@ -51,7 +54,7 @@ export function resolveProductAccessLinks(product: {
 
   const fallback = (product.link_compra || product.link || "").trim();
   if (!fallback) return [];
-  return [{ label: "Acesso", url: fallback }];
+  return [{ label: "Acesso", url: fallback, cover_url: null }];
 }
 
 export function serializeAccessLinks(links: ProductAccessLink[]): ProductAccessLink[] {
@@ -59,6 +62,7 @@ export function serializeAccessLinks(links: ProductAccessLink[]): ProductAccessL
     .map((item) => ({
       label: item.label.trim(),
       url: item.url.trim(),
+      cover_url: item.cover_url?.trim() || null,
     }))
     .filter((item) => item.url.length > 0);
 }
@@ -69,12 +73,12 @@ export function accessLinksEqual(a: ProductAccessLink[], b: ProductAccessLink[])
   if (left.length !== right.length) return false;
   return left.every((item, index) => {
     const other = right[index];
-    return item.label === other.label && item.url === other.url;
+    return item.label === other.label && item.url === other.url && item.cover_url === other.cover_url;
   });
 }
 
 export function emptyAccessLinkRow(): ProductAccessLinkRow {
-  return { id: newRowId(), label: "", url: "" };
+  return { id: newRowId(), label: "", url: "", cover_url: null };
 }
 
 export function accessLinksToFormRows(links: ProductAccessLink[]): ProductAccessLinkRow[] {
@@ -82,6 +86,7 @@ export function accessLinksToFormRows(links: ProductAccessLink[]): ProductAccess
     id: newRowId(),
     label: item.label,
     url: item.url,
+    cover_url: item.cover_url,
   }));
   return rows.length > 0 ? rows : [emptyAccessLinkRow()];
 }
@@ -91,6 +96,7 @@ export function formRowsToAccessLinks(rows: ProductAccessLinkRow[]): ProductAcce
     rows.map((row) => ({
       label: row.label,
       url: row.url,
+      cover_url: row.cover_url,
     }))
   );
 }
