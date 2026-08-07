@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Redirect, Route, Switch } from "wouter";
+import DisableImageSaving from "./components/DisableImageSaving";
 import ErrorBoundary from "./components/ErrorBoundary";
 import GuestOnly from "./components/GuestOnly";
 import InstallPrompt from "./components/InstallPrompt";
@@ -140,6 +141,7 @@ function App() {
                     <Toaster />
                     <InstallPrompt />
                     <SplashIntro onFinished={prefetchRoutes} />
+                    <DisableImageSaving />
                   </div>
                 </TooltipProvider>
               </CommunityAccessProvider>

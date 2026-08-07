@@ -97,6 +97,17 @@
     font-family: var(--font-display);
     letter-spacing: 0.1em;
   }
+
+  /* Dificulta salvar as fotos do app na galeria: tira o menu de "Salvar imagem"
+     do toque longo (iOS/Android) e do arrastar no desktop. Não impede print. */
+  img {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
 }
 
 @layer components {
