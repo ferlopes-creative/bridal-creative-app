@@ -209,22 +209,29 @@ export function parseDashboardSectionsConfig(
 
   const base = ordered.length > 0 ? ordered : parseDashboardSectionOrder(fallbackOrder).map(legacyIdToConfig);
 
-  // Configs salvas antes de "categories"/"testimonials" existirem como seções editáveis
-  // ganham essas duas seções automaticamente (no fim), pra não sumirem da home.
+  // Configs salvas antes de "categories"/"testimonials" existirem como seções editáveis ganham
+  // essas duas seções automaticamente, logo após "Meus produtos" (posição onde já apareciam
+  // antes de virarem seções editáveis), pra não sumirem nem mudarem de ordem na home.
   const kinds = new Set(base.map((section) => section.kind));
-  const migrated = [...base];
+  const missing: DashboardSectionConfig[] = [];
   if (!kinds.has("categories")) {
-    migrated.push({ id: "categories", title: "Explore", kind: "categories", mode: "automatic" });
+    missing.push({ id: "categories", title: "Explore", kind: "categories", mode: "automatic" });
   }
   if (!kinds.has("testimonials")) {
-    migrated.push({
+    missing.push({
       id: "testimonials",
       title: "O que as noivas dizem",
       kind: "testimonials",
       mode: "manual",
     });
   }
-  return migrated;
+  if (missing.length === 0) return base;
+
+  const purchasedIndex = base.findIndex(
+    (section) => section.kind === "products" && section.mode === "automatic" && section.auto_rule === "purchased"
+  );
+  const insertAt = purchasedIndex >= 0 ? purchasedIndex + 1 : 0;
+  return [...base.slice(0, insertAt), ...missing, ...base.slice(insertAt)];
 }
 
 export function dashboardSectionsConfigToOrder(config: DashboardSectionConfig[]): DashboardSectionId[] {
