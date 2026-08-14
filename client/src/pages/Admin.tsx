@@ -1298,6 +1298,12 @@ export default function AdminPage() {
       delete payload.created_at;
       delete payload.updated_at;
       payload.name = `${product.name || product.title || "Produto"} (cópia)`;
+      // IDs de plataforma de venda e o flag do Planejamento Premium têm índice único no banco —
+      // a cópia não pode herdá-los, senão o insert quebra por violar a constraint.
+      payload.external_sales_id = null;
+      payload.cakto_sales_id = null;
+      payload.hotmart_sales_id = null;
+      payload.is_wedding_planning_premium = false;
 
       const { data, error } = await supabase.from("products").insert(payload).select("id").single();
       if (error) throw error;
