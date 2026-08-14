@@ -19,6 +19,7 @@ import {
   resolveHeroBannerDesktopUrls,
 } from "@/contexts/SiteSettingsContext";
 import { canAccessProduct } from "@/lib/productAccess";
+import { categoryProductIdsIncludingSubcategories } from "@/lib/productCategories";
 import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
 import {
@@ -299,7 +300,11 @@ export default function Dashboard() {
   const visibleCategories = useMemo(
     () =>
       settings.product_categories_config.filter(
-        (category) => category.visible && category.product_ids.length > 0
+        (category) =>
+          !category.parent_id &&
+          category.visible &&
+          categoryProductIdsIncludingSubcategories(settings.product_categories_config, category.id)
+            .length > 0
       ),
     [settings.product_categories_config]
   );
@@ -307,7 +312,8 @@ export default function Dashboard() {
   const colecoesCategory = useMemo(
     () =>
       settings.product_categories_config.find(
-        (category) => category.visible && category.name.trim().toLowerCase() === "coleções"
+        (category) =>
+          !category.parent_id && category.visible && category.name.trim().toLowerCase() === "coleções"
       ) ?? null,
     [settings.product_categories_config]
   );

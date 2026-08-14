@@ -3610,7 +3610,7 @@ export default function AdminPage() {
                         <option value="">Nenhuma</option>
                         {productCategoriesConfig.map((category) => (
                           <option key={category.id} value={category.id}>
-                            {category.name || "Sem nome"}
+                            {category.parent_id ? `— ${category.name || "Sem nome"}` : category.name || "Sem nome"}
                           </option>
                         ))}
                       </select>

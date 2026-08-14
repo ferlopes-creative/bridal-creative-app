@@ -4,6 +4,8 @@ export type ProductCategoryConfig = {
   photo_url: string | null;
   visible: boolean;
   product_ids: string[];
+  /** Se preenchido, esta categoria é subcategoria de outra (id de outra categoria). */
+  parent_id: string | null;
 };
 
 function normalizeProductIds(raw: unknown): string[] {
@@ -28,12 +30,14 @@ function normalizeCategory(raw: unknown): ProductCategoryConfig | null {
   const name = typeof item.name === "string" ? item.name : "";
   const photo_url = typeof item.photo_url === "string" && item.photo_url.trim() ? item.photo_url : null;
   const visible = item.visible !== false;
+  const parent_id = typeof item.parent_id === "string" && item.parent_id.trim() ? item.parent_id.trim() : null;
   return {
     id,
     name,
     photo_url,
     visible,
     product_ids: normalizeProductIds(item.product_ids),
+    parent_id,
   };
 }
 
@@ -58,10 +62,20 @@ export function parseProductCategoriesConfig(raw: unknown): ProductCategoryConfi
     seen.add(normalized.id);
     categories.push(normalized);
   }
-  return categories;
+
+  // Só permite 1 nível de aninhamento: se o "pai" apontado não existe, ou também tem pai
+  // (evitaria ciclo/3+ níveis), ou aponta pra si mesma, vira categoria de topo.
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  return categories.map((category) => {
+    if (!category.parent_id) return category;
+    if (category.parent_id === category.id) return { ...category, parent_id: null };
+    const parent = byId.get(category.parent_id);
+    if (!parent || parent.parent_id) return { ...category, parent_id: null };
+    return category;
+  });
 }
 
-export function createProductCategory(): ProductCategoryConfig {
+export function createProductCategory(parentId: string | null = null): ProductCategoryConfig {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -69,11 +83,39 @@ export function createProductCategory(): ProductCategoryConfig {
 
   return {
     id,
-    name: "Nova categoria",
+    name: parentId ? "Nova subcategoria" : "Nova categoria",
     photo_url: null,
     visible: true,
     product_ids: [],
+    parent_id: parentId,
   };
+}
+
+/** Categorias de topo (aparecem como atalhos na Início). */
+export function topLevelCategories(categories: ProductCategoryConfig[]): ProductCategoryConfig[] {
+  return categories.filter((category) => !category.parent_id);
+}
+
+/** Subcategorias diretas de uma categoria de topo. */
+export function subcategoriesOf(
+  categories: ProductCategoryConfig[],
+  parentId: string
+): ProductCategoryConfig[] {
+  return categories.filter((category) => category.parent_id === parentId);
+}
+
+/** Produtos de uma categoria, incluindo os de todas as suas subcategorias (sem duplicar). */
+export function categoryProductIdsIncludingSubcategories(
+  categories: ProductCategoryConfig[],
+  categoryId: string
+): string[] {
+  const category = categories.find((item) => item.id === categoryId);
+  if (!category) return [];
+  const ids = new Set(category.product_ids);
+  for (const sub of subcategoriesOf(categories, categoryId)) {
+    for (const id of sub.product_ids) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 /** Categoria (se houver) à qual um produto pertence — usada no seletor do formulário de produto. */

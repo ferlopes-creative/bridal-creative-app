@@ -33,6 +33,7 @@ export default function InstallPrompt() {
 
   useEffect(() => {
     if (!isMobile() || isStandalone()) return;
+    if (window.location.pathname.startsWith("/admin")) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
 
     const onBeforeInstall = (e: Event) => {
