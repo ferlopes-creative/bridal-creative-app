@@ -2911,6 +2911,9 @@ export default function AdminPage() {
                 name: product.name,
                 type: product.type,
               }))}
+              categories={productCategoriesConfig
+                .filter((category) => !category.parent_id)
+                .map((category) => ({ id: category.id, name: category.name }))}
               saving={sectionOrderSaving}
               onSave={() => void handleSaveSectionsConfig()}
             />

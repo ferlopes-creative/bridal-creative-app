@@ -15,10 +15,16 @@ type ProductOption = {
   type?: string | null;
 };
 
+type CategoryOption = {
+  id: string;
+  name: string;
+};
+
 type DashboardSectionsEditorProps = {
   sections: DashboardSectionConfig[];
   onChange: (sections: DashboardSectionConfig[]) => void;
   products: ProductOption[];
+  categories: CategoryOption[];
   saving: boolean;
   onSave: () => void;
 };
@@ -73,10 +79,34 @@ function moveProductId(
   return { ...section, product_ids: current };
 }
 
+function toggleCategoryId(section: DashboardSectionConfig, categoryId: string): DashboardSectionConfig {
+  const current = section.category_ids ?? [];
+  const exists = current.includes(categoryId);
+  const category_ids = exists
+    ? current.filter((id) => id !== categoryId)
+    : [...current, categoryId];
+  return { ...section, category_ids };
+}
+
+function moveCategoryId(
+  section: DashboardSectionConfig,
+  categoryId: string,
+  direction: -1 | 1
+): DashboardSectionConfig {
+  const current = [...(section.category_ids ?? [])];
+  const index = current.indexOf(categoryId);
+  if (index < 0) return section;
+  const target = index + direction;
+  if (target < 0 || target >= current.length) return section;
+  [current[index], current[target]] = [current[target], current[index]];
+  return { ...section, category_ids: current };
+}
+
 export default function DashboardSectionsEditor({
   sections,
   onChange,
   products,
+  categories,
   saving,
   onSave,
 }: DashboardSectionsEditorProps) {
@@ -140,13 +170,26 @@ export default function DashboardSectionsEditor({
                         value={section.kind}
                         onChange={(e) => {
                           const kind = e.target.value as DashboardSectionKind;
-                          if (kind === "whatsapp" || kind === "categories" || kind === "testimonials") {
+                          if (kind === "whatsapp" || kind === "testimonials") {
                             onChange(
                               updateSectionAt(sections, index, {
                                 kind,
                                 mode: "manual",
                                 auto_rule: undefined,
                                 product_ids: undefined,
+                                category_ids: undefined,
+                              })
+                            );
+                            return;
+                          }
+                          if (kind === "categories") {
+                            onChange(
+                              updateSectionAt(sections, index, {
+                                kind: "categories",
+                                mode: "automatic",
+                                auto_rule: undefined,
+                                product_ids: undefined,
+                                category_ids: undefined,
                               })
                             );
                             return;
@@ -157,6 +200,7 @@ export default function DashboardSectionsEditor({
                               mode: section.mode === "manual" ? "manual" : "automatic",
                               auto_rule: section.auto_rule ?? "all_visible",
                               product_ids: section.product_ids ?? [],
+                              category_ids: undefined,
                             })
                           );
                         }}
@@ -198,14 +242,35 @@ export default function DashboardSectionsEditor({
                           <option value="manual">Escolher produtos manualmente</option>
                         </select>
                       </div>
+                    ) : section.kind === "categories" ? (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                          Como preencher
+                        </label>
+                        <select
+                          value={section.mode}
+                          onChange={(e) => {
+                            const mode = e.target.value as "automatic" | "manual";
+                            onChange(
+                              updateSectionAt(sections, index, {
+                                mode,
+                                category_ids: mode === "manual" ? section.category_ids ?? [] : undefined,
+                              })
+                            );
+                          }}
+                          disabled={saving}
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60"
+                        >
+                          <option value="automatic">Automático (todas as categorias visíveis)</option>
+                          <option value="manual">Escolher categorias manualmente</option>
+                        </select>
+                      </div>
                     ) : (
                       <div className="flex items-end">
                         <p className="text-xs leading-relaxed text-zinc-500">
                           {section.kind === "whatsapp"
                             ? 'Usa o link do WhatsApp configurado em Aparência do app. O texto do botão continua "Chame nossa equipe".'
-                            : section.kind === "categories"
-                              ? "Mostra os atalhos circulares das categorias visíveis (editadas em Categorias de produtos, mais abaixo)."
-                              : "Mostra os depoimentos marcados como visíveis (editados em Depoimentos, mais abaixo)."}
+                            : "Mostra os depoimentos marcados como visíveis (editados em Depoimentos, mais abaixo)."}
                         </p>
                       </div>
                     )}
@@ -356,6 +421,118 @@ export default function DashboardSectionsEditor({
                                 </span>
                                 <span className="shrink-0 text-[10px] uppercase text-zinc-400">
                                   {(product.type || "PRO").toUpperCase()}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {section.kind === "categories" && section.mode === "manual" ? (
+                    <div className="space-y-3 rounded-lg border border-zinc-100 bg-zinc-50/80 p-3">
+                      <p className="text-xs font-medium text-zinc-700">
+                        Categorias nesta seção ({(section.category_ids ?? []).length})
+                      </p>
+
+                      {(section.category_ids ?? []).length > 0 ? (
+                        <ul className="space-y-1.5">
+                          {(section.category_ids ?? []).map((categoryId) => {
+                            const category = categories.find((c) => c.id === categoryId);
+                            return (
+                              <li
+                                key={categoryId}
+                                className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2"
+                              >
+                                <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">
+                                  {category?.name || "Categoria removida"}
+                                </span>
+                                <div className="flex shrink-0 gap-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onChange(
+                                        updateSectionAt(
+                                          sections,
+                                          index,
+                                          moveCategoryId(section, categoryId, -1)
+                                        )
+                                      )
+                                    }
+                                    disabled={saving}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40"
+                                    aria-label="Subir categoria"
+                                  >
+                                    <ChevronUp className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onChange(
+                                        updateSectionAt(
+                                          sections,
+                                          index,
+                                          moveCategoryId(section, categoryId, 1)
+                                        )
+                                      )
+                                    }
+                                    disabled={saving}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40"
+                                    aria-label="Descer categoria"
+                                  >
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onChange(
+                                        updateSectionAt(sections, index, toggleCategoryId(section, categoryId))
+                                      )
+                                    }
+                                    disabled={saving}
+                                    className="inline-flex h-7 w-7 items-center justify-center rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-40"
+                                    aria-label="Remover categoria da seção"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-zinc-500">
+                          Nenhuma categoria selecionada. Marque abaixo as que devem aparecer.
+                        </p>
+                      )}
+
+                      <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-zinc-200 bg-white p-2">
+                        {categories.length === 0 ? (
+                          <p className="px-1 py-2 text-xs text-zinc-500">
+                            Cadastre categorias em &quot;Atalhos da Início&quot;, mais abaixo, pra escolher aqui.
+                          </p>
+                        ) : (
+                          categories.map((category) => {
+                            const checked = (section.category_ids ?? []).includes(category.id);
+                            return (
+                              <label
+                                key={category.id}
+                                className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1.5 hover:bg-zinc-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={saving}
+                                  onChange={() =>
+                                    onChange(
+                                      updateSectionAt(sections, index, toggleCategoryId(section, category.id))
+                                    )
+                                  }
+                                  className="h-4 w-4 rounded border-zinc-300 text-[#6B705C] focus:ring-[#6B705C]/30"
+                                />
+                                <span className="min-w-0 flex-1 text-sm text-zinc-700">
+                                  {category.name || "Sem nome"}
                                 </span>
                               </label>
                             );

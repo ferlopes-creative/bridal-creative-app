@@ -29,6 +29,8 @@ export type DashboardSectionConfig = {
   mode: "automatic" | "manual";
   auto_rule?: DashboardSectionAutoRule;
   product_ids?: string[];
+  /** Só pra kind "categories" em modo manual: quais categorias (por id) aparecem, e em que ordem. */
+  category_ids?: string[];
 };
 
 export const DASHBOARD_AUTO_RULE_LABELS: Record<DashboardSectionAutoRule, string> = {
@@ -118,8 +120,18 @@ function normalizeSectionConfig(raw: unknown): DashboardSectionConfig | null {
   if (!id || !title) return null;
 
   const kind = isDashboardSectionKind(item.kind) ? item.kind : "products";
-  if (kind === "whatsapp" || kind === "categories" || kind === "testimonials") {
+  if (kind === "whatsapp" || kind === "testimonials") {
     return { id, title, kind, mode: "manual" };
+  }
+  if (kind === "categories") {
+    const categoryMode = item.mode === "manual" ? "manual" : "automatic";
+    return {
+      id,
+      title,
+      kind: "categories",
+      mode: categoryMode,
+      ...(categoryMode === "manual" ? { category_ids: normalizeProductIds(item.category_ids) } : {}),
+    };
   }
 
   const mode = item.mode === "manual" ? "manual" : "automatic";
@@ -202,7 +214,7 @@ export function parseDashboardSectionsConfig(
   const kinds = new Set(base.map((section) => section.kind));
   const migrated = [...base];
   if (!kinds.has("categories")) {
-    migrated.push({ id: "categories", title: "Explore", kind: "categories", mode: "manual" });
+    migrated.push({ id: "categories", title: "Explore", kind: "categories", mode: "automatic" });
   }
   if (!kinds.has("testimonials")) {
     migrated.push({
@@ -240,7 +252,7 @@ export function createDashboardSection(
   }
 
   if (kind === "categories") {
-    return { id, title: "Explore", kind: "categories", mode: "manual" };
+    return { id, title: "Explore", kind: "categories", mode: "automatic" };
   }
 
   if (kind === "testimonials") {
@@ -299,6 +311,23 @@ export function resolveSectionProducts<T extends SectionProduct>(
     default:
       return nonBonusProducts.filter((product) => ctx.visibleInCatalog(product));
   }
+}
+
+type SectionCategory = { id: string };
+
+/** Categorias a mostrar na seção "categories": automática = todas visíveis (ordem já filtrada
+ * por quem chama), manual = só as escolhidas, na ordem escolhida. */
+export function resolveSectionCategories<T extends SectionCategory>(
+  section: DashboardSectionConfig,
+  visibleCategories: T[]
+): T[] {
+  if (section.kind !== "categories") return [];
+  if (section.mode !== "manual") return visibleCategories;
+
+  const byId = new Map(visibleCategories.map((category) => [category.id, category]));
+  return (section.category_ids ?? [])
+    .map((id) => byId.get(id))
+    .filter((category): category is T => category != null);
 }
 
 export function sectionShowsLockedOverlay<T extends SectionProduct>(

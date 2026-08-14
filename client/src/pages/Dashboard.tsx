@@ -23,6 +23,7 @@ import { categoryProductIdsIncludingSubcategories } from "@/lib/productCategorie
 import { isVisibleInCatalog } from "@/lib/productVisibility";
 import { resolveWhatsAppUrl } from "@/lib/whatsappUrl";
 import {
+  resolveSectionCategories,
   resolveSectionProducts,
   sectionShowsLockedOverlay,
   shouldRenderDashboardSection,
@@ -361,12 +362,13 @@ export default function Dashboard() {
         }
 
         if (section.kind === "categories") {
-          if (visibleCategories.length === 0) return null;
+          const sectionCategories = resolveSectionCategories(section, visibleCategories);
+          if (sectionCategories.length === 0) return null;
           return (
             <section key={section.id} className="mt-6 md:mt-9">
               <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
               <div className="flex gap-6 overflow-x-auto pb-1 sm:gap-10">
-                {visibleCategories.map((category) => (
+                {sectionCategories.map((category) => (
                   <button
                     key={category.id}
                     type="button"
