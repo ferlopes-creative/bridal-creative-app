@@ -20,7 +20,7 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
 
 export type DashboardSectionAutoRule = "purchased" | "unpurchased" | "bonus" | "all_visible";
 
-export type DashboardSectionKind = "products" | "whatsapp";
+export type DashboardSectionKind = "products" | "whatsapp" | "categories" | "testimonials";
 
 export type DashboardSectionConfig = {
   id: string;
@@ -71,7 +71,7 @@ function isDashboardSectionAutoRule(value: unknown): value is DashboardSectionAu
 }
 
 function isDashboardSectionKind(value: unknown): value is DashboardSectionKind {
-  return value === "products" || value === "whatsapp";
+  return value === "products" || value === "whatsapp" || value === "categories" || value === "testimonials";
 }
 
 function legacyIdToConfig(id: DashboardSectionId): DashboardSectionConfig {
@@ -118,8 +118,8 @@ function normalizeSectionConfig(raw: unknown): DashboardSectionConfig | null {
   if (!id || !title) return null;
 
   const kind = isDashboardSectionKind(item.kind) ? item.kind : "products";
-  if (kind === "whatsapp") {
-    return { id, title, kind: "whatsapp", mode: "manual" };
+  if (kind === "whatsapp" || kind === "categories" || kind === "testimonials") {
+    return { id, title, kind, mode: "manual" };
   }
 
   const mode = item.mode === "manual" ? "manual" : "automatic";
@@ -195,10 +195,24 @@ export function parseDashboardSectionsConfig(
     ordered.push(normalized);
   }
 
-  if (ordered.length > 0) return ordered;
+  const base = ordered.length > 0 ? ordered : parseDashboardSectionOrder(fallbackOrder).map(legacyIdToConfig);
 
-  const order = parseDashboardSectionOrder(fallbackOrder);
-  return order.map(legacyIdToConfig);
+  // Configs salvas antes de "categories"/"testimonials" existirem como seções editáveis
+  // ganham essas duas seções automaticamente (no fim), pra não sumirem da home.
+  const kinds = new Set(base.map((section) => section.kind));
+  const migrated = [...base];
+  if (!kinds.has("categories")) {
+    migrated.push({ id: "categories", title: "Explore", kind: "categories", mode: "manual" });
+  }
+  if (!kinds.has("testimonials")) {
+    migrated.push({
+      id: "testimonials",
+      title: "O que as noivas dizem",
+      kind: "testimonials",
+      mode: "manual",
+    });
+  }
+  return migrated;
 }
 
 export function dashboardSectionsConfigToOrder(config: DashboardSectionConfig[]): DashboardSectionId[] {
@@ -223,6 +237,14 @@ export function createDashboardSection(
       kind: "whatsapp",
       mode: "manual",
     };
+  }
+
+  if (kind === "categories") {
+    return { id, title: "Explore", kind: "categories", mode: "manual" };
+  }
+
+  if (kind === "testimonials") {
+    return { id, title: "O que as noivas dizem", kind: "testimonials", mode: "manual" };
   }
 
   return {

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bell, Lock, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
@@ -309,24 +309,6 @@ export default function Dashboard() {
     [settings.product_categories_config]
   );
 
-  const colecoesCategory = useMemo(
-    () =>
-      settings.product_categories_config.find(
-        (category) =>
-          !category.parent_id && category.visible && category.name.trim().toLowerCase() === "coleções"
-      ) ?? null,
-    [settings.product_categories_config]
-  );
-
-  const colecoesProducts = useMemo(() => {
-    if (!colecoesCategory) return [];
-    const byId = new Map(products.map((product) => [product.id, product]));
-    return colecoesCategory.product_ids
-      .map((id) => byId.get(id))
-      .filter((product): product is Product => product != null && !purchasedIds.has(product.id))
-      .slice(0, 4);
-  }, [colecoesCategory, products, purchasedIds]);
-
   const visibleTestimonials = useMemo(
     () => settings.testimonials_config.filter((testimonial) => testimonial.visible),
     [settings.testimonials_config]
@@ -378,6 +360,69 @@ export default function Dashboard() {
           );
         }
 
+        if (section.kind === "categories") {
+          if (visibleCategories.length === 0) return null;
+          return (
+            <section key={section.id} className="mt-6 md:mt-9">
+              <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
+              <div className="flex gap-6 overflow-x-auto pb-1 sm:gap-10">
+                {visibleCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
+                    className="flex shrink-0 flex-col items-center gap-2"
+                  >
+                    <span className="h-24 w-24 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-28 sm:w-28">
+                      {category.photo_url ? (
+                        <img src={category.photo_url} alt="" className="h-full w-full object-cover" />
+                      ) : null}
+                    </span>
+                    <span
+                      className="max-w-[96px] text-center text-[11px] leading-tight text-bc-primary sm:max-w-[112px] sm:text-xs"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {category.name || "Sem nome"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        }
+
+        if (section.kind === "testimonials") {
+          if (visibleTestimonials.length === 0) return null;
+          return (
+            <section key={section.id} className="mt-8 mb-2 md:mt-12">
+              <div className="mx-[calc(50%-50vw)] w-screen" style={{ backgroundColor: "var(--bc-primary)" }}>
+                <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:flex md:items-start md:gap-6">
+                  {settings.testimonials_banner_url ? (
+                    <img
+                      src={settings.testimonials_banner_url}
+                      alt=""
+                      className="mb-4 aspect-square w-full rounded-[2px] object-cover md:mb-0 md:w-56 md:shrink-0 lg:w-64"
+                    />
+                  ) : null}
+                  <div className="min-w-0 md:flex-1">
+                    <h2
+                      className="mb-3 text-base text-white sm:text-lg"
+                      style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+                    >
+                      {section.title}
+                    </h2>
+                    <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
+                      {visibleTestimonials.map((testimonial) => (
+                        <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+                      ))}
+                    </HorizontalScrollRow>
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        }
+
         const isPurchasedSection = section.mode === "automatic" && section.auto_rule === "purchased";
         const isSuggestedSection = section.id === "suggested";
         let sectionProducts = resolveSectionProducts(section, products, sectionCtx);
@@ -404,7 +449,7 @@ export default function Dashboard() {
               : "Nenhum produto nesta seção.";
 
         const sectionNode = (
-          <section key={isPurchasedSection ? undefined : section.id}>
+          <section key={section.id}>
             {isSuggestedSection ? (
               <div className="mb-4">
                 <p
@@ -446,106 +491,7 @@ export default function Dashboard() {
           </section>
         );
 
-        if (isSuggestedSection) {
-          return (
-            <Fragment key={section.id}>
-              {sectionNode}
-              {colecoesCategory && colecoesProducts.length > 0 ? (
-                <section className="mt-6 md:mt-9">
-                  <h2
-                    className="mb-3 text-sm text-bc-primary sm:text-lg"
-                    style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
-                  >
-                    {colecoesCategory.name.toUpperCase()}
-                  </h2>
-                  <SuggestedProductsGrid
-                    products={colecoesProducts}
-                    showLocked={(product) => !canAccess(product)}
-                    onOpen={openProduct}
-                  />
-                  <div className="mt-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setLocation(`/dashboard/categoria/${colecoesCategory.id}`)}
-                      className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
-                    >
-                      Ver todas as coleções →
-                    </button>
-                  </div>
-                </section>
-              ) : null}
-            </Fragment>
-          );
-        }
-
-        if (!isPurchasedSection) {
-          return sectionNode;
-        }
-
-        return (
-          <Fragment key={section.id}>
-            {sectionNode}
-            {visibleCategories.length > 0 ? (
-              <section className="mt-6 md:mt-9">
-                <h2 className="app-section-title">EXPLORE</h2>
-                <div className="flex gap-6 overflow-x-auto pb-1 sm:gap-10">
-                  {visibleCategories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
-                      className="flex shrink-0 flex-col items-center gap-2"
-                    >
-                      <span className="h-24 w-24 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-28 sm:w-28">
-                        {category.photo_url ? (
-                          <img
-                            src={category.photo_url}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
-                      </span>
-                      <span
-                        className="max-w-[96px] text-center text-[11px] leading-tight text-bc-primary sm:max-w-[112px] sm:text-xs"
-                        style={{ fontFamily: "var(--font-display)" }}
-                      >
-                        {category.name || "Sem nome"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {visibleTestimonials.length > 0 ? (
-              <section className="mt-8 mb-2 md:mt-12">
-                <div className="mx-[calc(50%-50vw)] w-screen" style={{ backgroundColor: "var(--bc-primary)" }}>
-                  <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 md:flex md:items-start md:gap-6">
-                    {settings.testimonials_banner_url ? (
-                      <img
-                        src={settings.testimonials_banner_url}
-                        alt=""
-                        className="mb-4 aspect-square w-full rounded-[2px] object-cover md:mb-0 md:w-56 md:shrink-0 lg:w-64"
-                      />
-                    ) : null}
-                    <div className="min-w-0 md:flex-1">
-                      <h2
-                        className="mb-3 text-base text-white sm:text-lg"
-                        style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
-                      >
-                        O que as noivas dizem…
-                      </h2>
-                      <HorizontalScrollRow contentKey={visibleTestimonials.map((t) => t.id).join()}>
-                        {visibleTestimonials.map((testimonial) => (
-                          <TestimonialCard key={testimonial.id} testimonial={testimonial} />
-                        ))}
-                      </HorizontalScrollRow>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            ) : null}
-          </Fragment>
-        );
+        return sectionNode;
       })
       .filter((block) => block != null);
   }, [
@@ -558,8 +504,6 @@ export default function Dashboard() {
     visibleCategories,
     visibleTestimonials,
     settings.testimonials_banner_url,
-    colecoesCategory,
-    colecoesProducts,
     setLocation,
   ]);
 

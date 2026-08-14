@@ -140,10 +140,10 @@ export default function DashboardSectionsEditor({
                         value={section.kind}
                         onChange={(e) => {
                           const kind = e.target.value as DashboardSectionKind;
-                          if (kind === "whatsapp") {
+                          if (kind === "whatsapp" || kind === "categories" || kind === "testimonials") {
                             onChange(
                               updateSectionAt(sections, index, {
-                                kind: "whatsapp",
+                                kind,
                                 mode: "manual",
                                 auto_rule: undefined,
                                 product_ids: undefined,
@@ -164,6 +164,8 @@ export default function DashboardSectionsEditor({
                         className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60"
                       >
                         <option value="products">Lista de produtos</option>
+                        <option value="categories">Categorias (atalhos "Explore")</option>
+                        <option value="testimonials">Depoimentos</option>
                         <option value="whatsapp">Banner WhatsApp</option>
                       </select>
                     </div>
@@ -199,8 +201,11 @@ export default function DashboardSectionsEditor({
                     ) : (
                       <div className="flex items-end">
                         <p className="text-xs leading-relaxed text-zinc-500">
-                          Usa o link do WhatsApp configurado em Aparência do app. O texto do botão
-                          continua “Chame nossa equipe”.
+                          {section.kind === "whatsapp"
+                            ? 'Usa o link do WhatsApp configurado em Aparência do app. O texto do botão continua "Chame nossa equipe".'
+                            : section.kind === "categories"
+                              ? "Mostra os atalhos circulares das categorias visíveis (editadas em Categorias de produtos, mais abaixo)."
+                              : "Mostra os depoimentos marcados como visíveis (editados em Depoimentos, mais abaixo)."}
                         </p>
                       </div>
                     )}
@@ -405,6 +410,24 @@ export default function DashboardSectionsEditor({
         >
           <Plus className="h-4 w-4" />
           Nova seção de produtos
+        </button>
+        <button
+          type="button"
+          onClick={() => addSection("categories")}
+          disabled={saving}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Categorias (Explore)
+        </button>
+        <button
+          type="button"
+          onClick={() => addSection("testimonials")}
+          disabled={saving}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Depoimentos
         </button>
         <button
           type="button"
