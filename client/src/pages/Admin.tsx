@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronUp,
   Compass,
+  Copy,
   Eye,
   EyeOff,
   Image,
@@ -774,6 +775,7 @@ export default function AdminPage() {
   >("geral");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   /** Cadastro de produto em 2 etapas: "basic" = só o essencial; "full" = personalização completa. */
   const [createStep, setCreateStep] = useState<"basic" | "full">("basic");
 
@@ -1282,6 +1284,69 @@ export default function AdminPage() {
       toast.error("Não foi possível excluir o produto. Verifique permissões no Supabase.");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  /** Duplica um produto (todos os campos), incluindo nas mesmas categorias/atalhos e na
+   * seção manual "Pensados para você" se o original estiver lá — pra já aparecer no app. */
+  const handleDuplicateProduct = async (product: Product) => {
+    setDuplicatingId(product.id);
+    try {
+      const source = product as Record<string, unknown>;
+      const payload: Record<string, unknown> = { ...source };
+      delete payload.id;
+      delete payload.created_at;
+      delete payload.updated_at;
+      payload.name = `${product.name || product.title || "Produto"} (cópia)`;
+
+      const { data, error } = await supabase.from("products").insert(payload).select("id").single();
+      if (error) throw error;
+      const newId = data?.id as string | undefined;
+
+      if (newId) {
+        const inCategories = productCategoriesConfig.filter((category) =>
+          category.product_ids.includes(product.id)
+        );
+        if (inCategories.length > 0) {
+          const nextCategories = productCategoriesConfig.map((category) =>
+            category.product_ids.includes(product.id)
+              ? { ...category, product_ids: [...category.product_ids, newId] }
+              : category
+          );
+          const { error: catError } = await supabase.from("site_settings").upsert({
+            id: 1,
+            product_categories_config: nextCategories,
+            updated_at: new Date().toISOString(),
+          });
+          if (!catError) setProductCategoriesConfig(nextCategories);
+        }
+
+        const nextSections = dashboardSectionsConfig.map((section) =>
+          section.kind === "products" &&
+          section.mode === "manual" &&
+          section.product_ids?.includes(product.id)
+            ? { ...section, product_ids: [...(section.product_ids ?? []), newId] }
+            : section
+        );
+        if (JSON.stringify(nextSections) !== JSON.stringify(dashboardSectionsConfig)) {
+          const { error: secError } = await supabase.from("site_settings").upsert({
+            id: 1,
+            dashboard_sections_config: nextSections,
+            dashboard_section_order: dashboardSectionsConfigToOrder(nextSections),
+            updated_at: new Date().toISOString(),
+          });
+          if (!secError) setDashboardSectionsConfig(nextSections);
+        }
+      }
+
+      await fetchProducts(true);
+      await refreshSiteSettings();
+      toast.success("Produto duplicado.");
+    } catch (error) {
+      console.error("Erro ao duplicar produto:", error);
+      toast.error("Não foi possível duplicar o produto.");
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -3251,6 +3316,19 @@ export default function AdminPage() {
                         className="inline-flex h-8 w-8 items-center justify-center rounded text-[#6B705C] hover:bg-[#6B705C]/10"
                       >
                         <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDuplicateProduct(product)}
+                        disabled={duplicatingId === product.id}
+                        title="Duplicar"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-60"
+                      >
+                        {duplicatingId === product.id ? (
+                          <Spinner className="size-3.5 text-zinc-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
                       </button>
                       <button
                         type="button"
