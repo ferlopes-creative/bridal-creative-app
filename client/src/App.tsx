@@ -31,6 +31,7 @@ const loadNotifications = () => import("./pages/Notifications");
 const loadProfile = () => import("./pages/Profile");
 const loadPlanejamento = () => import("./pages/Planejamento");
 const loadCategoryProducts = () => import("./pages/CategoryProducts");
+const loadOwnedProducts = () => import("./pages/OwnedProducts");
 
 const DashboardProduct = lazy(loadDashboardProduct);
 const Community = lazy(loadCommunity);
@@ -40,6 +41,7 @@ const Notifications = lazy(loadNotifications);
 const Profile = lazy(loadProfile);
 const Planejamento = lazy(loadPlanejamento);
 const CategoryProducts = lazy(loadCategoryProducts);
+const OwnedProducts = lazy(loadOwnedProducts);
 
 /** Busca os chunks das outras páginas em segundo plano, pra troca de aba dentro
  * do app não mostrar tela de carregamento de novo. Chamada só depois que a
@@ -52,6 +54,7 @@ function prefetchRoutes() {
     void loadProfile();
     void loadPlanejamento();
     void loadCategoryProducts();
+    void loadOwnedProducts();
     // Admin/AdminNew ficam de fora: só quem administra usa, não vale a banda de todo mundo.
   };
 
@@ -89,6 +92,11 @@ function Router() {
         <Route path="/dashboard/categoria/:id">
           <RequireAppAccess>
             <CategoryProducts />
+          </RequireAppAccess>
+        </Route>
+        <Route path="/dashboard/meus-produtos">
+          <RequireAppAccess>
+            <OwnedProducts />
           </RequireAppAccess>
         </Route>
         <Route path="/profile">

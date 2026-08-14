@@ -375,7 +375,7 @@ export default function Dashboard() {
                     onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
                     className="flex shrink-0 flex-col items-center gap-2"
                   >
-                    <span className="h-24 w-24 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-28 sm:w-28">
+                    <span className="h-20 w-20 overflow-hidden rounded-full bg-bc-banner-light ring-1 ring-bc-primary/10 sm:h-24 sm:w-24">
                       {category.photo_url ? (
                         <img src={category.photo_url} alt="" className="h-full w-full object-cover" />
                       ) : null}
@@ -518,15 +518,28 @@ export default function Dashboard() {
               <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
             )}
             {isPurchasedSection ? (
-              <ProductList
-                products={sectionProducts}
-                keyPrefix={section.id}
-                showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
-                showFrame={false}
-                imageAspectClass="aspect-square"
-                large
-                onOpen={openProduct}
-              />
+              <>
+                <ProductList
+                  products={sectionProducts}
+                  keyPrefix={section.id}
+                  showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
+                  showFrame={false}
+                  showTitle={false}
+                  imageAspectClass="aspect-square"
+                  onOpen={openProduct}
+                />
+                {sectionProducts.length > 0 && (
+                  <div className="mt-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setLocation("/dashboard/meus-produtos")}
+                      className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
+                    >
+                      Ver todos →
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <SuggestedProductsGrid
                 products={sectionProducts}
