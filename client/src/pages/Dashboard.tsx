@@ -438,12 +438,22 @@ export default function Dashboard() {
           if (highlightProducts.length === 0) return null;
           return (
             <section key={section.id} className="mt-6 md:mt-9">
-              <h2
-                className="mb-3 text-sm text-bc-primary sm:text-lg"
-                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
-              >
-                {section.title.toUpperCase()}
-              </h2>
+              <div className="mb-3">
+                {section.subtitle?.trim() ? (
+                  <p
+                    className="text-[11px] font-normal uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {section.subtitle.toUpperCase()}
+                  </p>
+                ) : null}
+                <h2
+                  className="mt-0.5 text-sm text-bc-primary sm:text-lg"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+                >
+                  {section.title.toUpperCase()}
+                </h2>
+              </div>
               <SuggestedProductsGrid
                 products={highlightProducts}
                 showLocked={(product) => !canAccess(product)}

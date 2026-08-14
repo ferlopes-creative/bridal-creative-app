@@ -317,6 +317,26 @@ export default function DashboardSectionsEditor({
                     )}
                   </div>
 
+                  {section.kind === "category_highlight" ? (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                        Legenda acima do título (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={section.subtitle ?? ""}
+                        onChange={(e) =>
+                          onChange(
+                            updateSectionAt(sections, index, { subtitle: e.target.value || undefined })
+                          )
+                        }
+                        placeholder='Ex.: "Autorais e exclusivos"'
+                        disabled={saving}
+                        className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60"
+                      />
+                    </div>
+                  ) : null}
+
                   {section.kind === "products" && section.mode === "automatic" ? (
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">

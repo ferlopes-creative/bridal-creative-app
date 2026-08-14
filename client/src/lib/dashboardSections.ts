@@ -38,6 +38,8 @@ export type DashboardSectionConfig = {
   category_ids?: string[];
   /** Só pra kind "category_highlight": qual categoria é destacada nesta seção (grid + "Ver todas"). */
   category_id?: string;
+  /** Só pra kind "category_highlight": legenda pequena acima do título, tipo "Pensados para você". */
+  subtitle?: string;
 };
 
 export const DASHBOARD_AUTO_RULE_LABELS: Record<DashboardSectionAutoRule, string> = {
@@ -148,7 +150,15 @@ function normalizeSectionConfig(raw: unknown): DashboardSectionConfig | null {
   }
   if (kind === "category_highlight") {
     const category_id = typeof item.category_id === "string" ? item.category_id.trim() : "";
-    return { id, title, kind: "category_highlight", mode: "manual", category_id: category_id || undefined };
+    const subtitle = typeof item.subtitle === "string" ? item.subtitle.trim() : "";
+    return {
+      id,
+      title,
+      kind: "category_highlight",
+      mode: "manual",
+      category_id: category_id || undefined,
+      subtitle: subtitle || undefined,
+    };
   }
 
   const mode = item.mode === "manual" ? "manual" : "automatic";
