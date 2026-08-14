@@ -6,7 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
-import { ProductList, ProductPrice, type Product } from "@/components/ProductGrid";
+import { ProductPrice, type Product } from "@/components/ProductGrid";
 import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -507,23 +507,11 @@ export default function Dashboard() {
             ) : (
               <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
             )}
-            {isSuggestedSection ? (
-              <SuggestedProductsGrid
-                products={sectionProducts}
-                showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
-                onOpen={openProduct}
-              />
-            ) : (
-              <ProductList
-                products={sectionProducts}
-                keyPrefix={section.id}
-                showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
-                showFrame={!isPurchasedSection}
-                imageAspectClass={isPurchasedSection ? "aspect-square" : undefined}
-                large={isPurchasedSection}
-                onOpen={openProduct}
-              />
-            )}
+            <SuggestedProductsGrid
+              products={sectionProducts}
+              showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
+              onOpen={openProduct}
+            />
             {sectionProducts.length === 0 && (
               <p className="text-sm text-bc-primary/75">{emptyMessage}</p>
             )}
