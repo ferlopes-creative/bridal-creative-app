@@ -20,7 +20,12 @@ export const DASHBOARD_SECTION_LABELS: Record<DashboardSectionId, string> = {
 
 export type DashboardSectionAutoRule = "purchased" | "unpurchased" | "bonus" | "all_visible";
 
-export type DashboardSectionKind = "products" | "whatsapp" | "categories" | "testimonials";
+export type DashboardSectionKind =
+  | "products"
+  | "whatsapp"
+  | "categories"
+  | "testimonials"
+  | "category_highlight";
 
 export type DashboardSectionConfig = {
   id: string;
@@ -31,6 +36,8 @@ export type DashboardSectionConfig = {
   product_ids?: string[];
   /** Só pra kind "categories" em modo manual: quais categorias (por id) aparecem, e em que ordem. */
   category_ids?: string[];
+  /** Só pra kind "category_highlight": qual categoria é destacada nesta seção (grid + "Ver todas"). */
+  category_id?: string;
 };
 
 export const DASHBOARD_AUTO_RULE_LABELS: Record<DashboardSectionAutoRule, string> = {
@@ -73,7 +80,13 @@ function isDashboardSectionAutoRule(value: unknown): value is DashboardSectionAu
 }
 
 function isDashboardSectionKind(value: unknown): value is DashboardSectionKind {
-  return value === "products" || value === "whatsapp" || value === "categories" || value === "testimonials";
+  return (
+    value === "products" ||
+    value === "whatsapp" ||
+    value === "categories" ||
+    value === "testimonials" ||
+    value === "category_highlight"
+  );
 }
 
 function legacyIdToConfig(id: DashboardSectionId): DashboardSectionConfig {
@@ -132,6 +145,10 @@ function normalizeSectionConfig(raw: unknown): DashboardSectionConfig | null {
       mode: categoryMode,
       ...(categoryMode === "manual" ? { category_ids: normalizeProductIds(item.category_ids) } : {}),
     };
+  }
+  if (kind === "category_highlight") {
+    const category_id = typeof item.category_id === "string" ? item.category_id.trim() : "";
+    return { id, title, kind: "category_highlight", mode: "manual", category_id: category_id || undefined };
   }
 
   const mode = item.mode === "manual" ? "manual" : "automatic";
@@ -264,6 +281,10 @@ export function createDashboardSection(
 
   if (kind === "testimonials") {
     return { id, title: "O que as noivas dizem", kind: "testimonials", mode: "manual" };
+  }
+
+  if (kind === "category_highlight") {
+    return { id, title: "Nova seção", kind: "category_highlight", mode: "manual" };
   }
 
   return {

@@ -425,6 +425,43 @@ export default function Dashboard() {
           );
         }
 
+        if (section.kind === "category_highlight") {
+          const category = section.category_id
+            ? settings.product_categories_config.find((c) => c.id === section.category_id)
+            : null;
+          if (!category) return null;
+          const byId = new Map(products.map((product) => [product.id, product]));
+          const highlightProducts = category.product_ids
+            .map((id) => byId.get(id))
+            .filter((product): product is Product => product != null && !purchasedIds.has(product.id))
+            .slice(0, 4);
+          if (highlightProducts.length === 0) return null;
+          return (
+            <section key={section.id} className="mt-6 md:mt-9">
+              <h2
+                className="mb-3 text-sm text-bc-primary sm:text-lg"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+              >
+                {section.title.toUpperCase()}
+              </h2>
+              <SuggestedProductsGrid
+                products={highlightProducts}
+                showLocked={(product) => !canAccess(product)}
+                onOpen={openProduct}
+              />
+              <div className="mt-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => setLocation(`/dashboard/categoria/${category.id}`)}
+                  className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
+                >
+                  Ver todas →
+                </button>
+              </div>
+            </section>
+          );
+        }
+
         const isPurchasedSection = section.mode === "automatic" && section.auto_rule === "purchased";
         const isSuggestedSection = section.id === "suggested";
         let sectionProducts = resolveSectionProducts(section, products, sectionCtx);
@@ -506,6 +543,7 @@ export default function Dashboard() {
     visibleCategories,
     visibleTestimonials,
     settings.testimonials_banner_url,
+    settings.product_categories_config,
     setLocation,
   ]);
 

@@ -190,6 +190,20 @@ export default function DashboardSectionsEditor({
                                 auto_rule: undefined,
                                 product_ids: undefined,
                                 category_ids: undefined,
+                                category_id: undefined,
+                              })
+                            );
+                            return;
+                          }
+                          if (kind === "category_highlight") {
+                            onChange(
+                              updateSectionAt(sections, index, {
+                                kind: "category_highlight",
+                                mode: "manual",
+                                auto_rule: undefined,
+                                product_ids: undefined,
+                                category_ids: undefined,
+                                category_id: undefined,
                               })
                             );
                             return;
@@ -201,6 +215,7 @@ export default function DashboardSectionsEditor({
                               auto_rule: section.auto_rule ?? "all_visible",
                               product_ids: section.product_ids ?? [],
                               category_ids: undefined,
+                              category_id: undefined,
                             })
                           );
                         }}
@@ -209,6 +224,7 @@ export default function DashboardSectionsEditor({
                       >
                         <option value="products">Lista de produtos</option>
                         <option value="categories">Categorias (atalhos "Explore")</option>
+                        <option value="category_highlight">Destaque de 1 categoria (com título próprio)</option>
                         <option value="testimonials">Depoimentos</option>
                         <option value="whatsapp">Banner WhatsApp</option>
                       </select>
@@ -263,6 +279,31 @@ export default function DashboardSectionsEditor({
                         >
                           <option value="automatic">Automático (todas as categorias visíveis)</option>
                           <option value="manual">Escolher categorias manualmente</option>
+                        </select>
+                      </div>
+                    ) : section.kind === "category_highlight" ? (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                          Categoria destacada
+                        </label>
+                        <select
+                          value={section.category_id ?? ""}
+                          onChange={(e) =>
+                            onChange(
+                              updateSectionAt(sections, index, {
+                                category_id: e.target.value || undefined,
+                              })
+                            )
+                          }
+                          disabled={saving}
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60"
+                        >
+                          <option value="">Escolha uma categoria</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name || "Sem nome"}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     ) : (
@@ -596,6 +637,15 @@ export default function DashboardSectionsEditor({
         >
           <Plus className="h-4 w-4" />
           Categorias (Explore)
+        </button>
+        <button
+          type="button"
+          onClick={() => addSection("category_highlight")}
+          disabled={saving}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Destaque de categoria
         </button>
         <button
           type="button"
