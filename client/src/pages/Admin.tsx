@@ -66,6 +66,7 @@ import {
 } from "@/lib/dashboardSections";
 import {
   assignProductToCategory,
+  createProductCategory,
   findCategoryIdForProduct,
   isProductCategoriesConfigSchemaError,
   type ProductCategoryConfig,
@@ -1966,6 +1967,27 @@ export default function AdminPage() {
     setProductCategoriesConfig(nextCategories);
   };
 
+  /** Cria e já salva uma categoria nova, sem sair da edição de seções do dashboard. */
+  const handleQuickCreateCategory = async (name: string): Promise<string> => {
+    const category = { ...createProductCategory(null), name: name.trim() || "Nova categoria" };
+    const next = [...productCategoriesConfig, category];
+
+    const { error } = await supabase.from("site_settings").upsert({
+      id: 1,
+      product_categories_config: next,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      toast.error("Não foi possível criar a categoria.");
+      throw error;
+    }
+
+    setProductCategoriesConfig(next);
+    await refreshSiteSettings();
+    toast.success("Categoria criada.");
+    return category.id;
+  };
+
   const handleSaveProductCategories = async () => {
     setCategoriesSaving(true);
     try {
@@ -2914,6 +2936,7 @@ export default function AdminPage() {
               categories={productCategoriesConfig
                 .filter((category) => !category.parent_id)
                 .map((category) => ({ id: category.id, name: category.name }))}
+              onCreateCategory={handleQuickCreateCategory}
               saving={sectionOrderSaving}
               onSave={() => void handleSaveSectionsConfig()}
             />

@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, Plus, Save, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   DASHBOARD_AUTO_RULE_HINTS,
@@ -25,6 +26,8 @@ type DashboardSectionsEditorProps = {
   onChange: (sections: DashboardSectionConfig[]) => void;
   products: ProductOption[];
   categories: CategoryOption[];
+  /** Cria (e já salva) uma categoria nova sem sair desta tela; retorna o id criado. */
+  onCreateCategory: (name: string) => Promise<string>;
   saving: boolean;
   onSave: () => void;
 };
@@ -102,11 +105,90 @@ function moveCategoryId(
   return { ...section, category_ids: current };
 }
 
+function QuickCreateCategory({
+  disabled,
+  onCreate,
+}: {
+  disabled?: boolean;
+  onCreate: (name: string) => Promise<string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+        className="inline-flex items-center gap-1 text-xs font-medium text-[#6B705C] hover:underline disabled:opacity-50"
+      >
+        <Plus className="h-3 w-3" />
+        Criar nova categoria aqui
+      </button>
+    );
+  }
+
+  const submit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || creating) return;
+    setCreating(true);
+    try {
+      await onCreate(trimmed);
+      setName("");
+      setOpen(false);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder="Nome da nova categoria"
+        autoFocus
+        disabled={disabled || creating}
+        className="h-9 flex-1 rounded-md border border-zinc-200 px-2.5 text-xs outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60"
+      />
+      <button
+        type="button"
+        onClick={() => void submit()}
+        disabled={disabled || creating || !name.trim()}
+        className="inline-flex h-9 shrink-0 items-center rounded-md bg-[#6B705C] px-3 text-xs font-medium text-white disabled:opacity-50"
+      >
+        {creating ? <Spinner className="size-3.5 text-white" /> : "Criar"}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          setName("");
+        }}
+        disabled={creating}
+        className="text-xs text-zinc-400 hover:text-zinc-600"
+      >
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
 export default function DashboardSectionsEditor({
   sections,
   onChange,
   products,
   categories,
+  onCreateCategory,
   saving,
   onSave,
 }: DashboardSectionsEditorProps) {
@@ -305,6 +387,14 @@ export default function DashboardSectionsEditor({
                             </option>
                           ))}
                         </select>
+                        <QuickCreateCategory
+                          disabled={saving}
+                          onCreate={async (name) => {
+                            const newId = await onCreateCategory(name);
+                            onChange(updateSectionAt(sections, index, { category_id: newId }));
+                            return newId;
+                          }}
+                        />
                       </div>
                     ) : (
                       <div className="flex items-end">
