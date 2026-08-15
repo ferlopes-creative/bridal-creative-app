@@ -1,14 +1,12 @@
 import { useLocation } from "wouter";
-import { CalendarHeart, Home, Lock, MessageCircle, User } from "lucide-react";
-import { useCommunityAccess } from "@/contexts/CommunityAccessContext";
+import { CalendarHeart, Home, ShoppingBag, User } from "lucide-react";
 
 export default function BottomAppNav() {
   const [location, setLocation] = useLocation();
-  const { canOpenCommunity } = useCommunityAccess();
+  const onOwnedProducts = location.startsWith("/dashboard/meus-produtos");
   const onDashboard =
-    location === "/dashboard" || location.startsWith("/dashboard/");
+    !onOwnedProducts && (location === "/dashboard" || location.startsWith("/dashboard/"));
   const onPlanning = location.startsWith("/planejamento");
-  const onCommunity = location.startsWith("/community");
   const onProfile = location === "/profile";
 
   const iconClass = "h-[18px] w-[18px] shrink-0";
@@ -54,21 +52,16 @@ export default function BottomAppNav() {
         </button>
         <button
           type="button"
-          onClick={() => setLocation("/community")}
-          className={`${baseBtn} ${onCommunity ? active : inactive}`}
-          aria-current={onCommunity ? "page" : undefined}
-          aria-label={canOpenCommunity ? "Comunidade" : "Comunidade bloqueada"}
+          onClick={() => setLocation("/dashboard/meus-produtos")}
+          className={`${baseBtn} ${onOwnedProducts ? active : inactive}`}
+          aria-current={onOwnedProducts ? "page" : undefined}
+          aria-label="Meus produtos"
         >
-          <div className="relative">
-            <MessageCircle
-              className={`${iconClass} ${onCommunity ? "opacity-100" : "opacity-90"}`}
-              strokeWidth={onCommunity ? strokeActive : strokeInactive}
-            />
-            {!canOpenCommunity ? (
-              <Lock className="absolute -right-2.5 -bottom-1 h-3.5 w-3.5 rounded-full bg-bc-primary p-[1px] text-white" />
-            ) : null}
-          </div>
-          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Chat</span>
+          <ShoppingBag
+            className={`${iconClass} ${onOwnedProducts ? "opacity-100" : "opacity-90"}`}
+            strokeWidth={onOwnedProducts ? strokeActive : strokeInactive}
+          />
+          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Meus produtos</span>
         </button>
         <button
           type="button"

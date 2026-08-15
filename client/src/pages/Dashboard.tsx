@@ -7,17 +7,10 @@ import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { ProductList, ProductPrice, type Product } from "@/components/ProductGrid";
-import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
 import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
 import { useAppData } from "@/contexts/AppDataContext";
-import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
-import {
-  useSiteSettings,
-  resolveDashboardBackground,
-  resolveHeroBannerMobileUrls,
-  resolveHeroBannerDesktopUrls,
-} from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveDashboardBackground } from "@/contexts/SiteSettingsContext";
 import { canAccessProduct } from "@/lib/productAccess";
 import { categoryProductIdsIncludingSubcategories } from "@/lib/productCategories";
 import { isVisibleInCatalog } from "@/lib/productVisibility";
@@ -99,6 +92,29 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
       ) : null}
     </div>
   );
+}
+
+type WeddingCountdown = { months: number; days: number; hours: number };
+
+/** Quebra o tempo até o casamento em meses/dias/horas restantes (calendário, não só ms/24). */
+function weddingCountdownParts(target: Date, now: Date): WeddingCountdown {
+  if (target.getTime() <= now.getTime()) return { months: 0, days: 0, hours: 0 };
+
+  let months = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
+  const cursor = new Date(now);
+  cursor.setMonth(cursor.getMonth() + months);
+  if (cursor.getTime() > target.getTime()) {
+    months -= 1;
+    cursor.setMonth(cursor.getMonth() - 1);
+  }
+  months = Math.max(0, months);
+
+  let msLeft = target.getTime() - cursor.getTime();
+  const days = Math.floor(msLeft / 86400000);
+  msLeft -= days * 86400000;
+  const hours = Math.floor(msLeft / 3600000);
+
+  return { months, days, hours };
 }
 
 function chunkIntoPagesOfFour<T>(items: T[]): T[][] {
@@ -207,24 +223,16 @@ export default function Dashboard() {
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const [weddingName, setWeddingName] = useState<string | null>(null);
-  const [weddingDaysLeft, setWeddingDaysLeft] = useState<number | null>(null);
+  const [weddingCountdown, setWeddingCountdown] = useState<WeddingCountdown>({
+    months: 0,
+    days: 0,
+    hours: 0,
+  });
   const guestMode = isGuestMode();
 
   const pageBgUrl = resolveDashboardBackground(settings);
   const logoUrl = settings.logo_url;
   const whatsappUrl = resolveWhatsAppUrl(settings);
-  const heroMobileUrls = useMemo(
-    () => resolveHeroBannerMobileUrls(settings),
-    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
-  );
-  const heroDesktopUrls = useMemo(
-    () => resolveHeroBannerDesktopUrls(settings),
-    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
-  );
-  const isMobile = useIsMobile();
-  const activeHeroUrls = isMobile ? heroMobileUrls : heroDesktopUrls;
-  const showHero = activeHeroUrls.length > 0;
 
   useEffect(() => {
     refreshSiteSettings();
@@ -237,8 +245,7 @@ export default function Dashboard() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-        setWeddingName(null);
-        setWeddingDaysLeft(null);
+        setWeddingCountdown({ months: 0, days: 0, hours: 0 });
         return;
       }
 
@@ -249,19 +256,16 @@ export default function Dashboard() {
 
       const { data: weddingData } = await supabase
         .from("wedding_details")
-        .select("bride_name, wedding_date")
+        .select("wedding_date")
         .eq("user_id", userData.user.id)
         .maybeSingle();
 
-      setWeddingName(registeredName || weddingData?.bride_name?.trim() || null);
       if (weddingData?.wedding_date) {
         const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
         const target = new Date(y, m - 1, d);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        setWeddingDaysLeft(Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000)));
+        setWeddingCountdown(weddingCountdownParts(target, new Date()));
       } else {
-        setWeddingDaysLeft(null);
+        setWeddingCountdown({ months: 0, days: 0, hours: 0 });
       }
     };
 
@@ -325,7 +329,11 @@ export default function Dashboard() {
 
     return settings.dashboard_sections_config
       .map((section) => {
-        if (section.mode === "automatic" && section.auto_rule === "bonus") {
+        if (
+          section.mode === "automatic" &&
+          (section.auto_rule === "bonus" || section.auto_rule === "purchased")
+        ) {
+          // "Bônus" e "Meus produtos" (comprados) agora vivem na aba própria "Meus produtos".
           return null;
         }
 
@@ -609,83 +617,78 @@ export default function Dashboard() {
       </div>
 
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
-      <section className="relative min-h-[240px] overflow-hidden rounded-b-2xl md:min-h-[320px]">
-        <div className="absolute inset-0 bg-bc-primary">
-          {showHero ? (
-            <SiteBannerCarousel
-              urls={activeHeroUrls}
-              slideMinClass={isMobile ? "min-h-[240px]" : "min-h-[320px] lg:min-h-[360px]"}
-              imageObjectPosition={isMobile ? "center" : "center top"}
-            />
-          ) : null}
-        </div>
-        <div className="pointer-events-none relative z-10 mx-auto flex min-h-[240px] w-full max-w-6xl flex-col px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-10 md:min-h-[320px]">
-          <header className="pointer-events-auto flex items-center justify-between">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center md:h-14 md:w-16">
-              <BrandLogo
-                src={logoUrl}
-                className="max-h-12 max-w-12 object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.35)] md:max-h-14 md:max-w-[4.5rem]"
-              />
-            </div>
-            {!guestMode ? (
-              <button
-                type="button"
-                onClick={() => setLocation("/notifications")}
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
-                aria-label="Notificações"
-              >
-                <Bell className="h-6 w-6" />
-                {hasUnread && (
-                  <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/90" aria-hidden />
-                )}
-              </button>
-            ) : (
-              <div className="h-10 w-10" aria-hidden />
-            )}
-          </header>
-        </div>
-      </section>
 
-      <div className="mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-9 md:pt-10">
-        <div className="border-b border-bc-primary/15 pb-3">
-          <p
-            className="text-sm font-bold tracking-[0.06em] text-bc-primary sm:text-base sm:tracking-[0.1em]"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            Bem-vinda(o){weddingName ? `, ${weddingName}` : ""}!
-          </p>
+      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+          <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
         </div>
-        <div className="mt-4 flex items-start justify-between gap-4">
-          <h1
-            className="text-base leading-snug text-bc-primary sm:text-xl"
-            style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
+        {!guestMode ? (
+          <button
+            type="button"
+            onClick={() => setLocation("/notifications")}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
+            aria-label="Notificações"
           >
-            Um grande amor,
-            <br />
-            merece um
-            <br />
-            <span className="text-4xl leading-tight sm:text-6xl" style={{ fontFamily: "var(--font-script)" }}>
-              Grande dia!
-            </span>
-          </h1>
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <div
-              className="rounded-[3px] px-4 py-2 text-center text-white sm:px-6 sm:py-2.5"
-              style={{ backgroundColor: "var(--bc-primary)" }}
-            >
-              <p className="text-[9px] uppercase tracking-[0.1em] text-white/75 sm:text-[10px]">Faltam</p>
-              <p className="text-base font-semibold whitespace-nowrap sm:text-xl" style={{ fontFamily: "var(--font-display)" }}>
-                {weddingDaysLeft !== null ? `${weddingDaysLeft} dias` : "--"}
+            <Bell className="h-5 w-5" />
+            {hasUnread && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-bc-page-bg" aria-hidden />
+            )}
+          </button>
+        ) : (
+          <div className="h-10 w-10" aria-hidden />
+        )}
+      </div>
+
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-4">
+        <div className="mx-auto max-w-xs rounded-md py-4" style={{ backgroundColor: "var(--bc-primary)" }}>
+          <p className="text-center text-[9px] uppercase tracking-[0.14em] text-white/75 sm:text-[10px]">
+            Faltam
+          </p>
+          <div className="mt-2 flex items-start justify-center gap-6 sm:gap-8">
+            <div className="text-center">
+              <p
+                className="text-2xl font-semibold text-white sm:text-3xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {weddingCountdown.months}
               </p>
+              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">meses</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setLocation("/planejamento")}
-              className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
-            >
-              Ver planejamento →
-            </button>
+            <div className="text-center">
+              <p
+                className="text-2xl font-semibold text-white sm:text-3xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {weddingCountdown.days}
+              </p>
+              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">dias</p>
+            </div>
+            <div className="text-center">
+              <p
+                className="text-2xl font-semibold text-white sm:text-3xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {weddingCountdown.hours}
+              </p>
+              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">horas</p>
+            </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setLocation("/dashboard/meus-produtos")}
+            className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
+          >
+            Ver meus produtos →
+          </button>
+          <button
+            type="button"
+            onClick={() => setLocation("/planejamento")}
+            className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
+          >
+            Ver planejamento →
+          </button>
         </div>
       </div>
 
@@ -698,13 +701,7 @@ export default function Dashboard() {
       </div>
 
       <WelcomePopup open={showWelcomePopup} onOpenChange={setShowWelcomePopup} logoUrl={logoUrl} />
-      <DisplayNamePrompt
-        open={showNamePrompt}
-        onSaved={(savedName) => {
-          setShowNamePrompt(false);
-          setWeddingName(savedName);
-        }}
-      />
+      <DisplayNamePrompt open={showNamePrompt} onSaved={() => setShowNamePrompt(false)} />
 
       <WhatsAppSupportButton aboveBottomNav />
       <BottomAppNav />
