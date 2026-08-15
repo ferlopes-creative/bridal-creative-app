@@ -28,6 +28,8 @@ type Product = {
   thumbnail_url?: string | null;
   video_url?: string | null;
   video_sales_url?: string | null;
+  delivery_video_urls?: unknown;
+  sales_video_urls?: unknown;
   access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
@@ -85,6 +87,8 @@ export default function DashboardProduct() {
           thumbnail_url: item.thumbnail_url as string | null | undefined,
           video_url: (item.video_url ?? item.video) as string | null | undefined,
           video_sales_url: item.video_sales_url as string | null | undefined,
+          delivery_video_urls: item.delivery_video_urls,
+          sales_video_urls: item.sales_video_urls,
           access_links: item.access_links,
           link_compra: (item.link_compra ?? item.link) as string | null | undefined,
           link: item.link as string | null | undefined,

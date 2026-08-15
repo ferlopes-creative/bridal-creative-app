@@ -1,11 +1,11 @@
 import { ExternalLink, PlayCircle, Star } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { ProductPrice } from "@/components/ProductGrid";
-import { parseGalleryUrls } from "@/lib/productDeliveryImages";
+import { parseGalleryUrls, resolveVideoGallery } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 import { parseProductFaq } from "@/lib/productFaq";
 import { parseProductModules, type ProductLesson } from "@/lib/productModules";
@@ -30,6 +30,8 @@ type ProductViewData = {
   video_url?: string | null;
   video_sales_url?: string | null;
   video?: string | null;
+  delivery_video_urls?: unknown;
+  sales_video_urls?: unknown;
   access_links?: unknown;
   link_compra?: string | null;
   link?: string | null;
@@ -165,9 +167,9 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     : parseGalleryUrls(product.sales_gallery_urls);
   const purchaseLink = (product.link_compra || product.link || "").trim() || null;
   const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
-  const videoSrc = canAccess
-    ? (product.video_url || product.video || "").trim() || null
-    : product.video_sales_url?.trim() || null;
+  const videoUrls = canAccess
+    ? resolveVideoGallery(product.delivery_video_urls, product.video_url || product.video)
+    : resolveVideoGallery(product.sales_video_urls, product.video_sales_url);
   const faqItems = parseProductFaq(product.faq_config);
   const testimonials = parseTestimonialsConfig(product.product_testimonials_config).filter((t) => t.visible);
   const modules = canAccess ? parseProductModules(product.modules_config) : [];
@@ -178,8 +180,15 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     ...galleryUrls
       .filter((url) => url !== heroSrc)
       .map((url, index): Slide => ({ kind: "image", url, alt: `${title} — foto ${index + 2}` })),
-    ...(videoSrc ? [{ kind: "video", url: videoSrc } as Slide] : []),
+    ...videoUrls.map((url): Slide => ({ kind: "video", url })),
   ];
+  const slidesKey = slides.map((s) => s.url).join();
+
+  const [activeIndex, setActiveIndex] = useState(0);
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [slidesKey]);
+  const activeSlide = slides[Math.min(activeIndex, slides.length - 1)] ?? slides[0];
 
   const accessButtonClass = (enabled: boolean) =>
     `inline-flex items-center justify-center gap-2 border px-5 py-2.5 text-xs tracking-[0.1em] transition-colors md:text-sm ${
@@ -256,32 +265,47 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   return (
     <section className="mx-auto w-full min-w-0 max-w-2xl">
       <div className="mx-auto w-full max-w-xs sm:max-w-sm">
-        <HorizontalScrollRow contentKey={slides.map((s) => s.url).join()}>
-          {slides.map((slide, index) => (
-            <div key={`${slide.url}-${index}`} className="w-full shrink-0 snap-start">
-              {slide.kind === "video" ? (
-                <video
-                  src={slide.url}
-                  controls
-                  preload="metadata"
-                  className="aspect-square w-full bg-[#1c1e17] object-contain"
-                />
-              ) : (
-                <img src={slide.url} alt={slide.alt} className="aspect-square w-full bg-[#f4f5ef] object-cover" />
-              )}
-            </div>
-          ))}
-        </HorizontalScrollRow>
+        <div className="aspect-square w-full overflow-hidden bg-[#f4f5ef]">
+          {activeSlide.kind === "video" ? (
+            <video
+              key={activeSlide.url}
+              src={activeSlide.url}
+              controls
+              preload="metadata"
+              className="h-full w-full bg-[#1c1e17] object-contain"
+            />
+          ) : (
+            <img
+              key={activeSlide.url}
+              src={activeSlide.url}
+              alt={activeSlide.alt}
+              className="h-full w-full object-cover"
+            />
+          )}
+        </div>
+
         {slides.length > 1 && (
-          <div className="mt-2 flex items-center justify-center gap-2 text-bc-primary/50">
-            {slides.map((slide, index) =>
-              slide.kind === "video" ? (
-                <PlayCircle key={`dot-${index}`} className="h-3 w-3" aria-hidden />
-              ) : (
-                <span key={`dot-${index}`} className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
-              )
-            )}
-          </div>
+          <HorizontalScrollRow className="mt-2" contentKey={slidesKey}>
+            {slides.map((slide, index) => (
+              <button
+                key={`${slide.url}-${index}`}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                aria-label={slide.kind === "video" ? "Ver vídeo" : `Ver foto ${index + 1}`}
+                className={`h-14 w-14 shrink-0 overflow-hidden border transition-colors ${
+                  index === activeIndex ? "border-bc-primary" : "border-transparent"
+                }`}
+              >
+                {slide.kind === "video" ? (
+                  <span className="flex h-full w-full items-center justify-center bg-[#1c1e17] text-white">
+                    <PlayCircle className="h-5 w-5" />
+                  </span>
+                ) : (
+                  <img src={slide.url} alt="" className="h-full w-full object-cover" />
+                )}
+              </button>
+            ))}
+          </HorizontalScrollRow>
         )}
       </div>
 
