@@ -3,14 +3,21 @@ import { Bell, Lock, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
 import BrandLogo from "@/components/BrandLogo";
+import HeroBanner from "@/components/HeroBanner";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { ProductList, ProductPrice, type Product } from "@/components/ProductGrid";
 import { formatTestimonialDate, type TestimonialConfig } from "@/lib/testimonials";
 import { useAppData } from "@/contexts/AppDataContext";
+import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
-import { useSiteSettings, resolveDashboardBackground } from "@/contexts/SiteSettingsContext";
+import {
+  useSiteSettings,
+  resolveDashboardBackground,
+  resolveHeroBannerMobileUrls,
+  resolveHeroBannerDesktopUrls,
+} from "@/contexts/SiteSettingsContext";
 import { canAccessProduct } from "@/lib/productAccess";
 import { categoryProductIdsIncludingSubcategories } from "@/lib/productCategories";
 import { isVisibleInCatalog } from "@/lib/productVisibility";
@@ -233,6 +240,17 @@ export default function Dashboard() {
   const pageBgUrl = resolveDashboardBackground(settings);
   const logoUrl = settings.logo_url;
   const whatsappUrl = resolveWhatsAppUrl(settings);
+  const heroMobileUrls = useMemo(
+    () => resolveHeroBannerMobileUrls(settings),
+    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
+  );
+  const heroDesktopUrls = useMemo(
+    () => resolveHeroBannerDesktopUrls(settings),
+    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
+  );
+  const isMobile = useIsMobile();
+  const activeHeroUrls = isMobile ? heroMobileUrls : heroDesktopUrls;
+  const showHero = activeHeroUrls.length > 0;
 
   useEffect(() => {
     refreshSiteSettings();
@@ -618,61 +636,71 @@ export default function Dashboard() {
 
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
 
-      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-          <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
-        </div>
-        {!guestMode ? (
-          <button
-            type="button"
-            onClick={() => setLocation("/notifications")}
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
-            aria-label="Notificações"
-          >
-            <Bell className="h-5 w-5" />
-            {hasUnread && (
-              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-bc-page-bg" aria-hidden />
-            )}
-          </button>
-        ) : (
-          <div className="h-10 w-10" aria-hidden />
-        )}
-      </div>
+      <HeroBanner
+        logoUrl={logoUrl}
+        guestMode={guestMode}
+        hasUnread={hasUnread}
+        onNotifications={() => setLocation("/notifications")}
+        activeHeroUrls={activeHeroUrls}
+        isMobile={isMobile}
+        showHero={showHero}
+      />
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-4">
-        <div className="mx-auto max-w-xs rounded-md py-4" style={{ backgroundColor: "var(--bc-primary)" }}>
-          <p className="text-center text-[9px] uppercase tracking-[0.14em] text-white/75 sm:text-[10px]">
-            Faltam
-          </p>
-          <div className="mt-2 flex items-start justify-center gap-6 sm:gap-8">
-            <div className="text-center">
-              <p
-                className="text-2xl font-semibold text-white sm:text-3xl"
-                style={{ fontFamily: "var(--font-display)" }}
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-9 md:pt-10">
+        <div className="mx-auto max-w-xs text-center">
+          <p className="text-[10px] uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs">Faltam</p>
+          <div className="mt-2 flex items-center justify-center gap-2.5 sm:gap-3.5">
+            <div className="flex flex-col items-center">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                style={{ backgroundColor: "var(--bc-primary)" }}
               >
-                {weddingCountdown.months}
-              </p>
-              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">meses</p>
+                <span
+                  className="text-xl font-semibold text-white sm:text-2xl"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {weddingCountdown.months}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">meses</p>
             </div>
-            <div className="text-center">
-              <p
-                className="text-2xl font-semibold text-white sm:text-3xl"
-                style={{ fontFamily: "var(--font-display)" }}
+            <span className="text-lg text-bc-primary/30">|</span>
+            <div className="flex flex-col items-center">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                style={{ backgroundColor: "var(--bc-primary)" }}
               >
-                {weddingCountdown.days}
-              </p>
-              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">dias</p>
+                <span
+                  className="text-xl font-semibold text-white sm:text-2xl"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {weddingCountdown.days}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">dias</p>
             </div>
-            <div className="text-center">
-              <p
-                className="text-2xl font-semibold text-white sm:text-3xl"
-                style={{ fontFamily: "var(--font-display)" }}
+            <span className="text-lg text-bc-primary/30">|</span>
+            <div className="flex flex-col items-center">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                style={{ backgroundColor: "var(--bc-primary)" }}
               >
-                {weddingCountdown.hours}
-              </p>
-              <p className="text-[9px] uppercase tracking-[0.1em] text-white/70">horas</p>
+                <span
+                  className="text-xl font-semibold text-white sm:text-2xl"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {weddingCountdown.hours}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">horas</p>
             </div>
           </div>
+          <p
+            className="mt-3 text-sm text-bc-primary"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            para o seu casamento
+          </p>
         </div>
         <div className="mt-3 flex flex-col items-center gap-1">
           <button

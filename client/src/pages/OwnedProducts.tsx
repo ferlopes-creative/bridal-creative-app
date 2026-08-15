@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Bell } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
+import BrandLogo from "@/components/BrandLogo";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { PageLoading } from "@/components/PageLoading";
-import WeddingHero from "@/components/WeddingHero";
+import { SiteBannerCarousel } from "@/components/SiteBannerCarousel";
+import WeddingGreeting from "@/components/WeddingGreeting";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { ProductList, type Product } from "@/components/ProductGrid";
 import { useAppData } from "@/contexts/AppDataContext";
@@ -41,7 +44,7 @@ export default function OwnedProducts() {
   );
   const isMobile = useIsMobile();
   const activeHeroUrls = isMobile ? heroMobileUrls : heroDesktopUrls;
-  const showHero = activeHeroUrls.length > 0;
+  const showBanner = activeHeroUrls.length > 0;
 
   useEffect(() => {
     const loadWeddingInfo = async () => {
@@ -111,17 +114,31 @@ export default function OwnedProducts() {
     <div className="relative min-h-screen overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
 
-      <WeddingHero
-        logoUrl={logoUrl}
-        guestMode={guestMode}
-        hasUnread={hasUnread}
-        onNotifications={() => setLocation("/notifications")}
+      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+          <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
+        </div>
+        {!guestMode ? (
+          <button
+            type="button"
+            onClick={() => setLocation("/notifications")}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
+            aria-label="Notificações"
+          >
+            <Bell className="h-5 w-5" />
+            {hasUnread && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-bc-page-bg" aria-hidden />
+            )}
+          </button>
+        ) : (
+          <div className="h-10 w-10" aria-hidden />
+        )}
+      </div>
+
+      <WeddingGreeting
         weddingName={weddingName}
         weddingDaysLeft={weddingDaysLeft}
         onPlanning={() => setLocation("/planejamento")}
-        activeHeroUrls={activeHeroUrls}
-        isMobile={isMobile}
-        showHero={showHero}
       />
 
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-10 md:pt-12">
@@ -140,6 +157,18 @@ export default function OwnedProducts() {
           />
         )}
       </div>
+
+      {showBanner && (
+        <div className="relative mx-auto mt-10 w-full max-w-6xl overflow-hidden rounded-[2px] px-4 md:mt-12">
+          <div className="overflow-hidden rounded-[2px]">
+            <SiteBannerCarousel
+              urls={activeHeroUrls}
+              slideMinClass={isMobile ? "min-h-[160px]" : "min-h-[220px]"}
+              imageObjectPosition="center"
+            />
+          </div>
+        </div>
+      )}
 
       <WhatsAppSupportButton aboveBottomNav />
       <BottomAppNav />
