@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Film, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Crop, Film, ImagePlus, Plus, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { createProductLesson, createProductModule, type ProductLesson, type ProductModule } from "@/lib/productModules";
 
@@ -9,6 +9,10 @@ type ProductModulesEditorProps = {
   disabled: boolean;
   onUploadImage: (file: File) => Promise<string>;
   onUploadVideo: (file: File) => Promise<string>;
+  /** Abre o corte quadrado antes de subir uma capa nova; cancelar segue com o arquivo original. */
+  onCropImage?: (file: File) => Promise<File>;
+  /** Abre o corte quadrado numa capa já salva e substitui pela URL cortada. */
+  onCropSavedUrl?: (url: string, replace: (newUrl: string) => void) => void;
 };
 
 function updateAt<T>(list: T[], index: number, patch: Partial<T>): T[] {
@@ -33,6 +37,8 @@ function LessonRow({
   disabled,
   onUploadImage,
   onUploadVideo,
+  onCropImage,
+  onCropSavedUrl,
   onUpdate,
   onMove,
   onRemove,
@@ -43,6 +49,8 @@ function LessonRow({
   disabled: boolean;
   onUploadImage: (file: File) => Promise<string>;
   onUploadVideo: (file: File) => Promise<string>;
+  onCropImage?: (file: File) => Promise<File>;
+  onCropSavedUrl?: (url: string, replace: (newUrl: string) => void) => void;
   onUpdate: (patch: Partial<ProductLesson>) => void;
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
@@ -53,35 +61,51 @@ function LessonRow({
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-3">
       <div className="flex items-start gap-3">
-        <label className="group relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
-          {lesson.cover_url ? (
-            <img src={lesson.cover_url} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <ImagePlus className="h-4 w-4 text-zinc-400" />
-          )}
-          {uploadingCover ? (
-            <span className="absolute inset-0 flex items-center justify-center bg-white/70">
-              <Spinner className="size-3.5 text-[#6B705C]" />
-            </span>
-          ) : null}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={disabled || uploadingCover}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              setUploadingCover(true);
-              try {
-                onUpdate({ cover_url: await onUploadImage(file) });
-              } finally {
-                setUploadingCover(false);
+        <div className="relative shrink-0">
+          <label className="group relative flex h-14 w-14 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+            {lesson.cover_url ? (
+              <img src={lesson.cover_url} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <ImagePlus className="h-4 w-4 text-zinc-400" />
+            )}
+            {uploadingCover ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-white/70">
+                <Spinner className="size-3.5 text-[#6B705C]" />
+              </span>
+            ) : null}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={disabled || uploadingCover}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                setUploadingCover(true);
+                try {
+                  const toUpload = onCropImage ? await onCropImage(file) : file;
+                  onUpdate({ cover_url: await onUploadImage(toUpload) });
+                } finally {
+                  setUploadingCover(false);
+                }
+              }}
+            />
+          </label>
+          {lesson.cover_url && onCropSavedUrl ? (
+            <button
+              type="button"
+              onClick={() =>
+                onCropSavedUrl(lesson.cover_url!, (newUrl) => onUpdate({ cover_url: newUrl }))
               }
-            }}
-          />
-        </label>
+              disabled={disabled}
+              title="Cortar"
+              className="absolute -bottom-1.5 -right-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+            >
+              <Crop className="h-2.5 w-2.5" />
+            </button>
+          ) : null}
+        </div>
 
         <div className="min-w-0 flex-1 space-y-2">
           <input
@@ -173,6 +197,8 @@ export default function ProductModulesEditor({
   disabled,
   onUploadImage,
   onUploadVideo,
+  onCropImage,
+  onCropSavedUrl,
 }: ProductModulesEditorProps) {
   const [uploadingModuleCoverId, setUploadingModuleCoverId] = useState<string | null>(null);
 
@@ -190,36 +216,54 @@ export default function ProductModulesEditor({
           {modules.map((module, moduleIndex) => (
             <li key={module.id} className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
               <div className="flex items-start gap-3">
-                <label className="group relative flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
-                  {module.cover_url ? (
-                    <img src={module.cover_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <ImagePlus className="h-5 w-5 text-zinc-400" />
-                  )}
-                  {uploadingModuleCoverId === module.id ? (
-                    <span className="absolute inset-0 flex items-center justify-center bg-white/70">
-                      <Spinner className="size-4 text-[#6B705C]" />
-                    </span>
-                  ) : null}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={disabled || uploadingModuleCoverId === module.id}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      setUploadingModuleCoverId(module.id);
-                      try {
-                        const url = await onUploadImage(file);
-                        onChange(updateAt(modules, moduleIndex, { cover_url: url }));
-                      } finally {
-                        setUploadingModuleCoverId(null);
+                <div className="relative shrink-0">
+                  <label className="group relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    {module.cover_url ? (
+                      <img src={module.cover_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <ImagePlus className="h-5 w-5 text-zinc-400" />
+                    )}
+                    {uploadingModuleCoverId === module.id ? (
+                      <span className="absolute inset-0 flex items-center justify-center bg-white/70">
+                        <Spinner className="size-4 text-[#6B705C]" />
+                      </span>
+                    ) : null}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={disabled || uploadingModuleCoverId === module.id}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        setUploadingModuleCoverId(module.id);
+                        try {
+                          const toUpload = onCropImage ? await onCropImage(file) : file;
+                          const url = await onUploadImage(toUpload);
+                          onChange(updateAt(modules, moduleIndex, { cover_url: url }));
+                        } finally {
+                          setUploadingModuleCoverId(null);
+                        }
+                      }}
+                    />
+                  </label>
+                  {module.cover_url && onCropSavedUrl ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onCropSavedUrl(module.cover_url!, (newUrl) =>
+                          onChange(updateAt(modules, moduleIndex, { cover_url: newUrl }))
+                        )
                       }
-                    }}
-                  />
-                </label>
+                      disabled={disabled}
+                      title="Cortar"
+                      className="absolute -bottom-1.5 -right-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+                    >
+                      <Crop className="h-2.5 w-2.5" />
+                    </button>
+                  ) : null}
+                </div>
 
                 <div className="min-w-0 flex-1 space-y-1">
                   <input
@@ -278,6 +322,8 @@ export default function ProductModulesEditor({
                     disabled={disabled}
                     onUploadImage={onUploadImage}
                     onUploadVideo={onUploadVideo}
+                    onCropImage={onCropImage}
+                    onCropSavedUrl={onCropSavedUrl}
                     onUpdate={(patch) =>
                       onChange(
                         updateAt(modules, moduleIndex, {

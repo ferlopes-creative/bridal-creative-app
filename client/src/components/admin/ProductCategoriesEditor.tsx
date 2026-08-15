@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, ImagePlus, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Crop, ImagePlus, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -21,6 +21,10 @@ type ProductCategoriesEditorProps = {
   saving: boolean;
   onSave: () => void;
   onUploadPhoto: (file: File) => Promise<string>;
+  /** Abre o corte quadrado antes de subir uma foto nova; cancelar segue com o arquivo original. */
+  onCropImage?: (file: File) => Promise<File>;
+  /** Abre o corte quadrado numa foto já salva e substitui pela URL cortada. */
+  onCropSavedUrl?: (url: string, replace: (newUrl: string) => void) => void;
 };
 
 function updateCategoryById(
@@ -74,6 +78,7 @@ function CategoryCard({
   onMove,
   onRemove,
   onPhotoChange,
+  onCropSavedUrl,
   compact,
 }: {
   category: ProductCategoryConfig;
@@ -86,6 +91,7 @@ function CategoryCard({
   onMove: (direction: -1 | 1) => void;
   onRemove: () => void;
   onPhotoChange: (file: File) => void;
+  onCropSavedUrl?: (url: string, replace: (newUrl: string) => void) => void;
   compact?: boolean;
 }) {
   const selectedProducts = category.product_ids
@@ -100,37 +106,50 @@ function CategoryCard({
     >
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex shrink-0 flex-col items-center gap-1.5">
-          <label
-            className={`group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 ${
-              compact ? "h-12 w-12" : "h-16 w-16"
-            }`}
-          >
-            {category.photo_url ? (
-              <img
-                src={category.photo_url}
-                alt={category.name || "Categoria"}
-                className="h-full w-full object-cover"
+          <div className="relative">
+            <label
+              className={`group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 ${
+                compact ? "h-12 w-12" : "h-16 w-16"
+              }`}
+            >
+              {category.photo_url ? (
+                <img
+                  src={category.photo_url}
+                  alt={category.name || "Categoria"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <ImagePlus className="h-5 w-5 text-zinc-400" />
+              )}
+              {uploadingId === category.id ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-white/70">
+                  <Spinner className="size-4 text-[#6B705C]" />
+                </span>
+              ) : null}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={saving || uploadingId === category.id}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) onPhotoChange(file);
+                }}
               />
-            ) : (
-              <ImagePlus className="h-5 w-5 text-zinc-400" />
-            )}
-            {uploadingId === category.id ? (
-              <span className="absolute inset-0 flex items-center justify-center bg-white/70">
-                <Spinner className="size-4 text-[#6B705C]" />
-              </span>
+            </label>
+            {category.photo_url && onCropSavedUrl ? (
+              <button
+                type="button"
+                onClick={() => onCropSavedUrl(category.photo_url!, (newUrl) => onChange({ photo_url: newUrl }))}
+                disabled={saving}
+                title="Cortar"
+                className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+              >
+                <Crop className="h-2.5 w-2.5" />
+              </button>
             ) : null}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={saving || uploadingId === category.id}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) onPhotoChange(file);
-              }}
-            />
-          </label>
+          </div>
           <span className="text-[10px] text-zinc-400">Foto</span>
         </div>
 
@@ -267,6 +286,8 @@ export default function ProductCategoriesEditor({
   saving,
   onSave,
   onUploadPhoto,
+  onCropImage,
+  onCropSavedUrl,
 }: ProductCategoriesEditorProps) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
@@ -278,7 +299,8 @@ export default function ProductCategoriesEditor({
   const handlePhotoChange = async (id: string, file: File) => {
     setUploadingId(id);
     try {
-      const url = await onUploadPhoto(file);
+      const toUpload = onCropImage ? await onCropImage(file) : file;
+      const url = await onUploadPhoto(toUpload);
       onChange(updateCategoryById(categories, id, { photo_url: url }));
     } finally {
       setUploadingId(null);
@@ -321,6 +343,7 @@ export default function ProductCategoriesEditor({
                     onMove={(direction) => onChange(moveAmong(categories, topIds, category.id, direction))}
                     onRemove={() => removeCategory(category.id)}
                     onPhotoChange={(file) => void handlePhotoChange(category.id, file)}
+                    onCropSavedUrl={onCropSavedUrl}
                   />
                 </ul>
 
@@ -341,6 +364,7 @@ export default function ProductCategoriesEditor({
                           onMove={(direction) => onChange(moveAmong(categories, subIds, sub.id, direction))}
                           onRemove={() => removeCategory(sub.id)}
                           onPhotoChange={(file) => void handlePhotoChange(sub.id, file)}
+                          onCropSavedUrl={onCropSavedUrl}
                         />
                       ))}
                     </ul>

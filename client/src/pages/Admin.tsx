@@ -764,7 +764,11 @@ export default function AdminPage() {
   const [deliveryVideoPendingFiles, setDeliveryVideoPendingFiles] = useState<File[]>([]);
   const [salesVideoUrls, setSalesVideoUrls] = useState<string[]>([]);
   const [salesVideoPendingFiles, setSalesVideoPendingFiles] = useState<File[]>([]);
-  const [cropModal, setCropModal] = useState<{ url: string; onDone: (blob: Blob) => void } | null>(null);
+  const [cropModal, setCropModal] = useState<{
+    url: string;
+    onDone: (blob: Blob) => void;
+    onCancel?: () => void;
+  } | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -1413,6 +1417,28 @@ export default function AdminPage() {
         URL.revokeObjectURL(objectUrl);
         setCropModal(null);
       },
+    });
+  };
+
+  /** Abre o corte antes de um upload "direto" (capas que sobem sozinhas ao escolher o arquivo). Cancelar segue com o arquivo original. */
+  const cropFileInteractive = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      let settled = false;
+      const finish = (result: File) => {
+        if (settled) return;
+        settled = true;
+        URL.revokeObjectURL(objectUrl);
+        resolve(result);
+      };
+      setCropModal({
+        url: objectUrl,
+        onDone: (blob) => {
+          setCropModal(null);
+          finish(new File([blob], file.name, { type: "image/jpeg" }));
+        },
+        onCancel: () => finish(file),
+      });
     });
   };
 
@@ -3134,6 +3160,8 @@ export default function AdminPage() {
               saving={categoriesSaving}
               onSave={() => void handleSaveProductCategories()}
               onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "categories")}
+              onCropImage={cropFileInteractive}
+              onCropSavedUrl={openCropForSavedUrl}
             />
           )}
         </AdminSection>
@@ -3647,7 +3675,40 @@ export default function AdminPage() {
                         className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingImageUrl && !imageFile && (
-                        <p className="text-[11px] text-zinc-500">Imagem atual salva; envie outro arquivo só se quiser trocar.</p>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={existingImageUrl}
+                            alt="Capa atual"
+                            className="h-16 w-16 shrink-0 rounded-md border border-zinc-200 bg-zinc-100 object-cover"
+                          />
+                          <div className="space-y-1">
+                            <p className="text-[11px] text-zinc-500">
+                              Imagem atual salva; envie outro arquivo só se quiser trocar.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openCropForSavedUrl(existingImageUrl, (newUrl) => setExistingImageUrl(newUrl))
+                              }
+                              disabled={saving}
+                              className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                            >
+                              <Crop className="h-3.5 w-3.5" />
+                              Cortar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {imageFile && (
+                        <button
+                          type="button"
+                          onClick={() => openCropForPendingFile(imageFile, (newFile) => setImageFile(newFile))}
+                          disabled={saving}
+                          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                        >
+                          <Crop className="h-3.5 w-3.5" />
+                          Cortar antes de enviar
+                        </button>
                       )}
                     </div>
 
@@ -4053,7 +4114,13 @@ export default function AdminPage() {
                                     if (!file) return;
                                     setUploadingAccessLinkCoverId(row.id);
                                     try {
-                                      const url = await uploadFileToStorage(file, IMAGE_BUCKET, "images", "access-links");
+                                      const toUpload = await cropFileInteractive(file);
+                                      const url = await uploadFileToStorage(
+                                        toUpload,
+                                        IMAGE_BUCKET,
+                                        "images",
+                                        "access-links"
+                                      );
                                       setAccessLinkRows((prev) =>
                                         prev.map((item) => (item.id === row.id ? { ...item, cover_url: url } : item))
                                       );
@@ -4067,18 +4134,37 @@ export default function AdminPage() {
                                 Capa opcional pra ilustrar este link na entrega
                               </span>
                               {row.cover_url && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setAccessLinkRows((prev) =>
-                                      prev.map((item) => (item.id === row.id ? { ...item, cover_url: null } : item))
-                                    )
-                                  }
-                                  disabled={saving}
-                                  className="text-xs text-red-700 hover:underline disabled:opacity-50"
-                                >
-                                  Remover
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openCropForSavedUrl(row.cover_url!, (newUrl) =>
+                                        setAccessLinkRows((prev) =>
+                                          prev.map((item) =>
+                                            item.id === row.id ? { ...item, cover_url: newUrl } : item
+                                          )
+                                        )
+                                      )
+                                    }
+                                    disabled={saving}
+                                    className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-300 px-2 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                                  >
+                                    <Crop className="h-3 w-3" />
+                                    Cortar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAccessLinkRows((prev) =>
+                                        prev.map((item) => (item.id === row.id ? { ...item, cover_url: null } : item))
+                                      )
+                                    }
+                                    disabled={saving}
+                                    className="text-xs text-red-700 hover:underline disabled:opacity-50"
+                                  >
+                                    Remover
+                                  </button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -4109,6 +4195,8 @@ export default function AdminPage() {
                       disabled={saving}
                       onUploadImage={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "modules")}
                       onUploadVideo={(file) => uploadFileToStorage(file, VIDEO_BUCKET, "videos", "modules")}
+                      onCropImage={cropFileInteractive}
+                      onCropSavedUrl={openCropForSavedUrl}
                     />
                   </div>
                 )}
@@ -4167,7 +4255,10 @@ export default function AdminPage() {
 
       <ImageCropModal
         imageUrl={cropModal?.url ?? null}
-        onCancel={() => setCropModal(null)}
+        onCancel={() => {
+          cropModal?.onCancel?.();
+          setCropModal(null);
+        }}
         onConfirm={(blob) => cropModal?.onDone(blob)}
       />
     </div>
