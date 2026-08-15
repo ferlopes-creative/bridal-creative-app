@@ -27,3 +27,11 @@ export function parseGalleryUrls(raw: unknown): string[] {
 export function parseDeliveryGalleryUrls(raw: unknown): string[] {
   return parseGalleryUrls(raw);
 }
+
+/** Galeria de vídeos (array novo), com fallback pro campo único legado se a galeria estiver vazia. */
+export function resolveVideoGallery(galleryRaw: unknown, legacyUrl: string | null | undefined): string[] {
+  const gallery = parseGalleryUrls(galleryRaw);
+  if (gallery.length > 0) return gallery;
+  const legacy = legacyUrl?.trim();
+  return legacy ? [legacy] : [];
+}

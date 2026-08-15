@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Compass,
   Copy,
+  Crop,
   Eye,
   EyeOff,
   Image,
@@ -32,6 +33,8 @@ import AdminRichTextEditor from "@/components/AdminRichTextEditor";
 import CollapsedRichTextField from "@/components/admin/CollapsedRichTextField";
 import DashboardSectionsEditor from "@/components/admin/DashboardSectionsEditor";
 import ExternalSalesIdField from "@/components/admin/ExternalSalesIdField";
+import ImageCropModal from "@/components/admin/ImageCropModal";
+import MediaGalleryEditor from "@/components/admin/MediaGalleryEditor";
 import PageBackgroundsEditor from "@/components/admin/PageBackgroundsEditor";
 import ProductCategoriesEditor from "@/components/admin/ProductCategoriesEditor";
 import TestimonialsEditor from "@/components/admin/TestimonialsEditor";
@@ -104,7 +107,7 @@ import {
   parseAccessLinks,
   type ProductAccessLinkRow,
 } from "@/lib/productAccessLinks";
-import { parseGalleryUrls } from "@/lib/productDeliveryImages";
+import { parseGalleryUrls, resolveVideoGallery } from "@/lib/productDeliveryImages";
 import { normalizeWhatsAppUrl } from "@/lib/whatsappUrl";
 import { ProductCsvImport } from "@/components/ProductCsvImport";
 import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
@@ -129,6 +132,8 @@ type Product = {
   video_url?: string | null;
   video_sales_url?: string | null;
   video?: string | null;
+  delivery_video_urls?: unknown;
+  sales_video_urls?: unknown;
   link_compra?: string | null;
   access_links?: unknown;
   external_sales_id?: string | null;
@@ -208,6 +213,16 @@ function isMissingImageSalesUrlColumnError(err: unknown): boolean {
 function isMissingSalesGalleryUrlsColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("sales_gallery_urls");
+}
+
+function isMissingDeliveryVideoUrlsColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("delivery_video_urls");
+}
+
+function isMissingSalesVideoUrlsColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("sales_video_urls");
 }
 
 function isMissingCaktoSalesIdColumnError(err: unknown): boolean {
@@ -745,8 +760,11 @@ export default function AdminPage() {
   const [deliveryGalleryPendingFiles, setDeliveryGalleryPendingFiles] = useState<File[]>([]);
   const [salesGalleryUrls, setSalesGalleryUrls] = useState<string[]>([]);
   const [salesGalleryPendingFiles, setSalesGalleryPendingFiles] = useState<File[]>([]);
-  const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null);
-  const [existingSalesVideoUrl, setExistingSalesVideoUrl] = useState<string | null>(null);
+  const [deliveryVideoUrls, setDeliveryVideoUrls] = useState<string[]>([]);
+  const [deliveryVideoPendingFiles, setDeliveryVideoPendingFiles] = useState<File[]>([]);
+  const [salesVideoUrls, setSalesVideoUrls] = useState<string[]>([]);
+  const [salesVideoPendingFiles, setSalesVideoPendingFiles] = useState<File[]>([]);
+  const [cropModal, setCropModal] = useState<{ url: string; onDone: (blob: Blob) => void } | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -757,10 +775,6 @@ export default function AdminPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [deliveryImageFile, setDeliveryImageFile] = useState<File | null>(null);
   const [salesImageFile, setSalesImageFile] = useState<File | null>(null);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [clearVideo, setClearVideo] = useState(false);
-  const [salesVideoFile, setSalesVideoFile] = useState<File | null>(null);
-  const [clearSalesVideo, setClearSalesVideo] = useState(false);
   const [hotmartSalesId, setHotmartSalesId] = useState("");
   const [caktoSalesId, setCaktoSalesId] = useState("");
   const [legacyExternalSalesId, setLegacyExternalSalesId] = useState<string | null>(null);
@@ -885,8 +899,10 @@ export default function AdminPage() {
     setDeliveryGalleryPendingFiles([]);
     setSalesGalleryUrls([]);
     setSalesGalleryPendingFiles([]);
-    setExistingVideoUrl(null);
-    setExistingSalesVideoUrl(null);
+    setDeliveryVideoUrls([]);
+    setDeliveryVideoPendingFiles([]);
+    setSalesVideoUrls([]);
+    setSalesVideoPendingFiles([]);
     setName("");
     setDescription("");
     setDescriptionDelivery("");
@@ -896,10 +912,6 @@ export default function AdminPage() {
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
-    setVideoFile(null);
-    setClearVideo(false);
-    setSalesVideoFile(null);
-    setClearSalesVideo(false);
     setHotmartSalesId("");
     setCaktoSalesId("");
     setLegacyExternalSalesId(null);
@@ -939,10 +951,10 @@ export default function AdminPage() {
     setDeliveryGalleryPendingFiles([]);
     setSalesGalleryUrls(parseGalleryUrls(product.sales_gallery_urls));
     setSalesGalleryPendingFiles([]);
-    setExistingVideoUrl(product.video_url || product.video || null);
-    setClearVideo(false);
-    setExistingSalesVideoUrl(product.video_sales_url?.trim() || null);
-    setClearSalesVideo(false);
+    setDeliveryVideoUrls(resolveVideoGallery(product.delivery_video_urls, product.video_url || product.video));
+    setDeliveryVideoPendingFiles([]);
+    setSalesVideoUrls(resolveVideoGallery(product.sales_video_urls, product.video_sales_url));
+    setSalesVideoPendingFiles([]);
     setName(product.name || "");
     setDescription(product.description || "");
     setDescriptionDelivery(product.description_delivery || "");
@@ -953,8 +965,6 @@ export default function AdminPage() {
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
-    setVideoFile(null);
-    setSalesVideoFile(null);
     const hotmartId = product.hotmart_sales_id?.trim() || "";
     const caktoId = product.cakto_sales_id?.trim() || "";
     setHotmartSalesId(hotmartId);
@@ -999,10 +1009,6 @@ export default function AdminPage() {
     setImageFile(null);
     setDeliveryImageFile(null);
     setSalesImageFile(null);
-    setVideoFile(null);
-    setClearVideo(false);
-    setSalesVideoFile(null);
-    setClearSalesVideo(false);
     if (!editingProductId) {
       setExistingImageUrl(null);
       setExistingDeliveryImageUrl(null);
@@ -1011,8 +1017,10 @@ export default function AdminPage() {
       setDeliveryGalleryPendingFiles([]);
       setSalesGalleryUrls([]);
       setSalesGalleryPendingFiles([]);
-      setExistingVideoUrl(null);
-      setExistingSalesVideoUrl(null);
+      setDeliveryVideoUrls([]);
+      setDeliveryVideoPendingFiles([]);
+      setSalesVideoUrls([]);
+      setSalesVideoPendingFiles([]);
       setLegacyExternalSalesId(null);
       setFaqRows([]);
       setProductTestimonials([]);
@@ -1046,10 +1054,8 @@ export default function AdminPage() {
       salesImageFile != null ||
       deliveryGalleryPendingFiles.length > 0 ||
       salesGalleryPendingFiles.length > 0 ||
-      videoFile != null ||
-      clearVideo ||
-      salesVideoFile != null ||
-      clearSalesVideo
+      deliveryVideoPendingFiles.length > 0 ||
+      salesVideoPendingFiles.length > 0
     );
   }, [
     isModalOpen,
@@ -1067,10 +1073,8 @@ export default function AdminPage() {
     salesImageFile,
     deliveryGalleryPendingFiles,
     salesGalleryPendingFiles,
-    videoFile,
-    salesVideoFile,
-    clearSalesVideo,
-    clearVideo,
+    deliveryVideoPendingFiles,
+    salesVideoPendingFiles,
     modalSnapshot,
   ]);
 
@@ -1383,6 +1387,35 @@ export default function AdminPage() {
     return publicData.publicUrl;
   };
 
+  const openCropForSavedUrl = (url: string, onReplace: (newUrl: string) => void) => {
+    setCropModal({
+      url,
+      onDone: async (blob) => {
+        try {
+          const file = new File([blob], "corte.jpg", { type: "image/jpeg" });
+          const newUrl = await uploadFileToStorage(file, IMAGE_BUCKET, "images");
+          onReplace(newUrl);
+          setCropModal(null);
+        } catch {
+          toast.error("Não foi possível salvar o corte da imagem.");
+        }
+      },
+    });
+  };
+
+  const openCropForPendingFile = (file: File, onReplace: (newFile: File) => void) => {
+    const objectUrl = URL.createObjectURL(file);
+    setCropModal({
+      url: objectUrl,
+      onDone: (blob) => {
+        const newFile = new File([blob], file.name, { type: "image/jpeg" });
+        onReplace(newFile);
+        URL.revokeObjectURL(objectUrl);
+        setCropModal(null);
+      },
+    });
+  };
+
   const handleUploadCustomFont = async (file: File): Promise<CustomFont> => {
     const url = await uploadFileToStorage(file, IMAGE_BUCKET, "fonts");
     const name =
@@ -1445,6 +1478,8 @@ export default function AdminPage() {
       salesImageUrl: string | null,
       salesGallery: string[],
       salesVideoUrl: string | null,
+      deliveryVideoGallery: string[],
+      salesVideoGallery: string[],
       opts: {
         includeCaktoSalesId: boolean;
         includeHotmartSalesId: boolean;
@@ -1461,6 +1496,8 @@ export default function AdminPage() {
         includeFaqConfig: boolean;
         includeProductTestimonialsConfig: boolean;
         includeModulesConfig: boolean;
+        includeDeliveryVideoUrls: boolean;
+        includeSalesVideoUrls: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -1516,6 +1553,12 @@ export default function AdminPage() {
       if (opts.includeModulesConfig) {
         payload.modules_config = modulesConfig;
       }
+      if (opts.includeDeliveryVideoUrls) {
+        payload.delivery_video_urls = deliveryVideoGallery;
+      }
+      if (opts.includeSalesVideoUrls) {
+        payload.sales_video_urls = salesVideoGallery;
+      }
       if (editingProductId) {
         return supabase.from("products").update(payload).eq("id", editingProductId);
       }
@@ -1529,7 +1572,9 @@ export default function AdminPage() {
       galleryUrls: string[],
       salesImageUrl: string | null,
       salesGallery: string[],
-      salesVideoUrl: string | null
+      salesVideoUrl: string | null,
+      deliveryVideoGallery: string[],
+      salesVideoGallery: string[]
     ) => {
       const flags = {
         includeCaktoSalesId: true,
@@ -1547,6 +1592,8 @@ export default function AdminPage() {
         includeFaqConfig: true,
         includeProductTestimonialsConfig: true,
         includeModulesConfig: true,
+        includeDeliveryVideoUrls: true,
+        includeSalesVideoUrls: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -1560,6 +1607,8 @@ export default function AdminPage() {
           salesImageUrl,
           salesGallery,
           salesVideoUrl,
+          deliveryVideoGallery,
+          salesVideoGallery,
           flags
         );
         dbError = result.error;
@@ -1632,6 +1681,14 @@ export default function AdminPage() {
           flags.includeModulesConfig = false;
           continue;
         }
+        if (isMissingDeliveryVideoUrlsColumnError(dbError) && flags.includeDeliveryVideoUrls) {
+          flags.includeDeliveryVideoUrls = false;
+          continue;
+        }
+        if (isMissingSalesVideoUrlsColumnError(dbError) && flags.includeSalesVideoUrls) {
+          flags.includeSalesVideoUrls = false;
+          continue;
+        }
         break;
       }
 
@@ -1642,10 +1699,8 @@ export default function AdminPage() {
       let imageUrl = existingImageUrl;
       let deliveryImageUrl = existingDeliveryImageUrl;
       let salesImageUrl = existingSalesImageUrl;
-      let videoUrl = clearVideo ? null : existingVideoUrl;
-      let pendingVideoFile: File | null = null;
-      let salesVideoUrl = clearSalesVideo ? null : existingSalesVideoUrl;
-      let pendingSalesVideoFile: File | null = null;
+      let pendingDeliveryVideoFiles: File[] = [];
+      let pendingSalesVideoFiles: File[] = [];
 
       if (imageFile) {
         imageUrl = await uploadFileToStorage(imageFile, IMAGE_BUCKET, "images");
@@ -1671,33 +1726,27 @@ export default function AdminPage() {
       }
       const salesGallery = [...salesGalleryUrls, ...uploadedSalesGalleryUrls];
 
-      if (videoFile && !clearVideo) {
-        if (editingProductId) {
-          videoUrl = await uploadFileToStorage(
-            videoFile,
-            VIDEO_BUCKET,
-            "videos",
-            editingProductId
+      let deliveryVideoGallery = [...deliveryVideoUrls];
+      let salesVideoGallery = [...salesVideoUrls];
+
+      if (editingProductId) {
+        for (const file of deliveryVideoPendingFiles) {
+          deliveryVideoGallery.push(
+            await uploadFileToStorage(file, VIDEO_BUCKET, "videos", editingProductId)
           );
-        } else {
-          pendingVideoFile = videoFile;
-          videoUrl = null;
         }
+        for (const file of salesVideoPendingFiles) {
+          salesVideoGallery.push(
+            await uploadFileToStorage(file, VIDEO_BUCKET, "videos", editingProductId)
+          );
+        }
+      } else {
+        pendingDeliveryVideoFiles = deliveryVideoPendingFiles;
+        pendingSalesVideoFiles = salesVideoPendingFiles;
       }
 
-      if (salesVideoFile && !clearSalesVideo) {
-        if (editingProductId) {
-          salesVideoUrl = await uploadFileToStorage(
-            salesVideoFile,
-            VIDEO_BUCKET,
-            "videos",
-            editingProductId
-          );
-        } else {
-          pendingSalesVideoFile = salesVideoFile;
-          salesVideoUrl = null;
-        }
-      }
+      const videoUrl = deliveryVideoGallery[0] ?? null;
+      const salesVideoUrl = salesVideoGallery[0] ?? null;
 
       const { dbError, insertedId, flags } = await persistWithSchemaFallback(
         imageUrl,
@@ -1706,23 +1755,22 @@ export default function AdminPage() {
         galleryUrls,
         salesImageUrl,
         salesGallery,
-        salesVideoUrl
+        salesVideoUrl,
+        deliveryVideoGallery,
+        salesVideoGallery
       );
 
       if (!dbError && insertedId) {
         await syncProductCategoryAssignment(insertedId);
       }
 
-      if (!dbError && pendingVideoFile && insertedId) {
-        const uploadedUrl = await uploadFileToStorage(
-          pendingVideoFile,
-          VIDEO_BUCKET,
-          "videos",
-          insertedId
-        );
+      if (!dbError && pendingDeliveryVideoFiles.length > 0 && insertedId) {
+        for (const file of pendingDeliveryVideoFiles) {
+          deliveryVideoGallery.push(await uploadFileToStorage(file, VIDEO_BUCKET, "videos", insertedId));
+        }
         const { error: videoUpdateError } = await supabase
           .from("products")
-          .update({ video_url: uploadedUrl })
+          .update({ delivery_video_urls: deliveryVideoGallery, video_url: deliveryVideoGallery[0] ?? null })
           .eq("id", insertedId);
         if (videoUpdateError && isMissingVideoUrlColumnError(videoUpdateError)) {
           toast.success(
@@ -1737,16 +1785,13 @@ export default function AdminPage() {
         }
       }
 
-      if (!dbError && pendingSalesVideoFile && insertedId) {
-        const uploadedUrl = await uploadFileToStorage(
-          pendingSalesVideoFile,
-          VIDEO_BUCKET,
-          "videos",
-          insertedId
-        );
+      if (!dbError && pendingSalesVideoFiles.length > 0 && insertedId) {
+        for (const file of pendingSalesVideoFiles) {
+          salesVideoGallery.push(await uploadFileToStorage(file, VIDEO_BUCKET, "videos", insertedId));
+        }
         const { error: salesVideoUpdateError } = await supabase
           .from("products")
-          .update({ video_sales_url: uploadedUrl })
+          .update({ sales_video_urls: salesVideoGallery, video_sales_url: salesVideoGallery[0] ?? null })
           .eq("id", insertedId);
         if (salesVideoUpdateError && isMissingVideoSalesUrlColumnError(salesVideoUpdateError)) {
           toast.success(
@@ -1777,7 +1822,9 @@ export default function AdminPage() {
           !flags.includePrice ||
           !flags.includeFaqConfig ||
           !flags.includeProductTestimonialsConfig ||
-          !flags.includeModulesConfig)
+          !flags.includeModulesConfig ||
+          !flags.includeDeliveryVideoUrls ||
+          !flags.includeSalesVideoUrls)
       ) {
         await fetchProducts();
         if (wasNewProductBasicCreate && insertedId) {
@@ -1792,6 +1839,12 @@ export default function AdminPage() {
         }
         if (!flags.includeVideoSalesUrl) {
           parts.push("vídeo de vendas (migração video_sales_url)");
+        }
+        if (!flags.includeDeliveryVideoUrls) {
+          parts.push("galeria de vídeos de entrega (migração delivery_video_urls)");
+        }
+        if (!flags.includeSalesVideoUrls) {
+          parts.push("galeria de vídeos de venda (migração sales_video_urls)");
         }
         if (!flags.includeAccessLinks) {
           parts.push("links de acesso (migração access_links)");
@@ -1855,8 +1908,8 @@ export default function AdminPage() {
 
       if (message.toLowerCase().includes("auth session missing")) {
         try {
-          const fallbackVideoUrl = clearVideo ? null : existingVideoUrl;
-          const fallbackSalesVideoUrl = clearSalesVideo ? null : existingSalesVideoUrl;
+          const fallbackVideoUrl = deliveryVideoUrls[0] ?? null;
+          const fallbackSalesVideoUrl = salesVideoUrls[0] ?? null;
           const { dbError: fallbackError, flags } = await persistWithSchemaFallback(
             existingImageUrl,
             fallbackVideoUrl,
@@ -1864,7 +1917,9 @@ export default function AdminPage() {
             deliveryGalleryUrls,
             existingSalesImageUrl,
             salesGalleryUrls,
-            fallbackSalesVideoUrl
+            fallbackSalesVideoUrl,
+            deliveryVideoUrls,
+            salesVideoUrls
           );
           if (!fallbackError) {
             await fetchProducts();
@@ -1872,6 +1927,8 @@ export default function AdminPage() {
             const parts: string[] = [];
             if (!flags.includeVideoUrl) parts.push("vídeo do produto");
             if (!flags.includeVideoSalesUrl) parts.push("vídeo de vendas");
+            if (!flags.includeDeliveryVideoUrls) parts.push("galeria de vídeos de entrega");
+            if (!flags.includeSalesVideoUrls) parts.push("galeria de vídeos de venda");
             if (!flags.includeAccessLinks) parts.push("links de acesso");
             if (!flags.includeDescriptionDelivery) parts.push("descrição de entrega");
             if (!flags.includeHotmartSalesId) parts.push("ID Hotmart");
@@ -2303,22 +2360,6 @@ export default function AdminPage() {
 
   const removeHeroPendingAt = (index: number) => {
     setHeroPendingFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeDeliveryGalleryUrlAt = (index: number) => {
-    setDeliveryGalleryUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeDeliveryGalleryPendingAt = (index: number) => {
-    setDeliveryGalleryPendingFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeSalesGalleryUrlAt = (index: number) => {
-    setSalesGalleryUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const removeSalesGalleryPendingAt = (index: number) => {
-    setSalesGalleryPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removeHeroDesktopUrlAt = (index: number) => {
@@ -3736,128 +3777,78 @@ export default function AdminPage() {
                         className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingSalesImageUrl && !salesImageFile && (
-                        <img
-                          src={existingSalesImageUrl}
-                          alt="Imagem de venda atual"
-                          className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
-                        />
-                      )}
-                      {existingSalesImageUrl && !salesImageFile && (
-                        <p className="text-[11px] text-zinc-500">
-                          Imagem de venda salva; envie outro arquivo só se quiser trocar.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                      <div>
-                        <label className="text-sm text-zinc-700">Galeria de modelos (venda)</label>
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode
-                          enviar várias de uma vez.
-                        </p>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const next = Array.from(e.target.files ?? []);
-                          if (next.length) setSalesGalleryPendingFiles((prev) => [...prev, ...next]);
-                          e.target.value = "";
-                        }}
-                        className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                        disabled={saving}
-                      />
-                      {salesGalleryUrls.length > 0 && (
-                        <ul className="space-y-1.5 text-xs">
-                          {salesGalleryUrls.map((url, i) => (
-                            <li
-                              key={`sg-${url}-${i}`}
-                              className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-                            >
-                              <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
-                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                                {url.slice(0, 72)}
-                                {url.length > 72 ? "…" : ""}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => removeSalesGalleryUrlAt(i)}
-                                disabled={saving}
-                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                              >
-                                Remover
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {salesGalleryPendingFiles.length > 0 && (
-                        <ul className="space-y-1.5 text-xs">
-                          <li className="text-zinc-500">A enviar ao salvar:</li>
-                          {salesGalleryPendingFiles.map((file, i) => (
-                            <li
-                              key={`sgp-${file.name}-${i}`}
-                              className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
-                            >
-                              <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeSalesGalleryPendingAt(i)}
-                                disabled={saving}
-                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                              >
-                                Remover
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-
-                    <FormFieldGroup title="Vídeo de vendas" />
-
-                    <div className="space-y-1.5">
-                      <label className="text-sm text-zinc-700">Vídeo da página de vendas</label>
-                      <p className="text-xs text-zinc-500">
-                        Exibido no carrossel antes da compra (fica bloqueado com cadeado se o item ainda não foi liberado).
-                      </p>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={(e) => {
-                          setSalesVideoFile(e.target.files?.[0] ?? null);
-                          if (e.target.files?.[0]) setClearSalesVideo(false);
-                        }}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                      />
-                      {existingSalesVideoUrl && !salesVideoFile && !clearSalesVideo && (
-                        <p className="text-[11px] text-zinc-500">
-                          Vídeo de vendas atual salvo; envie outro arquivo só se quiser trocar.
-                        </p>
-                      )}
-                      {existingSalesVideoUrl && !clearSalesVideo && (
-                        <video
-                          src={existingSalesVideoUrl}
-                          controls
-                          preload="metadata"
-                          className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
-                        />
-                      )}
-                      {existingSalesVideoUrl && !salesVideoFile && (
-                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={clearSalesVideo}
-                            onChange={(e) => setClearSalesVideo(e.target.checked)}
-                            disabled={saving}
-                            className="rounded border-zinc-300"
+                        <div className="space-y-1.5">
+                          <img
+                            src={existingSalesImageUrl}
+                            alt="Imagem de venda atual"
+                            className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
                           />
-                          Remover vídeo de vendas
-                        </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCropForSavedUrl(existingSalesImageUrl, (newUrl) =>
+                                setExistingSalesImageUrl(newUrl)
+                              )
+                            }
+                            disabled={saving}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            <Crop className="h-3.5 w-3.5" />
+                            Cortar
+                          </button>
+                          <p className="text-[11px] text-zinc-500">
+                            Imagem de venda salva; envie outro arquivo só se quiser trocar.
+                          </p>
+                        </div>
+                      )}
+                      {salesImageFile && (
+                        <button
+                          type="button"
+                          onClick={() => openCropForPendingFile(salesImageFile, (newFile) => setSalesImageFile(newFile))}
+                          disabled={saving}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                        >
+                          <Crop className="h-3.5 w-3.5" />
+                          Cortar antes de enviar
+                        </button>
                       )}
                     </div>
+
+                    <MediaGalleryEditor
+                      label="Galeria de modelos (venda)"
+                      description="Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode enviar várias de uma vez."
+                      accept="image/*"
+                      kind="image"
+                      savedUrls={salesGalleryUrls}
+                      onSavedUrlsChange={setSalesGalleryUrls}
+                      pendingFiles={salesGalleryPendingFiles}
+                      onPendingFilesChange={setSalesGalleryPendingFiles}
+                      disabled={saving}
+                      onCropSaved={(i) =>
+                        openCropForSavedUrl(salesGalleryUrls[i], (newUrl) =>
+                          setSalesGalleryUrls((prev) => prev.map((u, idx) => (idx === i ? newUrl : u)))
+                        )
+                      }
+                      onCropPending={(i) =>
+                        openCropForPendingFile(salesGalleryPendingFiles[i], (newFile) =>
+                          setSalesGalleryPendingFiles((prev) => prev.map((f, idx) => (idx === i ? newFile : f)))
+                        )
+                      }
+                    />
+
+                    <FormFieldGroup title="Vídeos de vendas" />
+
+                    <MediaGalleryEditor
+                      label="Vídeos da página de vendas"
+                      description="Exibidos no carrossel antes da compra (ficam bloqueados com cadeado se o item ainda não foi liberado). Pode enviar vários."
+                      accept="video/*"
+                      kind="video"
+                      savedUrls={salesVideoUrls}
+                      onSavedUrlsChange={setSalesVideoUrls}
+                      pendingFiles={salesVideoPendingFiles}
+                      onPendingFilesChange={setSalesVideoPendingFiles}
+                      disabled={saving}
+                    />
 
                     <FormFieldGroup title="Checkout" />
 
@@ -3906,127 +3897,80 @@ export default function AdminPage() {
                         className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingDeliveryImageUrl && !deliveryImageFile && (
-                        <img
-                          src={existingDeliveryImageUrl}
-                          alt="Imagem de entrega atual"
-                          className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
-                        />
-                      )}
-                      {existingDeliveryImageUrl && !deliveryImageFile && (
-                        <p className="text-[11px] text-zinc-500">
-                          Imagem de entrega salva; envie outro arquivo só se quiser trocar.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                      <div>
-                        <label className="text-sm text-zinc-700">Galeria de modelos (entrega)</label>
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          Imagens extras exibidas na entrega para mostrar os modelos que a cliente recebe. Pode enviar várias de uma vez.
-                        </p>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const next = Array.from(e.target.files ?? []);
-                          if (next.length) setDeliveryGalleryPendingFiles((prev) => [...prev, ...next]);
-                          e.target.value = "";
-                        }}
-                        className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
-                        disabled={saving}
-                      />
-                      {deliveryGalleryUrls.length > 0 && (
-                        <ul className="space-y-1.5 text-xs">
-                          {deliveryGalleryUrls.map((url, i) => (
-                            <li
-                              key={`dg-${url}-${i}`}
-                              className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-                            >
-                              <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
-                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                                {url.slice(0, 72)}
-                                {url.length > 72 ? "…" : ""}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => removeDeliveryGalleryUrlAt(i)}
-                                disabled={saving}
-                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                              >
-                                Remover
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {deliveryGalleryPendingFiles.length > 0 && (
-                        <ul className="space-y-1.5 text-xs">
-                          <li className="text-zinc-500">A enviar ao salvar:</li>
-                          {deliveryGalleryPendingFiles.map((file, i) => (
-                            <li
-                              key={`dgp-${file.name}-${i}`}
-                              className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
-                            >
-                              <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => removeDeliveryGalleryPendingAt(i)}
-                                disabled={saving}
-                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                              >
-                                Remover
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-
-                    <FormFieldGroup title="Vídeo de entrega" />
-
-                    <div className="space-y-1.5">
-                      <label className="text-sm text-zinc-700">Vídeo da página de entrega</label>
-                      <p className="text-xs text-zinc-500">
-                        Exibido no carrossel após a compra. Se vazio, nenhum vídeo aparece na entrega.
-                      </p>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={(e) => {
-                          setVideoFile(e.target.files?.[0] ?? null);
-                          if (e.target.files?.[0]) setClearVideo(false);
-                        }}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
-                      />
-                      {existingVideoUrl && !videoFile && !clearVideo && (
-                        <p className="text-[11px] text-zinc-500">
-                          Vídeo de entrega atual salvo; envie outro arquivo só se quiser trocar.
-                        </p>
-                      )}
-                      {existingVideoUrl && !clearVideo && (
-                        <video
-                          src={existingVideoUrl}
-                          controls
-                          preload="metadata"
-                          className="max-h-40 w-full rounded-md border border-zinc-200 bg-zinc-100"
-                        />
-                      )}
-                      {existingVideoUrl && !videoFile && (
-                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={clearVideo}
-                            onChange={(e) => setClearVideo(e.target.checked)}
-                            disabled={saving}
-                            className="rounded border-zinc-300"
+                        <div className="space-y-1.5">
+                          <img
+                            src={existingDeliveryImageUrl}
+                            alt="Imagem de entrega atual"
+                            className="max-h-48 w-full rounded-md border border-zinc-200 bg-zinc-100 object-contain"
                           />
-                          Remover vídeo de entrega
-                        </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openCropForSavedUrl(existingDeliveryImageUrl, (newUrl) =>
+                                setExistingDeliveryImageUrl(newUrl)
+                              )
+                            }
+                            disabled={saving}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            <Crop className="h-3.5 w-3.5" />
+                            Cortar
+                          </button>
+                          <p className="text-[11px] text-zinc-500">
+                            Imagem de entrega salva; envie outro arquivo só se quiser trocar.
+                          </p>
+                        </div>
+                      )}
+                      {deliveryImageFile && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openCropForPendingFile(deliveryImageFile, (newFile) => setDeliveryImageFile(newFile))
+                          }
+                          disabled={saving}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-300 px-2.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                        >
+                          <Crop className="h-3.5 w-3.5" />
+                          Cortar antes de enviar
+                        </button>
                       )}
                     </div>
+
+                    <MediaGalleryEditor
+                      label="Galeria de modelos (entrega)"
+                      description="Imagens extras exibidas na entrega para mostrar os modelos que a cliente recebe. Pode enviar várias de uma vez."
+                      accept="image/*"
+                      kind="image"
+                      savedUrls={deliveryGalleryUrls}
+                      onSavedUrlsChange={setDeliveryGalleryUrls}
+                      pendingFiles={deliveryGalleryPendingFiles}
+                      onPendingFilesChange={setDeliveryGalleryPendingFiles}
+                      disabled={saving}
+                      onCropSaved={(i) =>
+                        openCropForSavedUrl(deliveryGalleryUrls[i], (newUrl) =>
+                          setDeliveryGalleryUrls((prev) => prev.map((u, idx) => (idx === i ? newUrl : u)))
+                        )
+                      }
+                      onCropPending={(i) =>
+                        openCropForPendingFile(deliveryGalleryPendingFiles[i], (newFile) =>
+                          setDeliveryGalleryPendingFiles((prev) => prev.map((f, idx) => (idx === i ? newFile : f)))
+                        )
+                      }
+                    />
+
+                    <FormFieldGroup title="Vídeos de entrega" />
+
+                    <MediaGalleryEditor
+                      label="Vídeos da página de entrega"
+                      description="Exibidos no carrossel após a compra. Pode enviar vários."
+                      accept="video/*"
+                      kind="video"
+                      savedUrls={deliveryVideoUrls}
+                      onSavedUrlsChange={setDeliveryVideoUrls}
+                      pendingFiles={deliveryVideoPendingFiles}
+                      onPendingFilesChange={setDeliveryVideoPendingFiles}
+                      disabled={saving}
+                    />
 
                     <FormFieldGroup title="Links de acesso" />
 
@@ -4220,6 +4164,12 @@ export default function AdminPage() {
           </section>
         </div>
       )}
+
+      <ImageCropModal
+        imageUrl={cropModal?.url ?? null}
+        onCancel={() => setCropModal(null)}
+        onConfirm={(blob) => cropModal?.onDone(blob)}
+      />
     </div>
   );
 }
