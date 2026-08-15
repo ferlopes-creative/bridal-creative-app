@@ -101,27 +101,11 @@ function TestimonialCard({ testimonial }: { testimonial: TestimonialConfig }) {
   );
 }
 
-type WeddingCountdown = { months: number; days: number; hours: number };
-
-/** Quebra o tempo até o casamento em meses/dias/horas restantes (calendário, não só ms/24). */
-function weddingCountdownParts(target: Date, now: Date): WeddingCountdown {
-  if (target.getTime() <= now.getTime()) return { months: 0, days: 0, hours: 0 };
-
-  let months = (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth());
-  const cursor = new Date(now);
-  cursor.setMonth(cursor.getMonth() + months);
-  if (cursor.getTime() > target.getTime()) {
-    months -= 1;
-    cursor.setMonth(cursor.getMonth() - 1);
-  }
-  months = Math.max(0, months);
-
-  let msLeft = target.getTime() - cursor.getTime();
-  const days = Math.floor(msLeft / 86400000);
-  msLeft -= days * 86400000;
-  const hours = Math.floor(msLeft / 3600000);
-
-  return { months, days, hours };
+/** Dias de calendário restantes até o casamento (ignora hora do dia). */
+function daysUntilWedding(target: Date, now: Date): number {
+  const t = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const n = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.max(0, Math.round((t - n) / 86400000));
 }
 
 function chunkIntoPagesOfFour<T>(items: T[]): T[][] {
@@ -230,11 +214,7 @@ export default function Dashboard() {
   const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const [weddingCountdown, setWeddingCountdown] = useState<WeddingCountdown>({
-    months: 0,
-    days: 0,
-    hours: 0,
-  });
+  const [weddingCountdownDays, setWeddingCountdownDays] = useState<number | null>(null);
   const guestMode = isGuestMode();
 
   const pageBgUrl = resolveDashboardBackground(settings);
@@ -263,7 +243,7 @@ export default function Dashboard() {
       const { data: userData } = await supabase.auth.getUser();
 
       if (!userData.user) {
-        setWeddingCountdown({ months: 0, days: 0, hours: 0 });
+        setWeddingCountdownDays(null);
         return;
       }
 
@@ -281,9 +261,9 @@ export default function Dashboard() {
       if (weddingData?.wedding_date) {
         const [y, m, d] = weddingData.wedding_date.split("-").map(Number);
         const target = new Date(y, m - 1, d);
-        setWeddingCountdown(weddingCountdownParts(target, new Date()));
+        setWeddingCountdownDays(daysUntilWedding(target, new Date()));
       } else {
-        setWeddingCountdown({ months: 0, days: 0, hours: 0 });
+        setWeddingCountdownDays(null);
       }
     };
 
@@ -644,65 +624,10 @@ export default function Dashboard() {
         activeHeroUrls={activeHeroUrls}
         isMobile={isMobile}
         showHero={showHero}
+        weddingCountdownDays={weddingCountdownDays}
       />
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-6 sm:pt-7 md:pt-8">
-        <div className="mx-auto max-w-xs text-center">
-          <p className="text-sm uppercase tracking-[0.14em] text-bc-primary/70">Faltam</p>
-          <div className="mt-2 flex items-center justify-center gap-1.5 sm:gap-2">
-            <div className="flex flex-col items-center">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
-                style={{ backgroundColor: "var(--bc-primary)" }}
-              >
-                <span
-                  className="text-xl font-semibold text-white sm:text-2xl"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {weddingCountdown.months}
-                </span>
-              </div>
-              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">meses</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
-                style={{ backgroundColor: "var(--bc-primary)" }}
-              >
-                <span
-                  className="text-xl font-semibold text-white sm:text-2xl"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {weddingCountdown.days}
-                </span>
-              </div>
-              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">dias</p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
-                style={{ backgroundColor: "var(--bc-primary)" }}
-              >
-                <span
-                  className="text-xl font-semibold text-white sm:text-2xl"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {weddingCountdown.hours}
-                </span>
-              </div>
-              <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">horas</p>
-            </div>
-          </div>
-          <p
-            className="mt-3 text-sm text-bc-primary"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            para o seu casamento!
-          </p>
-        </div>
-      </div>
-
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-5 md:pt-6">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8 md:pt-10">
         {sectionBlocks.map((block, index) => (
           <div key={index} className={index > 0 ? "mt-6 md:mt-10" : undefined}>
             {block}

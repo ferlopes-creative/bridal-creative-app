@@ -11,6 +11,7 @@ export default function HeroBanner({
   activeHeroUrls,
   isMobile,
   showHero,
+  weddingCountdownDays,
 }: {
   logoUrl: string | null;
   guestMode: boolean;
@@ -19,6 +20,8 @@ export default function HeroBanner({
   activeHeroUrls: string[];
   isMobile: boolean;
   showHero: boolean;
+  /** Dias até o casamento; null/undefined esconde a faixa. */
+  weddingCountdownDays?: number | null;
 }) {
   return (
     <section className="relative min-h-[240px] overflow-hidden rounded-b-2xl md:min-h-[320px]">
@@ -56,6 +59,19 @@ export default function HeroBanner({
           )}
         </header>
       </div>
+      {weddingCountdownDays != null && weddingCountdownDays > 0 ? (
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-center py-2.5"
+          style={{ backgroundColor: "var(--bc-primary)" }}
+        >
+          <p
+            className="text-[11px] uppercase tracking-[0.18em] text-white sm:text-xs"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Faltam {weddingCountdownDays} {weddingCountdownDays === 1 ? "dia" : "dias"} para o seu casamento
+          </p>
+        </div>
+      ) : null}
     </section>
   );
 }
