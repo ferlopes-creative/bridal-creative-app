@@ -568,10 +568,10 @@ function WeddingPlanningPremiumSection({
 
 const ADMIN_SHORTCUTS: { id: string; icon: LucideIcon; label: string }[] = [
   { id: "catalog", icon: LayoutGrid, label: "Catálogo de produtos" },
+  { id: "appearance", icon: Palette, label: "Aparência do app" },
   { id: "dashboard-layout", icon: Rows3, label: "Seções do dashboard" },
   { id: "product-categories", icon: Compass, label: "Atalhos Explore" },
   { id: "testimonials", icon: Quote, label: "Depoimentos" },
-  { id: "appearance", icon: Palette, label: "Aparência do app" },
   { id: "page-backgrounds", icon: Image, label: "Fundo por página" },
   { id: "registered-users", icon: Users, label: "Usuárias cadastradas" },
   { id: "wedding-planning", icon: CalendarHeart, label: "Planejamento Premium" },
@@ -2519,6 +2519,136 @@ export default function AdminPage() {
         />
 
         <AdminSection
+          id="catalog"
+          icon={LayoutGrid}
+          title="Catálogo de produtos"
+          description='Edite, oculte ou exclua itens pelos botões em cada cartão. Produtos ocultos não aparecem no catálogo antes da compra, mas continuam visíveis para quem já tem acesso.'
+          headerExtra={
+            !loading ? (
+              <span className="mr-1 inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
+                {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
+              </span>
+            ) : null
+          }
+        >
+          {loading ? (
+            <div className="space-y-4" aria-busy="true" aria-live="polite">
+              <div className="flex items-center gap-2 text-sm text-[#6B705C]">
+                <Spinner className="size-5 shrink-0" />
+                Carregando catálogo…
+              </div>
+              <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={`sk-${i}`} className="flex items-center gap-3 p-2.5">
+                    <Skeleton className="h-11 w-11 shrink-0 rounded bg-zinc-200/90" />
+                    <Skeleton className="h-4 w-2/5 bg-zinc-200/80" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : sortedProducts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center">
+              <p className="text-sm text-zinc-600">Nenhum produto no catálogo.</p>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#6B705C] px-4 py-2.5 text-sm font-medium text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Criar primeiro produto
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
+              {sortedProducts.map((product) => {
+                const imageSrc =
+                  product.image_url ||
+                  product.image ||
+                  product.thumbnail_url ||
+                  "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 p-2.5 hover:bg-zinc-50/80"
+                  >
+                    <img
+                      src={imageSrc}
+                      alt={product.name || "Produto"}
+                      className={`h-11 w-11 shrink-0 rounded object-cover ${product.is_hidden ? "opacity-60" : ""}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-900">
+                        {product.name || product.title || "Sem nome"}
+                      </p>
+                      {product.is_hidden ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                          <EyeOff className="h-3 w-3" />
+                          Oculto
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleToggleProductHidden(product)}
+                        title={product.is_hidden ? "Mostrar no catálogo" : "Ocultar antes da compra"}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded ${
+                          product.is_hidden
+                            ? "text-amber-700 hover:bg-amber-50"
+                            : "text-zinc-500 hover:bg-zinc-100"
+                        }`}
+                      >
+                        <EyeOff className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(product)}
+                        title="Editar"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-[#6B705C] hover:bg-[#6B705C]/10"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDuplicateProduct(product)}
+                        disabled={duplicatingId === product.id}
+                        title="Duplicar"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-60"
+                      >
+                        {duplicatingId === product.id ? (
+                          <Spinner className="size-3.5 text-zinc-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(product)}
+                        disabled={deletingId === product.id}
+                        title="Excluir"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {deletingId === product.id ? (
+                          <Spinner className="size-3.5 text-red-700" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!loading && (
+            <div className="mt-4">
+              <ProductCsvImport onImported={() => void fetchProducts()} />
+            </div>
+          )}
+        </AdminSection>
+
+        <AdminSection
           id="appearance"
           icon={Palette}
           title="Aparência do app"
@@ -3298,136 +3428,6 @@ export default function AdminPage() {
               </ul>
             )}
           </div>
-        </AdminSection>
-
-        <AdminSection
-          id="catalog"
-          icon={LayoutGrid}
-          title="Catálogo de produtos"
-          description='Edite, oculte ou exclua itens pelos botões em cada cartão. Produtos ocultos não aparecem no catálogo antes da compra, mas continuam visíveis para quem já tem acesso.'
-          headerExtra={
-            !loading ? (
-              <span className="mr-1 inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
-                {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
-              </span>
-            ) : null
-          }
-        >
-          {loading ? (
-            <div className="space-y-4" aria-busy="true" aria-live="polite">
-              <div className="flex items-center gap-2 text-sm text-[#6B705C]">
-                <Spinner className="size-5 shrink-0" />
-                Carregando catálogo…
-              </div>
-              <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={`sk-${i}`} className="flex items-center gap-3 p-2.5">
-                    <Skeleton className="h-11 w-11 shrink-0 rounded bg-zinc-200/90" />
-                    <Skeleton className="h-4 w-2/5 bg-zinc-200/80" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : sortedProducts.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-10 text-center">
-              <p className="text-sm text-zinc-600">Nenhum produto no catálogo.</p>
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#6B705C] px-4 py-2.5 text-sm font-medium text-white"
-              >
-                <Plus className="h-4 w-4" />
-                Criar primeiro produto
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
-              {sortedProducts.map((product) => {
-                const imageSrc =
-                  product.image_url ||
-                  product.image ||
-                  product.thumbnail_url ||
-                  "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
-                return (
-                  <div
-                    key={product.id}
-                    className="flex items-center gap-3 p-2.5 hover:bg-zinc-50/80"
-                  >
-                    <img
-                      src={imageSrc}
-                      alt={product.name || "Produto"}
-                      className={`h-11 w-11 shrink-0 rounded object-cover ${product.is_hidden ? "opacity-60" : ""}`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {product.name || product.title || "Sem nome"}
-                      </p>
-                      {product.is_hidden ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-amber-700">
-                          <EyeOff className="h-3 w-3" />
-                          Oculto
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleProductHidden(product)}
-                        title={product.is_hidden ? "Mostrar no catálogo" : "Ocultar antes da compra"}
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded ${
-                          product.is_hidden
-                            ? "text-amber-700 hover:bg-amber-50"
-                            : "text-zinc-500 hover:bg-zinc-100"
-                        }`}
-                      >
-                        <EyeOff className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(product)}
-                        title="Editar"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded text-[#6B705C] hover:bg-[#6B705C]/10"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDuplicateProduct(product)}
-                        disabled={duplicatingId === product.id}
-                        title="Duplicar"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-60"
-                      >
-                        {duplicatingId === product.id ? (
-                          <Spinner className="size-3.5 text-zinc-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteProduct(product)}
-                        disabled={deletingId === product.id}
-                        title="Excluir"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded text-red-700 hover:bg-red-50 disabled:opacity-60"
-                      >
-                        {deletingId === product.id ? (
-                          <Spinner className="size-3.5 text-red-700" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {!loading && (
-            <div className="mt-4">
-              <ProductCsvImport onImported={() => void fetchProducts()} />
-            </div>
-          )}
         </AdminSection>
 
         <p

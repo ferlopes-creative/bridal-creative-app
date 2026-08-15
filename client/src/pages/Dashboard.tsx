@@ -627,7 +627,7 @@ export default function Dashboard() {
         weddingCountdownDays={weddingCountdownDays}
       />
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8 md:pt-10">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-4 md:pt-5">
         {sectionBlocks.map((block, index) => (
           <div key={index} className={index > 0 ? "mt-6 md:mt-10" : undefined}>
             {block}

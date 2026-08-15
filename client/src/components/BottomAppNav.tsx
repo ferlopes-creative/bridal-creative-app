@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { CalendarHeart, Home, ShoppingBag, User } from "lucide-react";
+import { Calendar, Home, ShoppingBag, User } from "lucide-react";
 
 export default function BottomAppNav() {
   const [location, setLocation] = useLocation();
@@ -39,19 +39,6 @@ export default function BottomAppNav() {
         </button>
         <button
           type="button"
-          onClick={() => setLocation("/planejamento")}
-          className={`${baseBtn} ${onPlanning ? active : inactive}`}
-          aria-current={onPlanning ? "page" : undefined}
-          aria-label="Planejamento"
-        >
-          <CalendarHeart
-            className={`${iconClass} ${onPlanning ? "opacity-100" : "opacity-90"}`}
-            strokeWidth={onPlanning ? strokeActive : strokeInactive}
-          />
-          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Planejamento</span>
-        </button>
-        <button
-          type="button"
           onClick={() => setLocation("/dashboard/meus-produtos")}
           className={`${baseBtn} ${onOwnedProducts ? active : inactive}`}
           aria-current={onOwnedProducts ? "page" : undefined}
@@ -62,6 +49,19 @@ export default function BottomAppNav() {
             strokeWidth={onOwnedProducts ? strokeActive : strokeInactive}
           />
           <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Meus produtos</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setLocation("/planejamento")}
+          className={`${baseBtn} ${onPlanning ? active : inactive}`}
+          aria-current={onPlanning ? "page" : undefined}
+          aria-label="Planejamento"
+        >
+          <Calendar
+            className={`${iconClass} ${onPlanning ? "opacity-100" : "opacity-90"}`}
+            strokeWidth={onPlanning ? strokeActive : strokeInactive}
+          />
+          <span className="text-[9px] font-normal uppercase tracking-[0.14em] text-white/95">Planejamento</span>
         </button>
         <button
           type="button"
