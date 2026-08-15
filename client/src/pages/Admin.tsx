@@ -9,11 +9,13 @@ import {
   Crop,
   Eye,
   EyeOff,
+  GalleryHorizontal,
   Image,
   ImagePlus,
   LayoutGrid,
   LogOut,
   type LucideIcon,
+  MessageCircle,
   Package,
   Palette,
   Pencil,
@@ -22,11 +24,14 @@ import {
   Rows3,
   Save,
   Send,
+  SlidersHorizontal,
+  Star,
   Trash2,
   UserCheck,
   Users,
   X,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import AdminRichTextEditor from "@/components/AdminRichTextEditor";
@@ -349,13 +354,13 @@ function AdminSection({
 }
 
 const wpInputClass =
-  "h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60";
+  "h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15 disabled:opacity-60";
 
 /** Divisor visual entre grupos de campos do formulário de produto — apenas
  * organização, não altera nenhum estado ou lógica dos campos. */
 function FormFieldGroup({ title, first = false }: { title: string; first?: boolean }) {
   return (
-    <div className={`flex items-center gap-2 ${first ? "" : "pt-3"}`}>
+    <div className={`flex items-center gap-2 ${first ? "" : "pt-2"}`}>
       <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B705C]/80">
         {title}
       </span>
@@ -566,13 +571,23 @@ function WeddingPlanningPremiumSection({
   );
 }
 
+type AppearanceCardId =
+  | "logo"
+  | "favicon"
+  | "bg-login"
+  | "bg-app"
+  | "opacity"
+  | "whatsapp"
+  | "colors"
+  | "banners"
+  | "page-backgrounds";
+
 const ADMIN_SHORTCUTS: { id: string; icon: LucideIcon; label: string }[] = [
   { id: "catalog", icon: LayoutGrid, label: "Catálogo de produtos" },
   { id: "appearance", icon: Palette, label: "Aparência do app" },
   { id: "dashboard-layout", icon: Rows3, label: "Seções do dashboard" },
   { id: "product-categories", icon: Compass, label: "Atalhos Explore" },
   { id: "testimonials", icon: Quote, label: "Depoimentos" },
-  { id: "page-backgrounds", icon: Image, label: "Fundo por página" },
   { id: "registered-users", icon: Users, label: "Usuárias cadastradas" },
   { id: "wedding-planning", icon: CalendarHeart, label: "Planejamento Premium" },
   { id: "kit-bonus", icon: Package, label: "Bônus por kit" },
@@ -769,6 +784,7 @@ export default function AdminPage() {
     onDone: (blob: Blob) => void;
     onCancel?: () => void;
   } | null>(null);
+  const [openAppearanceCard, setOpenAppearanceCard] = useState<AppearanceCardId | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -2678,15 +2694,133 @@ export default function AdminPage() {
           id="appearance"
           icon={Palette}
           title="Aparência do app"
-          description="Logo, cores do site, WhatsApp de suporte, texturas de fundo (login e áreas internas), opacidade do padrão e banners do topo (celular e desktop). No carrossel pode usar várias imagens por dispositivo. Remova os arquivos e salve para voltar ao padrão."
+          description="Clique num atalho abaixo pra editar logo, cores, fundos, banners, WhatsApp ou o fundo por página."
         >
           {siteLoading ? (
             <p className="text-sm text-zinc-500">Carregando…</p>
           ) : (
-            <form onSubmit={handleSaveSiteBranding} className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <form onSubmit={handleSaveSiteBranding} className="space-y-4">
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                {(
+                  [
+                    {
+                      id: "logo" as const,
+                      icon: Image,
+                      label: "Logo",
+                      status: siteLogoUrl || logoFile ? "Definida" : "Nenhuma",
+                    },
+                    {
+                      id: "favicon" as const,
+                      icon: Star,
+                      label: "Ícone do app",
+                      status: siteFaviconUrl || faviconFile ? "Definido" : "Nenhum",
+                    },
+                    {
+                      id: "bg-login" as const,
+                      icon: ImagePlus,
+                      label: "Fundo do login",
+                      status: siteLoginBgUrl || bgLoginFile ? "Definido" : "Padrão",
+                    },
+                    {
+                      id: "bg-app" as const,
+                      icon: ImagePlus,
+                      label: "Fundo do app",
+                      status: siteAppBgUrl || bgAppFile ? "Definido" : "Padrão",
+                    },
+                    {
+                      id: "opacity" as const,
+                      icon: SlidersHorizontal,
+                      label: "Opacidade",
+                      status: `${siteBgOpacityPercent}%`,
+                    },
+                    {
+                      id: "whatsapp" as const,
+                      icon: MessageCircle,
+                      label: "WhatsApp",
+                      status: normalizeWhatsAppUrl(siteWhatsappUrl) ? "Configurado" : "Vazio",
+                    },
+                    {
+                      id: "colors" as const,
+                      icon: Palette,
+                      label: "Cores do site",
+                      status: "4 cores",
+                    },
+                    {
+                      id: "banners" as const,
+                      icon: GalleryHorizontal,
+                      label: "Banners do topo",
+                      status: `${siteHeroUrls.length + heroPendingFiles.length} imagens`,
+                    },
+                    {
+                      id: "page-backgrounds" as const,
+                      icon: Image,
+                      label: "Fundo por página",
+                      status: `${[
+                        pageBgDashboardUrl,
+                        pageBgProfileUrl,
+                        pageBgCommunityUrl,
+                        pageBgPlanejamentoUrl,
+                      ].filter(Boolean).length}/4 definidos`,
+                    },
+                  ]
+                ).map(({ id, icon: Icon, label, status }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setOpenAppearanceCard(id)}
+                    className="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 bg-white p-3 text-center transition-colors hover:border-[#6B705C]/40 hover:bg-[#6B705C]/5"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                      <Icon className="h-4 w-4 text-[#6B705C]" aria-hidden />
+                    </span>
+                    <span className="text-xs font-medium text-zinc-800">{label}</span>
+                    <span className="text-[10px] text-zinc-400">{status}</span>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={siteSaving}
+                className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+                style={{ backgroundColor: "#6B705C" }}
+              >
+                {siteSaving ? (
+                  <>
+                    <Spinner className="size-4 text-white" />
+                    Salvando…
+                  </>
+                ) : (
+                  "Salvar aparência"
+                )}
+              </button>
+            </form>
+          )}
+
+          <Dialog open={openAppearanceCard != null} onOpenChange={(open) => !open && setOpenAppearanceCard(null)}>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+              <DialogTitle className="text-sm font-medium text-zinc-800">
+                {openAppearanceCard === "logo"
+                  ? "Logo"
+                  : openAppearanceCard === "favicon"
+                    ? "Ícone do app (favicon)"
+                    : openAppearanceCard === "bg-login"
+                      ? "Fundo — página de login"
+                      : openAppearanceCard === "bg-app"
+                        ? "Fundo — app"
+                        : openAppearanceCard === "opacity"
+                          ? "Opacidade do fundo"
+                          : openAppearanceCard === "whatsapp"
+                            ? "WhatsApp (suporte)"
+                            : openAppearanceCard === "colors"
+                              ? "Cores do site"
+                              : openAppearanceCard === "banners"
+                                ? "Banners do topo (carrossel)"
+                                : "Fundo por página"}
+              </DialogTitle>
+
+              {openAppearanceCard === "logo" ? (
                 <div className="space-y-1">
-                  <label className="text-sm text-zinc-700">Logo</label>
                   <input
                     ref={logoFileInputRef}
                     type="file"
@@ -2712,8 +2846,10 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
+              ) : null}
+
+              {openAppearanceCard === "favicon" ? (
                 <div className="space-y-1">
-                  <label className="text-sm text-zinc-700">Ícone do app (favicon)</label>
                   <input
                     ref={faviconFileInputRef}
                     type="file"
@@ -2743,8 +2879,10 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
+              ) : null}
+
+              {openAppearanceCard === "bg-login" ? (
                 <div className="space-y-1">
-                  <label className="text-sm text-zinc-700">Fundo — página de login</label>
                   <input
                     ref={bgLoginFileInputRef}
                     type="file"
@@ -2770,16 +2908,17 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                  <label className="text-sm text-zinc-700">
-                    Fundo — app (dashboard, chat, produto e notificações)
-                  </label>
+              ) : null}
+
+              {openAppearanceCard === "bg-app" ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-zinc-500">Vale para dashboard, chat, produto e notificações.</p>
                   <input
                     ref={bgAppFileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={(e) => setBgAppFile(e.target.files?.[0] ?? null)}
-                    className="w-full max-w-xl text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                    className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
                     disabled={siteSaving}
                   />
                   {siteAppBgUrl && (
@@ -2799,10 +2938,11 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-                <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                  <label htmlFor="site-bg-opacity" className="text-sm text-zinc-700">
-                    Opacidade do fundo ({siteBgOpacityPercent}%)
-                  </label>
+              ) : null}
+
+              {openAppearanceCard === "opacity" ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-zinc-700">{siteBgOpacityPercent}%</p>
                   <p className="text-xs text-zinc-500">
                     Controla o quanto a textura aparece nas páginas. Valores maiores deixam o padrão mais
                     visível (padrão {DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT}%).
@@ -2816,9 +2956,9 @@ export default function AdminPage() {
                     value={siteBgOpacityPercent}
                     onChange={(e) => setSiteBgOpacityPercent(Number(e.target.value))}
                     disabled={siteSaving}
-                    className="h-2 w-full max-w-md cursor-pointer accent-[#6B705C]"
+                    className="h-2 w-full cursor-pointer accent-[#6B705C]"
                   />
-                  <div className="flex max-w-md items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
                       min={0}
@@ -2837,138 +2977,145 @@ export default function AdminPage() {
                     <span className="text-sm text-zinc-600">%</span>
                   </div>
                 </div>
-              </div>
-              <div className="space-y-1.5 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
-                <label className="text-sm font-medium text-zinc-800">WhatsApp (suporte)</label>
-                <p className="text-xs text-zinc-500">
-                  Usado no botão flutuante e no CTA &quot;Quer algo mais personalizado?&quot; do dashboard. Informe o
-                  link completo (<code className="rounded bg-zinc-100 px-1">https://wa.me/5511…</code>) ou só o número
-                  com DDI.
-                </p>
-                <input
-                  type="text"
-                  value={siteWhatsappUrl}
-                  onChange={(e) => setSiteWhatsappUrl(e.target.value)}
-                  placeholder="5511999998888 ou https://wa.me/5511999998888"
-                  className="h-11 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  disabled={siteSaving}
-                  spellCheck={false}
-                />
-                {normalizeWhatsAppUrl(siteWhatsappUrl) ? (
-                  <p className="text-[11px] text-[#5a6349]">
-                    Link ativo:{" "}
-                    <span className="break-all font-mono">{normalizeWhatsAppUrl(siteWhatsappUrl)}</span>
+              ) : null}
+
+              {openAppearanceCard === "whatsapp" ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-zinc-500">
+                    Usado no botão flutuante e no CTA &quot;Quer algo mais personalizado?&quot; do dashboard.
+                    Informe o link completo (
+                    <code className="rounded bg-zinc-100 px-1">https://wa.me/5511…</code>) ou só o número
+                    com DDI.
                   </p>
-                ) : siteWhatsappUrl.trim() ? (
-                  <p className="text-[11px] text-amber-800">Número ou link inválido — use DDI + DDD + número.</p>
-                ) : null}
-              </div>
-              <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-sm font-medium text-zinc-800">Cores do site</label>
-                  <button
-                    type="button"
-                    onClick={() => setSiteColors({ ...DEFAULT_SITE_COLORS })}
+                  <input
+                    type="text"
+                    value={siteWhatsappUrl}
+                    onChange={(e) => setSiteWhatsappUrl(e.target.value)}
+                    placeholder="5511999998888 ou https://wa.me/5511999998888"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                     disabled={siteSaving}
-                    className="text-xs text-[#6B705C] hover:underline disabled:opacity-50"
-                  >
-                    Restaurar padrão
-                  </button>
+                    spellCheck={false}
+                  />
+                  {normalizeWhatsAppUrl(siteWhatsappUrl) ? (
+                    <p className="text-[11px] text-[#5a6349]">
+                      Link ativo:{" "}
+                      <span className="break-all font-mono">{normalizeWhatsAppUrl(siteWhatsappUrl)}</span>
+                    </p>
+                  ) : siteWhatsappUrl.trim() ? (
+                    <p className="text-[11px] text-amber-800">
+                      Número ou link inválido — use DDI + DDD + número.
+                    </p>
+                  ) : null}
                 </div>
-                <p className="text-xs text-zinc-500">
-                  Unifique o verde do banner, dos cards e das páginas. Use o seletor ou digite o código hex
-                  (ex.: #6B705C).
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {(
-                    [
-                      {
-                        key: "primary" as const,
-                        label: "Verde principal",
-                        hint: "Botões, textos, bordas e barra inferior",
-                      },
-                      {
-                        key: "banner" as const,
-                        label: "Verde dos cards",
-                        hint: "Moldura dos produtos no dashboard",
-                      },
-                      {
-                        key: "bannerLight" as const,
-                        label: "Verde claro dos cards",
-                        hint: "Área da foto nos cards",
-                      },
-                      {
-                        key: "pageBg" as const,
-                        label: "Fundo das páginas",
-                        hint: "Dashboard, chat, perfil e notificações",
-                      },
-                    ] as const
-                  ).map(({ key, label, hint }) => (
-                    <div key={key} className="space-y-1.5 rounded-lg border border-zinc-200/80 bg-white/90 p-3">
-                      <label className="text-sm font-medium text-zinc-800">{label}</label>
-                      <p className="text-[11px] text-zinc-500">{hint}</p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={siteColors[key]}
-                          onChange={(e) =>
-                            setSiteColors((prev) => ({ ...prev, [key]: e.target.value }))
-                          }
-                          disabled={siteSaving}
-                          className="h-10 w-14 shrink-0 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
-                          aria-label={`${label} — seletor`}
-                        />
-                        <input
-                          type="text"
-                          value={siteColors[key]}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setSiteColors((prev) => ({ ...prev, [key]: v }));
-                          }}
-                          onBlur={(e) => {
-                            const n = normalizeHexColor(e.target.value);
-                            if (n) {
-                              setSiteColors((prev) => ({ ...prev, [key]: n }));
-                            }
-                          }}
-                          disabled={siteSaving}
-                          className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 px-2 font-mono text-sm uppercase"
-                          placeholder="#6B705C"
-                          spellCheck={false}
-                        />
-                      </div>
-                      <div
-                        className="h-8 rounded-md border border-zinc-200/80"
-                        style={{ backgroundColor: siteColors[key] }}
-                        aria-hidden
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/90 p-4 md:p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-sm font-medium text-zinc-800">Banners do topo (carrossel)</label>
-                  {(siteHeroUrls.length > 0 ||
-                    siteHeroDesktopUrls.length > 0 ||
-                    heroPendingFiles.length > 0 ||
-                    heroDesktopPendingFiles.length > 0) && (
+              ) : null}
+
+              {openAppearanceCard === "colors" ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-zinc-500">
+                      Unifique o verde do banner, dos cards e das páginas. Use o seletor ou digite o código
+                      hex (ex.: #6B705C).
+                    </p>
                     <button
                       type="button"
-                      onClick={clearAllHeroBanners}
+                      onClick={() => setSiteColors({ ...DEFAULT_SITE_COLORS })}
                       disabled={siteSaving}
-                      className="inline-flex items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                      className="shrink-0 text-xs text-[#6B705C] hover:underline disabled:opacity-50"
                     >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Limpar todos
+                      Restaurar padrão
                     </button>
-                  )}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        {
+                          key: "primary" as const,
+                          label: "Verde principal",
+                          hint: "Botões, textos, bordas e barra inferior",
+                        },
+                        {
+                          key: "banner" as const,
+                          label: "Verde dos cards",
+                          hint: "Moldura dos produtos no dashboard",
+                        },
+                        {
+                          key: "bannerLight" as const,
+                          label: "Verde claro dos cards",
+                          hint: "Área da foto nos cards",
+                        },
+                        {
+                          key: "pageBg" as const,
+                          label: "Fundo das páginas",
+                          hint: "Dashboard, chat, perfil e notificações",
+                        },
+                      ] as const
+                    ).map(({ key, label, hint }) => (
+                      <div key={key} className="space-y-1.5 rounded-lg border border-zinc-200/80 bg-white/90 p-3">
+                        <label className="text-sm font-medium text-zinc-800">{label}</label>
+                        <p className="text-[11px] text-zinc-500">{hint}</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={siteColors[key]}
+                            onChange={(e) =>
+                              setSiteColors((prev) => ({ ...prev, [key]: e.target.value }))
+                            }
+                            disabled={siteSaving}
+                            className="h-10 w-14 shrink-0 cursor-pointer rounded border border-zinc-200 bg-white p-0.5"
+                            aria-label={`${label} — seletor`}
+                          />
+                          <input
+                            type="text"
+                            value={siteColors[key]}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setSiteColors((prev) => ({ ...prev, [key]: v }));
+                            }}
+                            onBlur={(e) => {
+                              const n = normalizeHexColor(e.target.value);
+                              if (n) {
+                                setSiteColors((prev) => ({ ...prev, [key]: n }));
+                              }
+                            }}
+                            disabled={siteSaving}
+                            className="h-10 min-w-0 flex-1 rounded-md border border-zinc-200 px-2 font-mono text-sm uppercase"
+                            placeholder="#6B705C"
+                            spellCheck={false}
+                          />
+                        </div>
+                        <div
+                          className="h-8 rounded-md border border-zinc-200/80"
+                          style={{ backgroundColor: siteColors[key] }}
+                          aria-hidden
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-xs text-zinc-500">
-                  No celular use imagens em retrato ou quadradas; no desktop, faixas largas (ex. 1920×480 px).
-                  Se só enviar mobile, o mesmo carrossel aparece em todos os tamanhos de tela.
-                </p>
-                <div className="grid gap-4 lg:grid-cols-2">
+              ) : null}
+
+              {openAppearanceCard === "banners" ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-zinc-500">
+                      No celular use imagens em retrato ou quadradas; no desktop, faixas largas (ex.
+                      1920×480 px). Se só enviar mobile, o mesmo carrossel aparece em todos os tamanhos.
+                    </p>
+                    {(siteHeroUrls.length > 0 ||
+                      siteHeroDesktopUrls.length > 0 ||
+                      heroPendingFiles.length > 0 ||
+                      heroDesktopPendingFiles.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={clearAllHeroBanners}
+                        disabled={siteSaving}
+                        className="inline-flex shrink-0 items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        Limpar todos
+                      </button>
+                    )}
+                  </div>
                   <div className="space-y-2 rounded-lg border border-zinc-200/80 bg-white/80 p-3">
                     <p className="text-sm font-medium text-zinc-800">Celular</p>
                     <input
@@ -3093,24 +3240,25 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
-              </div>
-              <button
-                type="submit"
-                disabled={siteSaving}
-                className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: "#6B705C" }}
-              >
-                {siteSaving ? (
-                  <>
-                    <Spinner className="size-4 text-white" />
-                    Salvando…
-                  </>
-                ) : (
-                  "Salvar aparência"
-                )}
-              </button>
-            </form>
-          )}
+              ) : null}
+
+              {openAppearanceCard === "page-backgrounds" ? (
+                <PageBackgroundsEditor
+                  dashboardUrl={pageBgDashboardUrl}
+                  onDashboardChange={setPageBgDashboardUrl}
+                  profileUrl={pageBgProfileUrl}
+                  onProfileChange={setPageBgProfileUrl}
+                  communityUrl={pageBgCommunityUrl}
+                  onCommunityChange={setPageBgCommunityUrl}
+                  planejamentoUrl={pageBgPlanejamentoUrl}
+                  onPlanejamentoChange={setPageBgPlanejamentoUrl}
+                  saving={pageBackgroundsSaving}
+                  onSave={() => void handleSavePageBackgrounds()}
+                  onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "page-backgrounds")}
+                />
+              ) : null}
+            </DialogContent>
+          </Dialog>
         </AdminSection>
 
         <AdminSection
@@ -3187,31 +3335,6 @@ export default function AdminPage() {
           )}
         </AdminSection>
 
-        <AdminSection
-          id="page-backgrounds"
-          icon={Image}
-          title="Fundo por página"
-          description="Defina uma imagem de fundo própria para Início, Perfil, Chat e Planejamento — opcional, sem substituir o fundo padrão do app."
-        >
-          {siteLoading ? (
-            <p className="text-sm text-zinc-500">Carregando…</p>
-          ) : (
-            <PageBackgroundsEditor
-              dashboardUrl={pageBgDashboardUrl}
-              onDashboardChange={setPageBgDashboardUrl}
-              profileUrl={pageBgProfileUrl}
-              onProfileChange={setPageBgProfileUrl}
-              communityUrl={pageBgCommunityUrl}
-              onCommunityChange={setPageBgCommunityUrl}
-              planejamentoUrl={pageBgPlanejamentoUrl}
-              onPlanejamentoChange={setPageBgPlanejamentoUrl}
-              saving={pageBackgroundsSaving}
-              onSave={() => void handleSavePageBackgrounds()}
-              onUploadPhoto={(file) => uploadFileToStorage(file, IMAGE_BUCKET, "images", "page-backgrounds")}
-            />
-          )}
-        </AdminSection>
-
         <RegisteredUsersSection />
 
         <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
@@ -3244,7 +3367,7 @@ export default function AdminPage() {
                   <select
                     value={legacyProductId}
                     onChange={(e) => setLegacyProductId(e.target.value)}
-                    className="h-11 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                    className="h-10 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
                     disabled={legacyGranting}
                   >
                     <option value="">Selecione o produto</option>
@@ -3324,7 +3447,7 @@ export default function AdminPage() {
               <select
                 value={kitProductId}
                 onChange={(e) => setKitProductId(e.target.value)}
-                className="h-11 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                className="h-10 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
               >
                 <option value="">Selecione o kit</option>
                 {kitCandidates.map((p) => (
@@ -3547,7 +3670,7 @@ export default function AdminPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Nome do produto"
-                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                     required
                   />
                 </div>
@@ -3559,7 +3682,7 @@ export default function AdminPage() {
                     type="file"
                     accept="image/*"
                     onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                    className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                    className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                   />
                 </div>
 
@@ -3576,7 +3699,7 @@ export default function AdminPage() {
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       placeholder="Ex: 97.00"
-                      className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -3584,7 +3707,7 @@ export default function AdminPage() {
                     <select
                       value={type}
                       onChange={(e) => setType(e.target.value as "PRO" | "BON")}
-                      className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                     >
                       <option value="PRO">PRO</option>
                       <option value="BON">BON</option>
@@ -3655,7 +3778,7 @@ export default function AdminPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Nome do produto"
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                         required
                       />
                     </div>
@@ -3672,7 +3795,7 @@ export default function AdminPage() {
                         type="file"
                         accept="image/*"
                         onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingImageUrl && !imageFile && (
                         <div className="flex items-center gap-3">
@@ -3734,20 +3857,33 @@ export default function AdminPage() {
                       </label>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-sm text-zinc-700">Categoria (atalho &quot;Explore&quot;)</label>
-                      <select
-                        value={selectedCategoryId}
-                        onChange={(e) => setSelectedCategoryId(e.target.value)}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                      >
-                        <option value="">Nenhuma</option>
-                        {productCategoriesConfig.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.parent_id ? `— ${category.name || "Sem nome"}` : category.name || "Sem nome"}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-zinc-700">Categoria (atalho &quot;Explore&quot;)</label>
+                        <select
+                          value={selectedCategoryId}
+                          onChange={(e) => setSelectedCategoryId(e.target.value)}
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        >
+                          <option value="">Nenhuma</option>
+                          {productCategoriesConfig.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.parent_id ? `— ${category.name || "Sem nome"}` : category.name || "Sem nome"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm text-zinc-700">Tipo de Conteúdo</label>
+                        <select
+                          value={type}
+                          onChange={(e) => setType(e.target.value as "PRO" | "BON")}
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        >
+                          <option value="PRO">PRO</option>
+                          <option value="BON">BON</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -3763,7 +3899,7 @@ export default function AdminPage() {
                           value={price}
                           onChange={(e) => setPrice(e.target.value)}
                           placeholder="Ex: 97.00"
-                          className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -3778,21 +3914,9 @@ export default function AdminPage() {
                           value={promoPrice}
                           onChange={(e) => setPromoPrice(e.target.value)}
                           placeholder="Ex: 67.00"
-                          className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                          className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-sm text-zinc-700">Tipo de Conteúdo</label>
-                      <select
-                        value={type}
-                        onChange={(e) => setType(e.target.value as "PRO" | "BON")}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                      >
-                        <option value="PRO">PRO</option>
-                        <option value="BON">BON</option>
-                      </select>
                     </div>
 
                     <FormFieldGroup title="Integrações de venda" />
@@ -3835,7 +3959,7 @@ export default function AdminPage() {
                         type="file"
                         accept="image/*"
                         onChange={(e) => setSalesImageFile(e.target.files?.[0] ?? null)}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingSalesImageUrl && !salesImageFile && (
                         <div className="space-y-1.5">
@@ -3923,7 +4047,7 @@ export default function AdminPage() {
                         value={linkCompra}
                         onChange={(e) => setLinkCompra(e.target.value)}
                         placeholder="https://..."
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm text-zinc-800 outline-none transition focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
                       />
                     </div>
                   </>
@@ -3955,7 +4079,7 @@ export default function AdminPage() {
                         type="file"
                         accept="image/*"
                         onChange={(e) => setDeliveryImageFile(e.target.files?.[0] ?? null)}
-                        className="h-11 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
+                        className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-3 file:py-1.5 file:text-white"
                       />
                       {existingDeliveryImageUrl && !deliveryImageFile && (
                         <div className="space-y-1.5">
