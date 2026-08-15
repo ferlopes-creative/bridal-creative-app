@@ -646,13 +646,13 @@ export default function Dashboard() {
         showHero={showHero}
       />
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-8 sm:pt-9 md:pt-10">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-6 sm:pt-7 md:pt-8">
         <div className="mx-auto max-w-xs text-center">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-bc-primary/70 sm:text-xs">Faltam</p>
-          <div className="mt-2 flex items-center justify-center gap-2.5 sm:gap-3.5">
+          <p className="text-sm uppercase tracking-[0.14em] text-bc-primary/70">Faltam</p>
+          <div className="mt-2 flex items-center justify-center gap-1.5 sm:gap-2">
             <div className="flex flex-col items-center">
               <div
-                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
                 style={{ backgroundColor: "var(--bc-primary)" }}
               >
                 <span
@@ -664,10 +664,9 @@ export default function Dashboard() {
               </div>
               <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">meses</p>
             </div>
-            <span className="text-lg text-bc-primary/30">|</span>
             <div className="flex flex-col items-center">
               <div
-                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
                 style={{ backgroundColor: "var(--bc-primary)" }}
               >
                 <span
@@ -679,10 +678,9 @@ export default function Dashboard() {
               </div>
               <p className="mt-1.5 text-[9px] uppercase tracking-[0.1em] text-bc-primary/70">dias</p>
             </div>
-            <span className="text-lg text-bc-primary/30">|</span>
             <div className="flex flex-col items-center">
               <div
-                className="flex h-14 w-14 items-center justify-center rounded-md sm:h-16 sm:w-16"
+                className="flex h-11 w-11 items-center justify-center rounded-[1px] sm:h-12 sm:w-12"
                 style={{ backgroundColor: "var(--bc-primary)" }}
               >
                 <span
@@ -699,28 +697,12 @@ export default function Dashboard() {
             className="mt-3 text-sm text-bc-primary"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            para o seu casamento
+            para o seu casamento!
           </p>
-        </div>
-        <div className="mt-3 flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setLocation("/dashboard/meus-produtos")}
-            className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
-          >
-            Ver meus produtos →
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocation("/planejamento")}
-            className="text-[10px] font-normal text-bc-primary hover:underline sm:text-xs"
-          >
-            Ver planejamento →
-          </button>
         </div>
       </div>
 
-      <div className="relative mx-auto w-full max-w-6xl px-4 pt-10 md:pt-12">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pt-5 md:pt-6">
         {sectionBlocks.map((block, index) => (
           <div key={index} className={index > 0 ? "mt-6 md:mt-10" : undefined}>
             {block}
