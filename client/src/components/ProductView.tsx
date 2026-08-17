@@ -1,11 +1,11 @@
 import { ExternalLink, PlayCircle, Star } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { ProductPrice } from "@/components/ProductGrid";
-import { parseGalleryUrls, resolveVideoGallery } from "@/lib/productDeliveryImages";
+import { guessMediaKind, parseGalleryUrls, resolveSalesMedia, resolveVideoGallery } from "@/lib/productDeliveryImages";
 import { resolveProductAccessLinks } from "@/lib/productAccessLinks";
 import { parseProductFaq } from "@/lib/productFaq";
 import { parseProductModules, type ProductLesson } from "@/lib/productModules";
@@ -162,26 +162,38 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   const deliveryHeroSrc = product.image_delivery_url?.trim() || coverSrc;
   const salesHeroSrc = salesHero || coverSrc;
   const heroSrc = canAccess ? deliveryHeroSrc : salesHeroSrc;
-  const galleryUrls = canAccess
-    ? parseGalleryUrls(product.delivery_gallery_urls)
-    : parseGalleryUrls(product.sales_gallery_urls);
   const purchaseLink = (product.link_compra || product.link || "").trim() || null;
   const accessLinks = canAccess ? resolveProductAccessLinks(product) : [];
-  const videoUrls = canAccess
-    ? resolveVideoGallery(product.delivery_video_urls, product.video_url || product.video)
-    : resolveVideoGallery(product.sales_video_urls, product.video_sales_url);
   const faqItems = parseProductFaq(product.faq_config);
   const testimonials = parseTestimonialsConfig(product.product_testimonials_config).filter((t) => t.visible);
   const modules = canAccess ? parseProductModules(product.modules_config) : [];
   const [playingLesson, setPlayingLesson] = useState<ProductLesson | null>(null);
 
-  const slides: Slide[] = [
-    { kind: "image", url: heroSrc, alt: title },
-    ...galleryUrls
-      .filter((url) => url !== heroSrc)
-      .map((url, index): Slide => ({ kind: "image", url, alt: `${title} — foto ${index + 2}` })),
-    ...videoUrls.map((url): Slide => ({ kind: "video", url })),
-  ];
+  /** Fotos+vídeos misturados, na ordem escolhida no Admin (só a página de venda usa essa lista unificada). */
+  const salesMediaUrls = resolveSalesMedia(
+    product.sales_gallery_urls,
+    product.sales_video_urls,
+    product.video_sales_url
+  );
+  const deliveryGalleryUrls = parseGalleryUrls(product.delivery_gallery_urls);
+  const deliveryVideoUrls = resolveVideoGallery(product.delivery_video_urls, product.video_url || product.video);
+
+  const extraSlides: Slide[] = canAccess
+    ? [
+        ...deliveryGalleryUrls
+          .filter((url) => url !== heroSrc)
+          .map((url, index): Slide => ({ kind: "image", url, alt: `${title} — foto ${index + 2}` })),
+        ...deliveryVideoUrls.map((url): Slide => ({ kind: "video", url })),
+      ]
+    : salesMediaUrls
+        .filter((url) => url !== heroSrc)
+        .map((url, index): Slide =>
+          guessMediaKind(url) === "video"
+            ? { kind: "video", url }
+            : { kind: "image", url, alt: `${title} — foto ${index + 2}` }
+        );
+
+  const slides: Slide[] = [{ kind: "image", url: heroSrc, alt: title }, ...extraSlides];
   const slidesKey = slides.map((s) => s.url).join();
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -194,34 +206,51 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     const el = mainScrollRef.current;
     if (!el) return;
     const isDesktop = !singleSlide && window.matchMedia("(min-width: 768px)").matches;
+    if (!isDesktop) {
+      slideRefs.current.forEach((node) => {
+        if (node) node.style.transform = "";
+      });
+      return;
+    }
     const center = el.scrollLeft + el.clientWidth / 2;
     slideRefs.current.forEach((node) => {
       if (!node) return;
-      if (!isDesktop) {
-        node.style.transform = "";
-        return;
-      }
       const dist = Math.abs(node.offsetLeft + node.clientWidth / 2 - center);
       const ratio = Math.min(1, dist / (el.clientWidth / 2));
       node.style.transform = `scale(${1 - ratio * 0.22})`;
     });
   };
 
+  /** Clique numa miniatura: rola o carrossel principal até centralizar aquele slide. */
+  const selectSlide = (index: number) => {
+    setActiveIndex(index);
+    const el = mainScrollRef.current;
+    const child = el?.children[index] as HTMLElement | undefined;
+    if (!el || !child) return;
+    const target = child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
+    programmaticScrollUntilRef.current = Date.now() + 500;
+    el.scrollTo({ left: target, behavior: "smooth" });
+  };
+
+  /** Refs de callback estáveis por índice — evita que o React zere/reatribua a cada render. */
+  const slideRefCallbacks = useRef<((node: HTMLDivElement | null) => void)[]>([]);
+  const getSlideRefCallback = useCallback((index: number) => {
+    if (!slideRefCallbacks.current[index]) {
+      slideRefCallbacks.current[index] = (node: HTMLDivElement | null) => {
+        slideRefs.current[index] = node;
+      };
+    }
+    return slideRefCallbacks.current[index];
+  }, []);
+
   useEffect(() => {
     setActiveIndex(0);
     mainScrollRef.current?.scrollTo({ left: 0 });
-    requestAnimationFrame(applyDesktopScale);
   }, [slidesKey]);
 
-  useEffect(() => {
-    const el = mainScrollRef.current;
-    const child = el?.children[activeIndex] as HTMLElement | undefined;
-    if (!el || !child) return;
-    const target = child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
-    if (Math.abs(el.scrollLeft - target) < 4) return;
-    programmaticScrollUntilRef.current = Date.now() + 500;
-    el.scrollTo({ left: target, behavior: "smooth" });
-  }, [activeIndex]);
+  useLayoutEffect(() => {
+    applyDesktopScale();
+  });
 
   useEffect(() => {
     const onResize = () => applyDesktopScale();
@@ -334,10 +363,8 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
           {slides.map((slide, index) => (
             <div
               key={`${slide.url}-${index}`}
-              ref={(node) => {
-                slideRefs.current[index] = node;
-              }}
-              className={`aspect-[4/5] shrink-0 overflow-hidden bg-[#f4f5ef] transition-transform duration-200 ease-out ${
+              ref={getSlideRefCallback(index)}
+              className={`aspect-[4/5] shrink-0 overflow-hidden bg-[#f4f5ef] transition-transform duration-200 ease-out md:aspect-square ${
                 singleSlide ? "w-full" : "w-[85%] snap-center md:w-[34%]"
               }`}
             >
@@ -361,7 +388,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
               <button
                 key={`${slide.url}-${index}`}
                 type="button"
-                onClick={() => setActiveIndex(index)}
+                onClick={() => selectSlide(index)}
                 aria-label={slide.kind === "video" ? "Ver vídeo" : `Ver foto ${index + 1}`}
                 className={`h-14 w-14 shrink-0 overflow-hidden border transition-colors ${
                   index === activeIndex ? "border-bc-primary" : "border-transparent"

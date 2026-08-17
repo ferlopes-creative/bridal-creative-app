@@ -113,7 +113,7 @@ import {
   parseAccessLinks,
   type ProductAccessLinkRow,
 } from "@/lib/productAccessLinks";
-import { parseGalleryUrls, resolveVideoGallery } from "@/lib/productDeliveryImages";
+import { guessMediaKind, parseGalleryUrls, resolveSalesMedia, resolveVideoGallery } from "@/lib/productDeliveryImages";
 import { normalizeWhatsAppUrl } from "@/lib/whatsappUrl";
 import { ProductCsvImport } from "@/components/ProductCsvImport";
 import { grantLegacyPurchases, grantSingleLegacyPurchase } from "@/lib/adminGrantPurchase";
@@ -665,12 +665,11 @@ export default function AdminPage() {
   const [existingSalesImageUrl, setExistingSalesImageUrl] = useState<string | null>(null);
   const [deliveryGalleryUrls, setDeliveryGalleryUrls] = useState<string[]>([]);
   const [deliveryGalleryPendingFiles, setDeliveryGalleryPendingFiles] = useState<File[]>([]);
-  const [salesGalleryUrls, setSalesGalleryUrls] = useState<string[]>([]);
-  const [salesGalleryPendingFiles, setSalesGalleryPendingFiles] = useState<File[]>([]);
+  /** Fotos + vídeos da venda, misturados numa lista só (ordem = ordem do carrossel na página de venda). */
+  const [salesMediaUrls, setSalesMediaUrls] = useState<string[]>([]);
+  const [salesMediaPendingFiles, setSalesMediaPendingFiles] = useState<File[]>([]);
   const [deliveryVideoUrls, setDeliveryVideoUrls] = useState<string[]>([]);
   const [deliveryVideoPendingFiles, setDeliveryVideoPendingFiles] = useState<File[]>([]);
-  const [salesVideoUrls, setSalesVideoUrls] = useState<string[]>([]);
-  const [salesVideoPendingFiles, setSalesVideoPendingFiles] = useState<File[]>([]);
   const [cropModal, setCropModal] = useState<{
     url: string;
     onDone: (blob: Blob) => void;
@@ -858,12 +857,10 @@ export default function AdminPage() {
     setExistingSalesImageUrl(null);
     setDeliveryGalleryUrls([]);
     setDeliveryGalleryPendingFiles([]);
-    setSalesGalleryUrls([]);
-    setSalesGalleryPendingFiles([]);
+    setSalesMediaUrls([]);
+    setSalesMediaPendingFiles([]);
     setDeliveryVideoUrls([]);
     setDeliveryVideoPendingFiles([]);
-    setSalesVideoUrls([]);
-    setSalesVideoPendingFiles([]);
     setName("");
     setDescription("");
     setDescriptionDelivery("");
@@ -912,12 +909,10 @@ export default function AdminPage() {
     setExistingSalesImageUrl(product.image_sales_url?.trim() || null);
     setDeliveryGalleryUrls(parseGalleryUrls(product.delivery_gallery_urls));
     setDeliveryGalleryPendingFiles([]);
-    setSalesGalleryUrls(parseGalleryUrls(product.sales_gallery_urls));
-    setSalesGalleryPendingFiles([]);
+    setSalesMediaUrls(resolveSalesMedia(product.sales_gallery_urls, product.sales_video_urls, product.video_sales_url));
+    setSalesMediaPendingFiles([]);
     setDeliveryVideoUrls(resolveVideoGallery(product.delivery_video_urls, product.video_url || product.video));
     setDeliveryVideoPendingFiles([]);
-    setSalesVideoUrls(resolveVideoGallery(product.sales_video_urls, product.video_sales_url));
-    setSalesVideoPendingFiles([]);
     setName(product.name || "");
     setDescription(product.description || "");
     setDescriptionDelivery(product.description_delivery || "");
@@ -978,12 +973,10 @@ export default function AdminPage() {
       setExistingSalesImageUrl(null);
       setDeliveryGalleryUrls([]);
       setDeliveryGalleryPendingFiles([]);
-      setSalesGalleryUrls([]);
-      setSalesGalleryPendingFiles([]);
+      setSalesMediaUrls([]);
+      setSalesMediaPendingFiles([]);
       setDeliveryVideoUrls([]);
       setDeliveryVideoPendingFiles([]);
-      setSalesVideoUrls([]);
-      setSalesVideoPendingFiles([]);
       setLegacyExternalSalesId(null);
       setFaqRows([]);
       setProductTestimonials([]);
@@ -1016,9 +1009,8 @@ export default function AdminPage() {
       deliveryImageFile != null ||
       salesImageFile != null ||
       deliveryGalleryPendingFiles.length > 0 ||
-      salesGalleryPendingFiles.length > 0 ||
-      deliveryVideoPendingFiles.length > 0 ||
-      salesVideoPendingFiles.length > 0
+      salesMediaPendingFiles.length > 0 ||
+      deliveryVideoPendingFiles.length > 0
     );
   }, [
     isModalOpen,
@@ -1035,9 +1027,8 @@ export default function AdminPage() {
     deliveryImageFile,
     salesImageFile,
     deliveryGalleryPendingFiles,
-    salesGalleryPendingFiles,
+    salesMediaPendingFiles,
     deliveryVideoPendingFiles,
-    salesVideoPendingFiles,
     modalSnapshot,
   ]);
 
@@ -1715,14 +1706,16 @@ export default function AdminPage() {
       }
       const galleryUrls = [...deliveryGalleryUrls, ...uploadedGalleryUrls];
 
+      const salesImagePendingFiles = salesMediaPendingFiles.filter((f) => !f.type.startsWith("video/"));
+      const salesVideoPendingFilesFromMedia = salesMediaPendingFiles.filter((f) => f.type.startsWith("video/"));
+
       const uploadedSalesGalleryUrls: string[] = [];
-      for (const file of salesGalleryPendingFiles) {
+      for (const file of salesImagePendingFiles) {
         uploadedSalesGalleryUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images"));
       }
-      const salesGallery = [...salesGalleryUrls, ...uploadedSalesGalleryUrls];
+      let salesGallery = [...salesMediaUrls, ...uploadedSalesGalleryUrls];
 
       let deliveryVideoGallery = [...deliveryVideoUrls];
-      let salesVideoGallery = [...salesVideoUrls];
 
       if (editingProductId) {
         for (const file of deliveryVideoPendingFiles) {
@@ -1730,18 +1723,18 @@ export default function AdminPage() {
             await uploadFileToStorage(file, VIDEO_BUCKET, "videos", editingProductId)
           );
         }
-        for (const file of salesVideoPendingFiles) {
-          salesVideoGallery.push(
+        for (const file of salesVideoPendingFilesFromMedia) {
+          salesGallery.push(
             await uploadFileToStorage(file, VIDEO_BUCKET, "videos", editingProductId)
           );
         }
       } else {
         pendingDeliveryVideoFiles = deliveryVideoPendingFiles;
-        pendingSalesVideoFiles = salesVideoPendingFiles;
+        pendingSalesVideoFiles = salesVideoPendingFilesFromMedia;
       }
 
       const videoUrl = deliveryVideoGallery[0] ?? null;
-      const salesVideoUrl = salesVideoGallery[0] ?? null;
+      const salesVideoUrl = salesGallery.find((url) => guessMediaKind(url) === "video") ?? null;
 
       const { dbError, insertedId, flags } = await persistWithSchemaFallback(
         imageUrl,
@@ -1752,7 +1745,7 @@ export default function AdminPage() {
         salesGallery,
         salesVideoUrl,
         deliveryVideoGallery,
-        salesVideoGallery
+        []
       );
 
       if (!dbError && insertedId) {
@@ -1782,15 +1775,15 @@ export default function AdminPage() {
 
       if (!dbError && pendingSalesVideoFiles.length > 0 && insertedId) {
         for (const file of pendingSalesVideoFiles) {
-          salesVideoGallery.push(await uploadFileToStorage(file, VIDEO_BUCKET, "videos", insertedId));
+          salesGallery.push(await uploadFileToStorage(file, VIDEO_BUCKET, "videos", insertedId));
         }
         const { error: salesVideoUpdateError } = await supabase
           .from("products")
-          .update({ sales_video_urls: salesVideoGallery, video_sales_url: salesVideoGallery[0] ?? null })
+          .update({ sales_gallery_urls: salesGallery })
           .eq("id", insertedId);
-        if (salesVideoUpdateError && isMissingVideoSalesUrlColumnError(salesVideoUpdateError)) {
+        if (salesVideoUpdateError && isMissingSalesGalleryUrlsColumnError(salesVideoUpdateError)) {
           toast.success(
-            "Produto salvo, mas o vídeo de vendas não foi guardado — execute a migração SQL que adiciona a coluna video_sales_url em products."
+            "Produto salvo, mas o vídeo de vendas não foi guardado — execute a migração SQL que adiciona a coluna sales_gallery_urls em products."
           );
           await fetchProducts();
           closeModal();
@@ -1908,17 +1901,17 @@ export default function AdminPage() {
       if (message.toLowerCase().includes("auth session missing")) {
         try {
           const fallbackVideoUrl = deliveryVideoUrls[0] ?? null;
-          const fallbackSalesVideoUrl = salesVideoUrls[0] ?? null;
+          const fallbackSalesVideoUrl = salesMediaUrls.find((url) => guessMediaKind(url) === "video") ?? null;
           const { dbError: fallbackError, flags } = await persistWithSchemaFallback(
             existingImageUrl,
             fallbackVideoUrl,
             existingDeliveryImageUrl,
             deliveryGalleryUrls,
             existingSalesImageUrl,
-            salesGalleryUrls,
+            salesMediaUrls,
             fallbackSalesVideoUrl,
             deliveryVideoUrls,
-            salesVideoUrls
+            []
           );
           if (!fallbackError) {
             await fetchProducts();
@@ -4216,39 +4209,25 @@ export default function AdminPage() {
                     </div>
 
                     <MediaGalleryEditor
-                      label="Galeria de modelos (venda)"
-                      description="Imagens extras exibidas na página de compra para mostrar prévia dos modelos. Pode enviar várias de uma vez."
-                      accept="image/*"
-                      kind="image"
-                      savedUrls={salesGalleryUrls}
-                      onSavedUrlsChange={setSalesGalleryUrls}
-                      pendingFiles={salesGalleryPendingFiles}
-                      onPendingFilesChange={setSalesGalleryPendingFiles}
+                      label="Fotos e vídeos da página de vendas"
+                      description="Exibidos juntos no carrossel antes da compra (ficam bloqueados com cadeado se o item ainda não foi liberado), na ordem que você organizar aqui. O ícone de vídeo aparece automaticamente."
+                      accept="image/*,video/*"
+                      kind="mixed"
+                      savedUrls={salesMediaUrls}
+                      onSavedUrlsChange={setSalesMediaUrls}
+                      pendingFiles={salesMediaPendingFiles}
+                      onPendingFilesChange={setSalesMediaPendingFiles}
                       disabled={saving}
                       onCropSaved={(i) =>
-                        openCropForSavedUrl(salesGalleryUrls[i], (newUrl) =>
-                          setSalesGalleryUrls((prev) => prev.map((u, idx) => (idx === i ? newUrl : u)))
+                        openCropForSavedUrl(salesMediaUrls[i], (newUrl) =>
+                          setSalesMediaUrls((prev) => prev.map((u, idx) => (idx === i ? newUrl : u)))
                         )
                       }
                       onCropPending={(i) =>
-                        openCropForPendingFile(salesGalleryPendingFiles[i], (newFile) =>
-                          setSalesGalleryPendingFiles((prev) => prev.map((f, idx) => (idx === i ? newFile : f)))
+                        openCropForPendingFile(salesMediaPendingFiles[i], (newFile) =>
+                          setSalesMediaPendingFiles((prev) => prev.map((f, idx) => (idx === i ? newFile : f)))
                         )
                       }
-                    />
-
-                    <FormFieldGroup title="Vídeos de vendas" />
-
-                    <MediaGalleryEditor
-                      label="Vídeos da página de vendas"
-                      description="Exibidos no carrossel antes da compra (ficam bloqueados com cadeado se o item ainda não foi liberado). Pode enviar vários."
-                      accept="video/*"
-                      kind="video"
-                      savedUrls={salesVideoUrls}
-                      onSavedUrlsChange={setSalesVideoUrls}
-                      pendingFiles={salesVideoPendingFiles}
-                      onPendingFilesChange={setSalesVideoPendingFiles}
-                      disabled={saving}
                     />
 
                     <FormFieldGroup title="Checkout" />

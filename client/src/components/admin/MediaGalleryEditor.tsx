@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Crop, Film, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Crop, Film, Image as ImageIcon, Trash2 } from "lucide-react";
 
 function moveAt<T>(list: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction;
@@ -8,11 +8,25 @@ function moveAt<T>(list: T[], index: number, direction: -1 | 1): T[] {
   return next;
 }
 
+type ItemKind = "image" | "video";
+
+const VIDEO_URL_EXTENSIONS = [".mp4", ".webm", ".mov", ".m4v", ".ogv", ".avi", ".mkv"];
+
+function guessUrlKind(url: string): ItemKind {
+  const clean = url.split("?")[0].split("#")[0].toLowerCase();
+  return VIDEO_URL_EXTENSIONS.some((ext) => clean.endsWith(ext)) ? "video" : "image";
+}
+
+function guessFileKind(file: File): ItemKind {
+  return file.type.startsWith("video/") ? "video" : "image";
+}
+
 type MediaGalleryEditorProps = {
   label: string;
   description?: string;
   accept: string;
-  kind: "image" | "video";
+  /** "mixed" aceita fotos e vídeos juntos, detectando o tipo de cada item automaticamente. */
+  kind: "image" | "video" | "mixed";
   savedUrls: string[];
   onSavedUrlsChange: (urls: string[]) => void;
   pendingFiles: File[];
@@ -58,9 +72,11 @@ export default function MediaGalleryEditor({
 
       {savedUrls.length > 0 && (
         <ul className="space-y-1.5 text-xs">
-          {savedUrls.map((url, i) => (
+          {savedUrls.map((url, i) => {
+            const itemKind = kind === "mixed" ? guessUrlKind(url) : kind;
+            return (
             <li key={`${url}-${i}`} className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5">
-              {kind === "image" ? (
+              {itemKind === "image" ? (
                 <img src={url} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
               ) : (
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-zinc-100 text-zinc-500">
@@ -72,7 +88,7 @@ export default function MediaGalleryEditor({
                 {url.length > 60 ? "…" : ""}
               </span>
               <div className="flex shrink-0 items-center gap-0.5">
-                {kind === "image" && onCropSaved ? (
+                {itemKind === "image" && onCropSaved ? (
                   <button
                     type="button"
                     onClick={() => onCropSaved(i)}
@@ -112,21 +128,33 @@ export default function MediaGalleryEditor({
                 </button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
       {pendingFiles.length > 0 && (
         <ul className="space-y-1.5 text-xs">
           <li className="text-zinc-500">A enviar ao salvar:</li>
-          {pendingFiles.map((file, i) => (
+          {pendingFiles.map((file, i) => {
+            const itemKind = kind === "mixed" ? guessFileKind(file) : kind;
+            return (
             <li
               key={`${file.name}-${i}`}
               className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
             >
+              {kind === "mixed" ? (
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-zinc-100 text-zinc-500">
+                  {itemKind === "image" ? (
+                    <ImageIcon className="h-4 w-4" />
+                  ) : (
+                    <Film className="h-4 w-4" />
+                  )}
+                </span>
+              ) : null}
               <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
               <div className="flex shrink-0 items-center gap-0.5">
-                {kind === "image" && onCropPending ? (
+                {itemKind === "image" && onCropPending ? (
                   <button
                     type="button"
                     onClick={() => onCropPending(i)}
@@ -166,7 +194,8 @@ export default function MediaGalleryEditor({
                 </button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

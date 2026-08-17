@@ -35,3 +35,28 @@ export function resolveVideoGallery(galleryRaw: unknown, legacyUrl: string | nul
   const legacy = legacyUrl?.trim();
   return legacy ? [legacy] : [];
 }
+
+const VIDEO_URL_EXTENSIONS = [".mp4", ".webm", ".mov", ".m4v", ".ogv", ".avi", ".mkv"];
+
+/** Detecta se uma URL de mídia é vídeo pela extensão do arquivo. */
+export function guessMediaKind(url: string): "image" | "video" {
+  const clean = url.split("?")[0].split("#")[0].toLowerCase();
+  return VIDEO_URL_EXTENSIONS.some((ext) => clean.endsWith(ext)) ? "video" : "image";
+}
+
+/**
+ * Lista unificada de mídia da venda (fotos + vídeos), na ordem escolhida no Admin —
+ * `sales_gallery_urls` guarda a lista mista. Produtos antigos com vídeos ainda separados em
+ * `sales_video_urls`/`video_sales_url` continuam aparecendo (mesclados no fim) até serem salvos de novo.
+ */
+export function resolveSalesMedia(
+  mediaRaw: unknown,
+  legacyVideoGalleryRaw: unknown,
+  legacyVideoUrl: string | null | undefined
+): string[] {
+  const media = parseGalleryUrls(mediaRaw);
+  const legacyVideos = resolveVideoGallery(legacyVideoGalleryRaw, legacyVideoUrl).filter(
+    (url) => !media.includes(url)
+  );
+  return [...media, ...legacyVideos];
+}
