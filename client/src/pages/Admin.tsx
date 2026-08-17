@@ -28,7 +28,6 @@ import {
   Star,
   Trash2,
   UserCheck,
-  Users,
   X,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -371,7 +370,8 @@ function FormFieldGroup({ title, first = false }: { title: string; first?: boole
 
 /** Configura, num só lugar, qual produto (link de compra + IDs Hotmart/Cakto)
  * libera o Premium da seção Planejamento — é sempre no máximo 1 produto,
- * marcado via products.is_wedding_planning_premium. */
+ * marcado via products.is_wedding_planning_premium. Os números de uso ficam
+ * no dashboard inicial (AdminOverview); aqui só a configuração. */
 function WeddingPlanningPremiumSection({
   products,
   onSaved,
@@ -388,36 +388,6 @@ function WeddingPlanningPremiumSection({
   const [caktoSalesId, setCaktoSalesId] = useState(existing?.cakto_sales_id || "");
   const [saving, setSaving] = useState(false);
   const [syncedFor, setSyncedFor] = useState<string>("__init__");
-
-  const [usage, setUsage] = useState<{
-    started: number;
-    with_vendor: number;
-    with_checklist_done: number;
-    with_guests: number;
-  } | null>(null);
-  const [usageError, setUsageError] = useState<string | null>(null);
-  const [usageLoading, setUsageLoading] = useState(true);
-
-  useEffect(() => {
-    const loadUsage = async () => {
-      setUsageLoading(true);
-      const { data, error } = await supabase.rpc("wedding_planning_usage_stats");
-      if (error) {
-        const msg = getErrorMessage(error).toLowerCase();
-        setUsageError(
-          msg.includes("wedding_planning_usage_stats") || msg.includes("does not exist")
-            ? "Execute a migração 20260803000000_wedding_planning_usage_stats.sql no Supabase pra ver o uso."
-            : `Não foi possível carregar o uso: ${getErrorMessage(error).slice(0, 160)}`
-        );
-        setUsage(null);
-      } else {
-        setUsageError(null);
-        setUsage(data as typeof usage);
-      }
-      setUsageLoading(false);
-    };
-    void loadUsage();
-  }, []);
 
   const existingKey = existing?.id || "none";
   if (syncedFor !== existingKey) {
@@ -466,45 +436,15 @@ function WeddingPlanningPremiumSection({
   };
 
   return (
-    <AdminSection
-      id="wedding-planning"
-      icon={CalendarHeart}
-      title="Planejamento de Casamento"
-      description="Configure o produto que libera o Premium da seção Planejamento no app: link de compra e os IDs usados pelos webhooks da Hotmart/Cakto para identificar a compra automaticamente. Esse produto fica oculto do catálogo — ele só existe pra controlar o acesso."
-    >
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-zinc-800">Quem está usando</p>
-          {usageLoading ? (
-            <p className="text-sm text-zinc-500">Carregando…</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <p className="text-xl font-semibold text-zinc-800">{usage?.started ?? "—"}</p>
-                <p className="text-[11px] text-zinc-500">Iniciaram o planejamento</p>
-              </div>
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <p className="text-xl font-semibold text-zinc-800">{usage?.with_vendor ?? "—"}</p>
-                <p className="text-[11px] text-zinc-500">Cadastraram fornecedor</p>
-              </div>
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <p className="text-xl font-semibold text-zinc-800">{usage?.with_checklist_done ?? "—"}</p>
-                <p className="text-[11px] text-zinc-500">Concluíram alguma tarefa</p>
-              </div>
-              <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                <p className="text-xl font-semibold text-zinc-800">{usage?.with_guests ?? "—"}</p>
-                <p className="text-[11px] text-zinc-500">Adicionaram convidados</p>
-              </div>
-            </div>
-          )}
-          {usageError ? (
-            <p className="rounded-md border border-amber-200/80 bg-amber-50/70 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900/90">
-              {usageError}
-            </p>
-          ) : null}
-        </div>
+    <div className="space-y-4">
+      <p className="text-xs leading-relaxed text-zinc-500">
+        Configure o produto que libera o Premium da seção Planejamento no app: link de compra e os IDs
+        usados pelos webhooks da Hotmart/Cakto para identificar a compra automaticamente. Esse produto
+        fica oculto do catálogo — ele só existe pra controlar o acesso. Os números de uso ficam no
+        dashboard, no topo desta página.
+      </p>
 
-        {duplicates.length > 1 ? (
+      {duplicates.length > 1 ? (
           <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] leading-relaxed text-red-800">
             Atenção: {duplicates.length} produtos estão marcados como Premium do Planejamento
             ({duplicates.map((p) => p.name || p.id).join(", ")}). Deveria haver só um — corrija direto no
@@ -566,8 +506,7 @@ function WeddingPlanningPremiumSection({
             "Salvar configuração"
           )}
         </button>
-      </div>
-    </AdminSection>
+    </div>
   );
 }
 
@@ -588,9 +527,6 @@ const ADMIN_SHORTCUTS: { id: string; icon: LucideIcon; label: string }[] = [
   { id: "dashboard-layout", icon: Rows3, label: "Seções do dashboard" },
   { id: "product-categories", icon: Compass, label: "Atalhos Explore" },
   { id: "testimonials", icon: Quote, label: "Depoimentos" },
-  { id: "registered-users", icon: Users, label: "Usuárias cadastradas" },
-  { id: "wedding-planning", icon: CalendarHeart, label: "Planejamento Premium" },
-  { id: "kit-bonus", icon: Package, label: "Bônus por kit" },
   { id: "notifications", icon: Bell, label: "Notificações" },
   { id: "legacy-access", icon: UserCheck, label: "Compradores antigos" },
 ];
@@ -620,17 +556,25 @@ function AdminOverview({
 }) {
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
   const [activeCustomers, setActiveCustomers] = useState<number | null>(null);
+  const [wpUsage, setWpUsage] = useState<{
+    started: number;
+    with_vendor: number;
+    with_checklist_done: number;
+    with_guests: number;
+  } | null>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [totalRes, purchasesRes] = await Promise.all([
+      const [totalRes, purchasesRes, wpUsageRes] = await Promise.all([
         supabase.rpc("count_registered_users"),
         supabase.from("purchases").select("user_id").eq("status", "active"),
+        supabase.rpc("wedding_planning_usage_stats"),
       ]);
       setTotalUsers(!totalRes.error && typeof totalRes.data === "number" ? totalRes.data : null);
       if (!purchasesRes.error && purchasesRes.data) {
         setActiveCustomers(new Set(purchasesRes.data.map((p) => String(p.user_id))).size);
       }
+      setWpUsage(!wpUsageRes.error ? (wpUsageRes.data as typeof wpUsage) : null);
     };
     void load();
   }, []);
@@ -641,11 +585,15 @@ function AdminOverview({
     { label: "Produtos no catálogo", value: productsCount },
     { label: "Atalhos Explore", value: categoriesCount },
     { label: "Depoimentos", value: testimonialsCount },
+    { label: "Planejamento: iniciaram", value: wpUsage?.started ?? null },
+    { label: "Planejamento: c/ fornecedor", value: wpUsage?.with_vendor ?? null },
+    { label: "Planejamento: c/ tarefa feita", value: wpUsage?.with_checklist_done ?? null },
+    { label: "Planejamento: c/ convidados", value: wpUsage?.with_guests ?? null },
   ];
 
   return (
     <section className="rounded-2xl border border-[#6B705C]/15 bg-white/90 p-4 shadow-sm md:p-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-xl bg-[#faf9f6] p-3">
             <p className="font-mono text-xl text-[#6B705C]">{stat.value ?? "—"}</p>
@@ -673,86 +621,6 @@ function AdminOverview({
         ))}
       </div>
     </section>
-  );
-}
-
-/** Contagem de contas no app: total (auth.users, via RPC restrita a admin)
- * e quantas têm ao menos 1 compra ativa (purchases, já legível pelo admin). */
-function RegisteredUsersSection() {
-  const [totalUsers, setTotalUsers] = useState<number | null>(null);
-  const [activeCustomers, setActiveCustomers] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    const [totalRes, purchasesRes] = await Promise.all([
-      supabase.rpc("count_registered_users"),
-      supabase.from("purchases").select("user_id").eq("status", "active"),
-    ]);
-
-    if (totalRes.error) {
-      const msg = getErrorMessage(totalRes.error).toLowerCase();
-      setError(
-        msg.includes("count_registered_users") || msg.includes("does not exist")
-          ? "Execute a migração 20260802130000_count_registered_users.sql no Supabase pra ver o total de contas."
-          : `Não foi possível contar as contas: ${getErrorMessage(totalRes.error).slice(0, 160)}`
-      );
-      setTotalUsers(null);
-    } else {
-      setTotalUsers(typeof totalRes.data === "number" ? totalRes.data : null);
-    }
-
-    if (!purchasesRes.error && purchasesRes.data) {
-      setActiveCustomers(new Set(purchasesRes.data.map((p) => String(p.user_id))).size);
-    } else {
-      setActiveCustomers(null);
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  return (
-    <AdminSection
-      id="registered-users"
-      icon={Users}
-      title="Usuárias cadastradas"
-      description="Quantas contas existem no app hoje e quantas têm pelo menos uma compra ativa."
-    >
-      {loading ? (
-        <p className="text-sm text-zinc-500">Carregando…</p>
-      ) : (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-4">
-              <p className="text-2xl font-semibold text-zinc-800">{totalUsers ?? "—"}</p>
-              <p className="text-xs text-zinc-500">Contas cadastradas no total</p>
-            </div>
-            <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-4">
-              <p className="text-2xl font-semibold text-zinc-800">{activeCustomers ?? "—"}</p>
-              <p className="text-xs text-zinc-500">Com pelo menos 1 compra ativa</p>
-            </div>
-          </div>
-          {error ? (
-            <p className="rounded-md border border-amber-200/80 bg-amber-50/70 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900/90">
-              {error}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="text-xs font-medium text-[#6B705C] hover:underline"
-          >
-            Atualizar
-          </button>
-        </div>
-      )}
-    </AdminSection>
   );
 }
 
@@ -785,6 +653,7 @@ export default function AdminPage() {
     onCancel?: () => void;
   } | null>(null);
   const [openAppearanceCard, setOpenAppearanceCard] = useState<AppearanceCardId | null>(null);
+  const [openCatalogCard, setOpenCatalogCard] = useState<"kit-bonus" | "wedding-planning" | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -2573,6 +2442,35 @@ export default function AdminPage() {
             ) : null
           }
         >
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:w-fit sm:grid-flow-col">
+            <button
+              type="button"
+              onClick={() => setOpenCatalogCard("kit-bonus")}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-[#6B705C]/40 hover:bg-[#6B705C]/5"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                <Package className="h-4 w-4 text-[#6B705C]" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-zinc-800">Bônus por kit</span>
+                <span className="block text-[10px] text-zinc-400">Configurar</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenCatalogCard("wedding-planning")}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-[#6B705C]/40 hover:bg-[#6B705C]/5"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                <CalendarHeart className="h-4 w-4 text-[#6B705C]" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-zinc-800">Planejamento de Casamento</span>
+                <span className="block text-[10px] text-zinc-400">Configurar</span>
+              </span>
+            </button>
+          </div>
+
           {loading ? (
             <div className="space-y-4" aria-busy="true" aria-live="polite">
               <div className="flex items-center gap-2 text-sm text-[#6B705C]">
@@ -2689,6 +2587,89 @@ export default function AdminPage() {
             </div>
           )}
         </AdminSection>
+
+        <Dialog open={openCatalogCard != null} onOpenChange={(open) => !open && setOpenCatalogCard(null)}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            <DialogTitle className="text-sm font-medium text-zinc-800">
+              {openCatalogCard === "kit-bonus" ? "Bônus por kit" : "Planejamento de Casamento"}
+            </DialogTitle>
+
+            {openCatalogCard === "kit-bonus" ? (
+              <div>
+                <p className="mb-3 text-xs leading-relaxed text-zinc-500">
+                  Escolha o produto principal (kit). Os bônus marcados liberam automaticamente quando a
+                  cliente comprar esse kit.
+                </p>
+                <div className="mb-4 space-y-2">
+                  <label className="text-sm text-zinc-700">Produto kit</label>
+                  {kitCandidates.length === 0 ? (
+                    <p className="text-sm text-amber-800">
+                      Cadastre pelo menos um produto que não seja só BON para usar como kit.
+                    </p>
+                  ) : (
+                    <select
+                      value={kitProductId}
+                      onChange={(e) => setKitProductId(e.target.value)}
+                      className="h-10 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                    >
+                      <option value="">Selecione o kit</option>
+                      {kitCandidates.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name || p.title || p.id}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                {bonusOnlyProducts.length === 0 ? (
+                  <p className="text-sm text-zinc-500">Cadastre produtos tipo BON para aparecerem aqui.</p>
+                ) : (
+                  <ul className="mb-4 grid max-h-[min(16rem,50vh)] gap-2 overflow-y-auto rounded-xl border border-zinc-100 bg-[#fafaf8] p-3 sm:grid-cols-2">
+                    {bonusOnlyProducts.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center gap-2 rounded-lg border border-transparent bg-white px-2 py-1.5 shadow-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          id={`bonus-${p.id}`}
+                          checked={!!kitBonusIds[p.id]}
+                          onChange={(e) =>
+                            setKitBonusIds((prev) => ({ ...prev, [p.id]: e.target.checked }))
+                          }
+                          className="rounded border-zinc-300"
+                        />
+                        <label htmlFor={`bonus-${p.id}`} className="text-sm text-zinc-800">
+                          {p.name || p.title || p.id}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveKitBonuses()}
+                  disabled={kitSaving || !kitProductId}
+                  className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#6B705C" }}
+                >
+                  {kitSaving ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      Salvando…
+                    </>
+                  ) : (
+                    "Salvar bônus deste kit"
+                  )}
+                </button>
+              </div>
+            ) : null}
+
+            {openCatalogCard === "wedding-planning" ? (
+              <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
+            ) : null}
+          </DialogContent>
+        </Dialog>
 
         <AdminSection
           id="appearance"
@@ -3335,9 +3316,6 @@ export default function AdminPage() {
           )}
         </AdminSection>
 
-        <RegisteredUsersSection />
-
-        <WeddingPlanningPremiumSection products={products} onSaved={() => fetchProducts()} />
 
         <AdminSection
           id="legacy-access"
@@ -3433,70 +3411,6 @@ export default function AdminPage() {
           </div>
         </AdminSection>
 
-        <AdminSection
-          id="kit-bonus"
-          icon={Package}
-          title="Bônus por kit"
-          description="Escolha o produto principal (kit). Os bônus marcados liberam automaticamente quando a cliente comprar esse kit."
-        >
-          <div className="mb-4 space-y-2">
-            <label className="text-sm text-zinc-700">Produto kit</label>
-            {kitCandidates.length === 0 ? (
-              <p className="text-sm text-amber-800">Cadastre pelo menos um produto que não seja só BON para usar como kit.</p>
-            ) : (
-              <select
-                value={kitProductId}
-                onChange={(e) => setKitProductId(e.target.value)}
-                className="h-10 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
-              >
-                <option value="">Selecione o kit</option>
-                {kitCandidates.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name || p.title || p.id}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          {bonusOnlyProducts.length === 0 ? (
-            <p className="text-sm text-zinc-500">Cadastre produtos tipo BON para aparecerem aqui.</p>
-          ) : (
-            <ul className="mb-4 grid max-h-[min(16rem,50vh)] gap-2 overflow-y-auto rounded-xl border border-zinc-100 bg-[#fafaf8] p-3 sm:grid-cols-2">
-              {bonusOnlyProducts.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 rounded-lg border border-transparent bg-white px-2 py-1.5 shadow-sm">
-                  <input
-                    type="checkbox"
-                    id={`bonus-${p.id}`}
-                    checked={!!kitBonusIds[p.id]}
-                    onChange={(e) =>
-                      setKitBonusIds((prev) => ({ ...prev, [p.id]: e.target.checked }))
-                    }
-                    className="rounded border-zinc-300"
-                  />
-                  <label htmlFor={`bonus-${p.id}`} className="text-sm text-zinc-800">
-                    {p.name || p.title || p.id}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleSaveKitBonuses()}
-            disabled={kitSaving || !kitProductId}
-            className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
-            style={{ backgroundColor: "#6B705C" }}
-          >
-            {kitSaving ? (
-              <>
-                <Spinner className="size-4 text-white" />
-                Salvando…
-              </>
-            ) : (
-              "Salvar bônus deste kit"
-            )}
-          </button>
-        </AdminSection>
 
         <AdminSection
           id="notifications"
