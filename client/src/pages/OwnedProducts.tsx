@@ -138,7 +138,7 @@ export default function OwnedProducts() {
             keyPrefix="owned"
             showLocked={false}
             showFrame={false}
-            imageAspectClass="aspect-[4/5]"
+            imageAspectClass="aspect-square"
             stacked
             onOpen={(id) => setLocation(`/dashboard/product/${id}`)}
           />

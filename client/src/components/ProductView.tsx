@@ -337,7 +337,7 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
               ref={(node) => {
                 slideRefs.current[index] = node;
               }}
-              className={`aspect-square shrink-0 overflow-hidden bg-[#f4f5ef] transition-transform duration-200 ease-out ${
+              className={`aspect-[4/5] shrink-0 overflow-hidden bg-[#f4f5ef] transition-transform duration-200 ease-out ${
                 singleSlide ? "w-full" : "w-[85%] snap-center md:w-[34%]"
               }`}
             >
