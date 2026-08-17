@@ -27,6 +27,7 @@ import {
   SlidersHorizontal,
   Star,
   Trash2,
+  UploadCloud,
   UserCheck,
   X,
 } from "lucide-react";
@@ -330,12 +331,21 @@ function AdminSection({
 }: AdminSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
+  const toggle = () => setOpen((value) => !value);
+
   return (
     <section className={sectionShell}>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="-mx-1 flex w-full items-center gap-2 rounded-lg px-1 py-2 text-left transition-colors hover:bg-[#6B705C]/5"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+        className="-mx-1 flex w-full cursor-pointer items-center gap-2 rounded-lg px-1 py-2 text-left transition-colors hover:bg-[#6B705C]/5"
         aria-expanded={open}
         aria-controls={`${id}-content`}
         id={`${id}-heading`}
@@ -349,7 +359,7 @@ function AdminSection({
           className={`h-5 w-5 shrink-0 text-[#6B705C] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
-      </button>
+      </div>
       {open ? (
         <div
           id={`${id}-content`}
@@ -668,6 +678,7 @@ export default function AdminPage() {
   } | null>(null);
   const [openAppearanceCard, setOpenAppearanceCard] = useState<AppearanceCardId | null>(null);
   const [openCatalogCard, setOpenCatalogCard] = useState<"kit-bonus" | "wedding-planning" | null>(null);
+  const [openLegacyCard, setOpenLegacyCard] = useState<"single" | "bulk" | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [descriptionDelivery, setDescriptionDelivery] = useState("");
@@ -2536,8 +2547,22 @@ export default function AdminPage() {
           description='Edite, oculte ou exclua itens pelos botões em cada cartão. Produtos ocultos não aparecem no catálogo antes da compra, mas continuam visíveis para quem já tem acesso.'
           headerExtra={
             !loading ? (
-              <span className="mr-1 inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
-                {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
+              <span className="mr-1 flex shrink-0 items-center gap-1.5">
+                <span className="inline-flex w-fit items-center rounded-full bg-[#6B705C]/10 px-3 py-1 text-xs font-medium text-[#4e563f]">
+                  {sortedProducts.length} {sortedProducts.length === 1 ? "item" : "itens"}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCreateModal();
+                  }}
+                  title="Novo produto"
+                  aria-label="Novo produto"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#6B705C] text-white hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </span>
             ) : null
           }
@@ -3536,93 +3561,132 @@ export default function AdminPage() {
           title="Compradores antigos"
           description="Libera o acesso na plataforma nova para quem já tinha comprado antes. Use o mesmo e-mail informado na compra original. A cliente entra em /login com esse e-mail e vê o conteúdo liberado."
         >
-          <div className="mb-6 space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
-            <p className="text-sm font-medium text-zinc-800">Uma cliente</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-sm text-zinc-700">E-mail da compra</label>
-                <input
-                  type="email"
-                  value={legacyEmail}
-                  onChange={(e) => setLegacyEmail(e.target.value)}
-                  placeholder="ex.: cliente@email.com"
-                  className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-                  disabled={legacyGranting}
-                />
-              </div>
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-sm text-zinc-700">Produto</label>
-                {sortedProducts.length === 0 ? (
-                  <p className="text-sm text-amber-800">Cadastre produtos no catálogo antes de liberar acesso.</p>
-                ) : (
-                  <select
-                    value={legacyProductId}
-                    onChange={(e) => setLegacyProductId(e.target.value)}
-                    className="h-10 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
-                    disabled={legacyGranting}
-                  >
-                    <option value="">Selecione o produto</option>
-                    {sortedProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name || p.title || p.id}
-                        {productStoreIdsLabel(p)}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-2 sm:w-fit sm:grid-flow-col">
             <button
               type="button"
-              onClick={() => void handleGrantSingleLegacy()}
-              disabled={legacyGranting || !legacyEmail.trim() || !legacyProductId}
-              className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
-              style={{ backgroundColor: "#6B705C" }}
+              onClick={() => setOpenLegacyCard("single")}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-[#6B705C]/40 hover:bg-[#6B705C]/5"
             >
-              {legacyGranting ? (
-                <>
-                  <Spinner className="size-4 text-white" />
-                  Liberando…
-                </>
-              ) : (
-                "Liberar acesso"
-              )}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                <UserCheck className="h-4 w-4 text-[#6B705C]" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-zinc-800">Uma cliente</span>
+                <span className="block text-[10px] text-zinc-400">Liberar por e-mail</span>
+              </span>
             </button>
-          </div>
-
-          <div className="space-y-3 rounded-xl border border-zinc-100 bg-[#fafaf8] p-4 md:p-5">
-            <p className="text-sm font-medium text-zinc-800">Importação em lote</p>
-            <p className="text-xs leading-relaxed text-zinc-600">
-              Uma linha por compra: <code className="rounded bg-white px-1">email,product_id</code> (também aceita
-              ponto-e-vírgula ou tab).               O <code className="rounded bg-white px-1">product_id</code> é o UUID do produto
-              no catálogo ou o ID Hotmart/Cakto (campos no cadastro do produto).
-            </p>
-            <textarea
-              value={legacyBulkText}
-              onChange={(e) => setLegacyBulkText(e.target.value)}
-              placeholder={`# Exemplo\nmaria@email.com,uuid-do-produto\njoana@email.com,12345`}
-              rows={8}
-              className="w-full rounded-md border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
-              disabled={legacyGranting}
-            />
             <button
               type="button"
-              onClick={() => void handleGrantBulkLegacy()}
-              disabled={legacyGranting || !legacyBulkText.trim()}
-              className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
-              style={{ backgroundColor: "#6B705C" }}
+              onClick={() => setOpenLegacyCard("bulk")}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-white p-3 text-left transition-colors hover:border-[#6B705C]/40 hover:bg-[#6B705C]/5"
             >
-              {legacyGranting ? (
-                <>
-                  <Spinner className="size-4 text-white" />
-                  Importando…
-                </>
-              ) : (
-                "Importar compradores"
-              )}
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#6B705C]/10">
+                <UploadCloud className="h-4 w-4 text-[#6B705C]" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-xs font-medium text-zinc-800">Importação em lote</span>
+                <span className="block text-[10px] text-zinc-400">Colar lista</span>
+              </span>
             </button>
           </div>
         </AdminSection>
+
+        <Dialog open={openLegacyCard != null} onOpenChange={(open) => !open && setOpenLegacyCard(null)}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            <DialogTitle className="text-sm font-medium text-zinc-800">
+              {openLegacyCard === "single" ? "Uma cliente" : "Importação em lote"}
+            </DialogTitle>
+
+            {openLegacyCard === "single" ? (
+              <div className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-sm text-zinc-700">E-mail da compra</label>
+                    <input
+                      type="email"
+                      value={legacyEmail}
+                      onChange={(e) => setLegacyEmail(e.target.value)}
+                      placeholder="ex.: cliente@email.com"
+                      className="h-10 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                      disabled={legacyGranting}
+                    />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-sm text-zinc-700">Produto</label>
+                    {sortedProducts.length === 0 ? (
+                      <p className="text-sm text-amber-800">Cadastre produtos no catálogo antes de liberar acesso.</p>
+                    ) : (
+                      <select
+                        value={legacyProductId}
+                        onChange={(e) => setLegacyProductId(e.target.value)}
+                        className="h-10 w-full max-w-xl rounded-md border border-zinc-200 bg-white px-3 text-sm"
+                        disabled={legacyGranting}
+                      >
+                        <option value="">Selecione o produto</option>
+                        {sortedProducts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name || p.title || p.id}
+                            {productStoreIdsLabel(p)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleGrantSingleLegacy()}
+                  disabled={legacyGranting || !legacyEmail.trim() || !legacyProductId}
+                  className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#6B705C" }}
+                >
+                  {legacyGranting ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      Liberando…
+                    </>
+                  ) : (
+                    "Liberar acesso"
+                  )}
+                </button>
+              </div>
+            ) : null}
+
+            {openLegacyCard === "bulk" ? (
+              <div className="space-y-3">
+                <p className="text-xs leading-relaxed text-zinc-600">
+                  Uma linha por compra: <code className="rounded bg-white px-1">email,product_id</code> (também aceita
+                  ponto-e-vírgula ou tab). O <code className="rounded bg-white px-1">product_id</code> é o UUID do
+                  produto no catálogo ou o ID Hotmart/Cakto (campos no cadastro do produto).
+                </p>
+                <textarea
+                  value={legacyBulkText}
+                  onChange={(e) => setLegacyBulkText(e.target.value)}
+                  placeholder={`# Exemplo\nmaria@email.com,uuid-do-produto\njoana@email.com,12345`}
+                  rows={8}
+                  className="w-full rounded-md border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-[#6B705C]/50 focus:ring-2 focus:ring-[#6B705C]/15"
+                  disabled={legacyGranting}
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleGrantBulkLegacy()}
+                  disabled={legacyGranting || !legacyBulkText.trim()}
+                  className="inline-flex h-10 items-center gap-2 rounded-md px-5 text-sm font-medium text-white disabled:opacity-60"
+                  style={{ backgroundColor: "#6B705C" }}
+                >
+                  {legacyGranting ? (
+                    <>
+                      <Spinner className="size-4 text-white" />
+                      Importando…
+                    </>
+                  ) : (
+                    "Importar compradores"
+                  )}
+                </button>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
 
 
         <AdminSection

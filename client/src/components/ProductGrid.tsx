@@ -110,7 +110,7 @@ export function ProductCard({
 
   const title = showTitle ? (
     <h3
-      className={`mt-1.5 line-clamp-2 text-center text-[10px] font-medium leading-[1.2] tracking-[0.08em] sm:mt-2.5 sm:text-[11px] ${
+      className={`mt-1.5 line-clamp-2 text-left text-[10px] font-medium leading-[1.2] tracking-[0.08em] sm:mt-2.5 sm:text-[11px] ${
         showFrame ? "text-white" : "text-bc-primary"
       }`}
       style={{ fontFamily: "var(--font-display)" }}

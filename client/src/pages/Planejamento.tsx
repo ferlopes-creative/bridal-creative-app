@@ -4,6 +4,7 @@ import { Calculator, CheckSquare, ChevronRight, Heart, Store, Users } from "luci
 import BottomAppNav from "@/components/BottomAppNav";
 import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
+import { useAppAccessState } from "@/contexts/AppAccessContext";
 import { resolvePlanejamentoBackground, useSiteSettings } from "@/contexts/SiteSettingsContext";
 import { LOGIN_PATH } from "@/lib/authGuard";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
@@ -308,17 +309,32 @@ export default function Planejamento() {
   const [, setLocation] = useLocation();
   const { settings } = useSiteSettings();
   const pageBgUrl = resolvePlanejamentoBackground(settings);
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
+  const { session } = useAppAccessState();
+
+  /**
+   * A sessão já resolvida pelo AppAccessProvider (persiste entre navegações, ao contrário
+   * do state desta página) permite saber a usuária sincronamente ao montar de novo esta
+   * página — assim, se o cache local bater com ela, mostramos o conteúdo já carregado
+   * de cara em vez do spinner de tela cheia, igual ao Dashboard/AppDataContext.
+   */
+  const initialUid = session?.user?.id ?? null;
+  const initialCache = !isGuestMode() && initialUid ? getPlanningCache() : null;
+  const cacheReady = initialCache != null && initialCache.userId === initialUid;
+
+  const [phase, setPhase] = useState<Phase>(() => {
+    if (isGuestMode()) return "guest-email";
+    return cacheReady ? "app" : "loading";
+  });
+  const [userId, setUserId] = useState<string | null>(cacheReady ? initialUid : null);
   const [view, setView] = useState<DashView>("dashboard");
 
-  const [details, setDetails] = useState<WeddingDetails | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [isPremium, setIsPremium] = useState(false);
-  const [premiumLink, setPremiumLink] = useState<string | null>(null);
+  const [details, setDetails] = useState<WeddingDetails | null>(cacheReady ? initialCache!.details : null);
+  const [showOnboarding, setShowOnboarding] = useState(cacheReady ? initialCache!.showOnboarding : false);
+  const [vendors, setVendors] = useState<Vendor[]>(cacheReady ? initialCache!.vendors : []);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(cacheReady ? initialCache!.checklist : []);
+  const [guests, setGuests] = useState<Guest[]>(cacheReady ? initialCache!.guests : []);
+  const [isPremium, setIsPremium] = useState(cacheReady ? initialCache!.isPremium : false);
+  const [premiumLink, setPremiumLink] = useState<string | null>(cacheReady ? initialCache!.premiumLink : null);
 
   const [premiumModal, setPremiumModal] = useState<{ open: boolean; text: string }>({ open: false, text: "" });
   const [editCoupleOpen, setEditCoupleOpen] = useState(false);
@@ -327,7 +343,7 @@ export default function Planejamento() {
     vendor: null,
   });
   const [guestModalOpen, setGuestModalOpen] = useState(false);
-  const [vowsDraft, setVowsDraft] = useState("");
+  const [vowsDraft, setVowsDraft] = useState(cacheReady ? initialCache!.details?.vows || "" : "");
 
   /* -------------------- carregamento -------------------- */
   useEffect(() => {

@@ -186,11 +186,31 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const mainScrollRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const programmaticScrollUntilRef = useRef(0);
+  const singleSlide = slides.length <= 1;
+
+  const applyDesktopScale = () => {
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const isDesktop = !singleSlide && window.matchMedia("(min-width: 768px)").matches;
+    const center = el.scrollLeft + el.clientWidth / 2;
+    slideRefs.current.forEach((node) => {
+      if (!node) return;
+      if (!isDesktop) {
+        node.style.transform = "";
+        return;
+      }
+      const dist = Math.abs(node.offsetLeft + node.clientWidth / 2 - center);
+      const ratio = Math.min(1, dist / (el.clientWidth / 2));
+      node.style.transform = `scale(${1 - ratio * 0.22})`;
+    });
+  };
 
   useEffect(() => {
     setActiveIndex(0);
     mainScrollRef.current?.scrollTo({ left: 0 });
+    requestAnimationFrame(applyDesktopScale);
   }, [slidesKey]);
 
   useEffect(() => {
@@ -203,7 +223,14 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
     el.scrollTo({ left: target, behavior: "smooth" });
   }, [activeIndex]);
 
+  useEffect(() => {
+    const onResize = () => applyDesktopScale();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [slidesKey]);
+
   const handleMainScroll = () => {
+    applyDesktopScale();
     if (Date.now() < programmaticScrollUntilRef.current) return;
     const el = mainScrollRef.current;
     if (!el) return;
@@ -295,17 +322,24 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
 
   return (
     <section className="mx-auto w-full min-w-0 max-w-2xl pb-16">
-      <div className="mx-auto w-full max-w-xs sm:max-w-sm">
+      <div className={`mx-auto w-full max-w-xs sm:max-w-sm ${singleSlide ? "" : "md:max-w-2xl"}`}>
         <div
           ref={mainScrollRef}
           onScroll={handleMainScroll}
-          className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className={`flex gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            singleSlide ? "justify-center" : "snap-x snap-mandatory"
+          }`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {slides.map((slide, index) => (
             <div
               key={`${slide.url}-${index}`}
-              className="aspect-square w-[85%] shrink-0 snap-center overflow-hidden bg-[#f4f5ef]"
+              ref={(node) => {
+                slideRefs.current[index] = node;
+              }}
+              className={`aspect-square shrink-0 overflow-hidden bg-[#f4f5ef] transition-transform duration-200 ease-out ${
+                singleSlide ? "w-full" : "w-[85%] snap-center md:w-[34%]"
+              }`}
             >
               {slide.kind === "video" ? (
                 <video

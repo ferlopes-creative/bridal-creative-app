@@ -157,7 +157,7 @@ export default function CategoryProducts() {
             keyPrefix={category.id}
             showLocked={(product) => !canAccess(product)}
             showFrame={false}
-            imageAspectClass="aspect-square"
+            imageAspectClass="aspect-[4/5]"
             stacked
             onOpen={(id) => setLocation(`/dashboard/product/${id}`)}
           />

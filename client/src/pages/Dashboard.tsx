@@ -536,7 +536,7 @@ export default function Dashboard() {
                   showLocked={(product) => sectionShowsLockedOverlay(section, product, canAccess)}
                   showFrame={false}
                   showTitle={false}
-                  imageAspectClass="aspect-square"
+                  imageAspectClass="aspect-[4/5]"
                   onOpen={openProduct}
                 />
                 {sectionProducts.length > 0 && (
