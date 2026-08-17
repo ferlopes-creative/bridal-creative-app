@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Bell, Lock, Star } from "lucide-react";
+import { Lock, Star } from "lucide-react";
 import { useLocation } from "wouter";
 import BottomAppNav from "@/components/BottomAppNav";
-import BrandLogo from "@/components/BrandLogo";
 import HeroBanner from "@/components/HeroBanner";
 import { HorizontalScrollRow } from "@/components/HorizontalScrollRow";
 import { PageLoading } from "@/components/PageLoading";
@@ -211,7 +210,6 @@ export default function Dashboard() {
   const { hasUnread } = useNotificationBellBadge();
   const { products, purchasedIds, kitBonusRows, ready } = useAppData();
   const loading = !ready;
-  const [showScrollHeader, setShowScrollHeader] = useState(false);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [weddingCountdownDays, setWeddingCountdownDays] = useState<number | null>(null);
@@ -275,16 +273,6 @@ export default function Dashboard() {
       setShowWelcomePopup(true);
     }
   }, [loading, guestMode]);
-
-  useEffect(() => {
-    const onScroll = () => {
-      setShowScrollHeader(window.scrollY > 90);
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const canAccess = (product: Product) => canAccessProduct(product, purchasedIds, kitBonusRows);
 
@@ -592,33 +580,6 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
-      <div
-        className={`fixed top-0 right-0 left-0 z-40 bg-bc-page-bg/96 backdrop-blur-sm shadow-sm transition-all duration-300 ${
-          showScrollHeader ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
-        }`}
-      >
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-            <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
-          </div>
-          {!guestMode ? (
-            <button
-              type="button"
-              onClick={() => setLocation("/notifications")}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-bc-primary transition-colors hover:bg-bc-primary/10"
-              aria-label="Notificações"
-            >
-              <Bell className="h-5 w-5" />
-              {hasUnread && (
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-bc-page-bg" aria-hidden />
-              )}
-            </button>
-          ) : (
-            <div className="h-10 w-10" aria-hidden />
-          )}
-        </div>
-      </div>
-
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
 
       <HeroBanner
