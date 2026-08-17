@@ -145,6 +145,7 @@ type Product = {
   hotmart_sales_id?: string | null;
   is_hidden?: boolean | null;
   is_wedding_planning_premium?: boolean | null;
+  sort_order?: number | null;
   price?: number | null;
   promo_price?: number | null;
   faq_config?: unknown;
@@ -242,6 +243,11 @@ function isMissingHotmartSalesIdColumnError(err: unknown): boolean {
 function isMissingIsHiddenColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("is_hidden");
+}
+
+function isMissingSortOrderColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("sort_order");
 }
 
 function isMissingPriceColumnError(err: unknown): boolean {
@@ -775,9 +781,52 @@ export default function AdminPage() {
     () =>
       products
         .filter((product) => product.is_wedding_planning_premium !== true)
-        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" })),
+        .sort((a, b) => {
+          const orderA = a.sort_order;
+          const orderB = b.sort_order;
+          if (orderA != null && orderB != null && orderA !== orderB) return orderA - orderB;
+          if (orderA != null && orderB == null) return -1;
+          if (orderA == null && orderB != null) return 1;
+          return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
+        }),
     [products]
   );
+
+  /** Move um produto na lista do catálogo, atribuindo sort_order sequencial a todos
+   * (na primeira reordenação) e trocando os dois envolvidos na troca. */
+  const handleMoveProduct = async (productId: string, direction: -1 | 1) => {
+    const index = sortedProducts.findIndex((p) => p.id === productId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= sortedProducts.length) return;
+
+    const withOrder = sortedProducts.map((p, i) => ({ id: p.id, sort_order: p.sort_order ?? i }));
+    [withOrder[index].sort_order, withOrder[targetIndex].sort_order] = [
+      withOrder[targetIndex].sort_order,
+      withOrder[index].sort_order,
+    ];
+
+    setProducts((prev) =>
+      prev.map((p) => {
+        const found = withOrder.find((o) => o.id === p.id);
+        return found ? { ...p, sort_order: found.sort_order } : p;
+      })
+    );
+
+    const results = await Promise.all(
+      withOrder.map((o) => supabase.from("products").update({ sort_order: o.sort_order }).eq("id", o.id))
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      if (isMissingSortOrderColumnError(failed.error)) {
+        toast.error(
+          "Coluna sort_order ausente. Execute a migração 20260817120000_product_sort_order.sql no Supabase."
+        );
+      } else {
+        toast.error(`Não foi possível reordenar: ${getErrorMessage(failed.error).slice(0, 160)}`);
+      }
+      void fetchProducts(true);
+    }
+  };
 
   const resetForm = () => {
     setEditingProductId(null);
@@ -2500,7 +2549,7 @@ export default function AdminPage() {
             </div>
           ) : (
             <div className="divide-y divide-zinc-100 overflow-hidden rounded-lg border border-zinc-200">
-              {sortedProducts.map((product) => {
+              {sortedProducts.map((product, productIndex) => {
                 const imageSrc =
                   product.image_url ||
                   product.image ||
@@ -2528,6 +2577,24 @@ export default function AdminPage() {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleMoveProduct(product.id, -1)}
+                        disabled={productIndex === 0}
+                        title="Subir"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleMoveProduct(product.id, 1)}
+                        disabled={productIndex === sortedProducts.length - 1}
+                        title="Descer"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => void handleToggleProductHidden(product)}
@@ -4089,19 +4156,53 @@ export default function AdminPage() {
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xs font-medium text-zinc-600">Link {index + 1}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setAccessLinkRows((prev) =>
-                                    prev.length <= 1 ? prev : prev.filter((item) => item.id !== row.id)
-                                  )
-                                }
-                                disabled={saving || accessLinkRows.length <= 1}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
-                                aria-label={`Remover link ${index + 1}`}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAccessLinkRows((prev) => {
+                                      if (index === 0) return prev;
+                                      const next = [...prev];
+                                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                      return next;
+                                    })
+                                  }
+                                  disabled={saving || index === 0}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
+                                  aria-label={`Subir link ${index + 1}`}
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAccessLinkRows((prev) => {
+                                      if (index === prev.length - 1) return prev;
+                                      const next = [...prev];
+                                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                      return next;
+                                    })
+                                  }
+                                  disabled={saving || index === accessLinkRows.length - 1}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
+                                  aria-label={`Descer link ${index + 1}`}
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAccessLinkRows((prev) =>
+                                      prev.length <= 1 ? prev : prev.filter((item) => item.id !== row.id)
+                                    )
+                                  }
+                                  disabled={saving || accessLinkRows.length <= 1}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-200 disabled:opacity-40"
+                                  aria-label={`Remover link ${index + 1}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
                             <input
                               type="text"
