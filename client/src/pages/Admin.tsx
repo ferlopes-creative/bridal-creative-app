@@ -147,6 +147,7 @@ type Product = {
   is_hidden?: boolean | null;
   is_wedding_planning_premium?: boolean | null;
   sort_order?: number | null;
+  image_fit?: "cover" | "contain" | null;
   price?: number | null;
   promo_price?: number | null;
   faq_config?: unknown;
@@ -249,6 +250,11 @@ function isMissingIsHiddenColumnError(err: unknown): boolean {
 function isMissingSortOrderColumnError(err: unknown): boolean {
   const m = getErrorMessage(err).toLowerCase();
   return m.includes("sort_order");
+}
+
+function isMissingImageFitColumnError(err: unknown): boolean {
+  const m = getErrorMessage(err).toLowerCase();
+  return m.includes("image_fit");
 }
 
 function isMissingPriceColumnError(err: unknown): boolean {
@@ -670,6 +676,7 @@ export default function AdminPage() {
   const [uploadingAccessLinkCoverId, setUploadingAccessLinkCoverId] = useState<string | null>(null);
   const [type, setType] = useState<"PRO" | "BON">("PRO");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFit, setImageFit] = useState<"cover" | "contain">("cover");
   const [deliveryImageFile, setDeliveryImageFile] = useState<File | null>(null);
   const [salesImageFile, setSalesImageFile] = useState<File | null>(null);
   const [hotmartSalesId, setHotmartSalesId] = useState("");
@@ -853,6 +860,7 @@ export default function AdminPage() {
     setAccessLinkRows([emptyAccessLinkRow()]);
     setType("PRO");
     setImageFile(null);
+    setImageFit("cover");
     setDeliveryImageFile(null);
     setSalesImageFile(null);
     setHotmartSalesId("");
@@ -888,6 +896,7 @@ export default function AdminPage() {
     setEditingProductId(product.id);
     setCreateStep("full");
     setExistingImageUrl(product.image_url || product.image || product.thumbnail_url || null);
+    setImageFit(product.image_fit === "contain" ? "contain" : "cover");
     setExistingDeliveryImageUrl(product.image_delivery_url?.trim() || null);
     setExistingSalesImageUrl(product.image_sales_url?.trim() || null);
     setDeliveryGalleryUrls(parseGalleryUrls(product.delivery_gallery_urls));
@@ -1464,6 +1473,7 @@ export default function AdminPage() {
         includeModulesConfig: boolean;
         includeDeliveryVideoUrls: boolean;
         includeSalesVideoUrls: boolean;
+        includeImageFit: boolean;
       }
     ) => {
       const payload: Record<string, unknown> = {
@@ -1473,6 +1483,9 @@ export default function AdminPage() {
         type,
         image_url: imageUrl,
       };
+      if (opts.includeImageFit) {
+        payload.image_fit = imageFit;
+      }
       if (opts.includeDescriptionDelivery) {
         payload.description_delivery = descriptionDelivery;
       }
@@ -1560,6 +1573,7 @@ export default function AdminPage() {
         includeModulesConfig: true,
         includeDeliveryVideoUrls: true,
         includeSalesVideoUrls: true,
+        includeImageFit: true,
       };
       let dbError: unknown = null;
       let insertedId: string | null = editingProductId;
@@ -1653,6 +1667,10 @@ export default function AdminPage() {
         }
         if (isMissingSalesVideoUrlsColumnError(dbError) && flags.includeSalesVideoUrls) {
           flags.includeSalesVideoUrls = false;
+          continue;
+        }
+        if (isMissingImageFitColumnError(dbError) && flags.includeImageFit) {
+          flags.includeImageFit = false;
           continue;
         }
         break;
@@ -1790,7 +1808,8 @@ export default function AdminPage() {
           !flags.includeProductTestimonialsConfig ||
           !flags.includeModulesConfig ||
           !flags.includeDeliveryVideoUrls ||
-          !flags.includeSalesVideoUrls)
+          !flags.includeSalesVideoUrls ||
+          !flags.includeImageFit)
       ) {
         await fetchProducts();
         if (wasNewProductBasicCreate && insertedId) {
@@ -1851,6 +1870,9 @@ export default function AdminPage() {
         if (!flags.includeModulesConfig) {
           parts.push("módulos/aulas (migração modules_config)");
         }
+        if (!flags.includeImageFit) {
+          parts.push("enquadramento da capa (migração image_fit)");
+        }
         toast.success(`Produto salvo. Ainda não foi possível guardar: ${parts.join("; ")}.`);
         return;
       }
@@ -1908,6 +1930,7 @@ export default function AdminPage() {
             if (!flags.includeFaqConfig) parts.push("FAQ");
             if (!flags.includeProductTestimonialsConfig) parts.push("depoimentos do produto");
             if (!flags.includeModulesConfig) parts.push("módulos/aulas");
+            if (!flags.includeImageFit) parts.push("enquadramento da capa");
             toast.success(
               `Produto salvo (sem upload de arquivo).${parts.length ? ` Não guardado: ${parts.join("; ")}.` : ""}`
             );
@@ -3937,6 +3960,31 @@ export default function AdminPage() {
                           Cortar antes de enviar
                         </button>
                       )}
+
+                      <div className="flex flex-wrap gap-3 pt-1">
+                        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-700">
+                          <input
+                            type="radio"
+                            name="image-fit"
+                            checked={imageFit === "cover"}
+                            onChange={() => setImageFit("cover")}
+                            disabled={saving}
+                            className="text-[#6B705C] focus:ring-[#6B705C]/30"
+                          />
+                          Cortar pra preencher o quadrado
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-700">
+                          <input
+                            type="radio"
+                            name="image-fit"
+                            checked={imageFit === "contain"}
+                            onChange={() => setImageFit("contain")}
+                            disabled={saving}
+                            className="text-[#6B705C] focus:ring-[#6B705C]/30"
+                          />
+                          Mostrar a imagem inteira (sem cortar)
+                        </label>
+                      </div>
                     </div>
 
                     <FormFieldGroup title="Preço, categoria e visibilidade" />

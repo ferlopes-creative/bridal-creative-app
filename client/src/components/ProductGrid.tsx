@@ -15,6 +15,8 @@ export type Product = {
   is_hidden?: boolean | null;
   price?: number | null;
   promo_price?: number | null;
+  /** "contain" mostra a imagem inteira sem cortar (quadrado pode sobrar espaço); padrão é "cover" (preenche e corta). */
+  image_fit?: "cover" | "contain" | null;
 };
 
 const cardWrap = "min-w-[108px] w-[28vw] max-w-[124px] shrink-0 snap-start";
@@ -92,6 +94,7 @@ export function ProductCard({
     product.image ||
     product.thumbnail_url ||
     "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop";
+  const imageFitClass = product.image_fit === "contain" ? "object-contain" : "object-cover";
 
   const lockOverlay = showLockedOverlay ? (
     <>
@@ -134,11 +137,11 @@ export function ProductCard({
         style={liftStyle}
         className="w-full cursor-pointer touch-manipulation justify-self-center transition-transform duration-150 ease-out hover:scale-[1.01]"
       >
-        <div className="relative overflow-hidden rounded-[2px]">
+        <div className="relative overflow-hidden rounded-[2px] bg-[#f4f5ef]">
           <img
             src={imageSrc}
             alt={product.name || "Produto"}
-            className={`${imageAspectClass} w-full object-cover`}
+            className={`${imageAspectClass} w-full ${imageFitClass}`}
           />
           {lockOverlay}
         </div>
@@ -160,7 +163,7 @@ export function ProductCard({
           <img
             src={imageSrc}
             alt={product.name || "Produto"}
-            className={`${imageAspectClass} w-full object-cover`}
+            className={`${imageAspectClass} w-full ${imageFitClass}`}
           />
           {lockOverlay}
         </div>
