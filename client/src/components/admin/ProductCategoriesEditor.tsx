@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Crop, ImagePlus, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createProductCategory,
@@ -67,51 +68,129 @@ function toggleProductId(
   return { ...category, product_ids };
 }
 
-function CategoryCard({
+/** Linha compacta (mini card) — clicar abre o popup de edição completo. */
+function CategoryRow({
   category,
   index,
   total,
+  compact,
+  onOpen,
+  onMove,
+  onRemove,
+  saving,
+}: {
+  category: ProductCategoryConfig;
+  index: number;
+  total: number;
+  compact?: boolean;
+  onOpen: () => void;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+  saving: boolean;
+}) {
+  return (
+    <li
+      className={`flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white py-2 pr-1.5 pl-2 shadow-sm ${
+        compact ? "bg-[#fbfbfa]" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-md py-1 text-left hover:bg-zinc-50"
+      >
+        <span
+          className={`shrink-0 overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 ${
+            compact ? "h-8 w-8" : "h-9 w-9"
+          }`}
+        >
+          {category.photo_url ? (
+            <img src={category.photo_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center">
+              <ImagePlus className="h-3.5 w-3.5 text-zinc-400" />
+            </span>
+          )}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800">
+          {category.name || "Sem nome"}
+        </span>
+        {!category.visible ? (
+          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">
+            Oculta
+          </span>
+        ) : null}
+        {category.product_ids.length > 0 ? (
+          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] text-zinc-500">
+            {category.product_ids.length}
+          </span>
+        ) : null}
+      </button>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => onMove(-1)}
+          disabled={index === 0 || saving}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+          aria-label="Subir"
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onMove(1)}
+          disabled={index === total - 1 || saving}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+          aria-label="Descer"
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={saving}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-600 hover:bg-red-50 disabled:opacity-30"
+          aria-label="Remover"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+/** Formulário completo de edição — vive dentro do popup. A lista de produtos
+ * começa fechada; só abre se a pessoa clicar em "Ver produtos". */
+function CategoryEditForm({
+  category,
   products,
   saving,
   uploadingId,
   onChange,
-  onMove,
-  onRemove,
   onPhotoChange,
   onCropSavedUrl,
   compact,
 }: {
   category: ProductCategoryConfig;
-  index: number;
-  total: number;
   products: ProductOption[];
   saving: boolean;
   uploadingId: string | null;
   onChange: (patch: Partial<ProductCategoryConfig>) => void;
-  onMove: (direction: -1 | 1) => void;
-  onRemove: () => void;
   onPhotoChange: (file: File) => void;
   onCropSavedUrl?: (url: string, replace: (newUrl: string) => void) => void;
   compact?: boolean;
 }) {
+  const [productsOpen, setProductsOpen] = useState(false);
   const selectedProducts = category.product_ids
     .map((id) => products.find((product) => product.id === id))
     .filter((product): product is ProductOption => product != null);
 
   return (
-    <li
-      className={`rounded-xl border bg-white shadow-sm ${
-        compact ? "border-zinc-150 bg-[#fbfbfa] p-3" : "border-zinc-200 p-4"
-      }`}
-    >
-      <div className="flex flex-wrap items-start gap-3">
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
         <div className="flex shrink-0 flex-col items-center gap-1.5">
           <div className="relative">
-            <label
-              className={`group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 ${
-                compact ? "h-12 w-12" : "h-16 w-16"
-              }`}
-            >
+            <label className="group relative flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50">
               {category.photo_url ? (
                 <img
                   src={category.photo_url}
@@ -180,12 +259,27 @@ function CategoryCard({
               {compact ? "Visível na busca da categoria" : "Visível na Início"}
             </span>
           </label>
+        </div>
+      </div>
 
-          <div className="space-y-3 rounded-lg border border-zinc-100 bg-zinc-50/80 p-3">
-            <p className="text-xs font-medium text-zinc-700">
-              Produtos aqui ({selectedProducts.length})
-            </p>
+      <div className="rounded-lg border border-zinc-100 bg-zinc-50/80 p-3">
+        <button
+          type="button"
+          onClick={() => setProductsOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <span className="text-xs font-medium text-zinc-700">
+            Ver produtos ({selectedProducts.length} selecionados)
+          </span>
+          {productsOpen ? (
+            <ChevronUp className="h-3.5 w-3.5 text-zinc-500" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+          )}
+        </button>
 
+        {productsOpen ? (
+          <div className="mt-3 space-y-3">
             {selectedProducts.length > 0 ? (
               <ul className="space-y-1.5">
                 {selectedProducts.map((product) => (
@@ -243,39 +337,9 @@ function CategoryCard({
               )}
             </div>
           </div>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => onMove(-1)}
-            disabled={index === 0 || saving}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-            aria-label="Subir"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onMove(1)}
-            disabled={index === total - 1 || saving}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-100 disabled:opacity-40"
-            aria-label="Descer"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            disabled={saving}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:opacity-40"
-            aria-label="Remover"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+        ) : null}
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -290,11 +354,15 @@ export default function ProductCategoriesEditor({
   onCropSavedUrl,
 }: ProductCategoriesEditorProps) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newSubParentId, setNewSubParentId] = useState<string>("");
 
   const addCategory = () => onChange([...categories, createProductCategory(null)]);
   const addSubcategory = (parentId: string) => onChange([...categories, createProductCategory(parentId)]);
-  const removeCategory = (id: string) =>
+  const removeCategory = (id: string) => {
     onChange(categories.filter((category) => category.id !== id && category.parent_id !== id));
+    if (editingId === id) setEditingId(null);
+  };
 
   const handlePhotoChange = async (id: string, file: File) => {
     setUploadingId(id);
@@ -309,14 +377,16 @@ export default function ProductCategoriesEditor({
 
   const topCategories = topLevelCategories(categories);
   const topIds = topCategories.map((category) => category.id);
+  const editingCategory = editingId ? categories.find((c) => c.id === editingId) ?? null : null;
+  const editingIsSub = editingCategory?.parent_id != null;
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-[#6B705C]/15 bg-[#fafaf8] p-4 text-sm leading-relaxed text-zinc-600">
+      <div className="rounded-xl border border-[#6B705C]/15 bg-[#fafaf8] p-3 text-xs leading-relaxed text-zinc-600">
         <p>
-          Categorias aparecem como atalhos circulares abaixo de &quot;Meus produtos&quot; na Início.
-          Dentro de cada uma dá pra criar subcategorias (ex.: dentro de &quot;Papelaria&quot;: &quot;Convites&quot;,
-          &quot;Identidades visuais&quot;), que viram filtros na página da categoria pra facilitar a busca.
+          Categorias aparecem como atalhos circulares abaixo de &quot;Meus produtos&quot; na Início. Clique
+          numa categoria pra editar. Dentro de cada uma dá pra criar subcategorias, que viram filtros na
+          página da categoria.
         </p>
       </div>
 
@@ -325,67 +395,48 @@ export default function ProductCategoriesEditor({
           Nenhuma categoria criada ainda.
         </p>
       ) : (
-        <ul className="space-y-4">
+        <ul className="space-y-3">
           {topCategories.map((category, index) => {
             const subs = subcategoriesOf(categories, category.id);
             const subIds = subs.map((sub) => sub.id);
             return (
-              <li key={category.id} className="space-y-2">
-                <ul className="space-y-3">
-                  <CategoryCard
+              <li key={category.id} className="space-y-1.5">
+                <ul>
+                  <CategoryRow
                     category={category}
                     index={index}
                     total={topCategories.length}
-                    products={products}
                     saving={saving}
-                    uploadingId={uploadingId}
-                    onChange={(patch) => onChange(updateCategoryById(categories, category.id, patch))}
+                    onOpen={() => setEditingId(category.id)}
                     onMove={(direction) => onChange(moveAmong(categories, topIds, category.id, direction))}
                     onRemove={() => removeCategory(category.id)}
-                    onPhotoChange={(file) => void handlePhotoChange(category.id, file)}
-                    onCropSavedUrl={onCropSavedUrl}
                   />
                 </ul>
 
-                <div className="ml-6 space-y-2 border-l-2 border-zinc-100 pl-4">
-                  {subs.length > 0 && (
-                    <ul className="space-y-2">
-                      {subs.map((sub, subIndex) => (
-                        <CategoryCard
-                          key={sub.id}
-                          category={sub}
-                          index={subIndex}
-                          total={subs.length}
-                          products={products}
-                          saving={saving}
-                          uploadingId={uploadingId}
-                          compact
-                          onChange={(patch) => onChange(updateCategoryById(categories, sub.id, patch))}
-                          onMove={(direction) => onChange(moveAmong(categories, subIds, sub.id, direction))}
-                          onRemove={() => removeCategory(sub.id)}
-                          onPhotoChange={(file) => void handlePhotoChange(sub.id, file)}
-                          onCropSavedUrl={onCropSavedUrl}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => addSubcategory(category.id)}
-                    disabled={saving}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-dashed border-zinc-300 bg-white px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Nova subcategoria em &quot;{category.name || "categoria"}&quot;
-                  </button>
-                </div>
+                {subs.length > 0 && (
+                  <ul className="ml-6 space-y-1.5 border-l-2 border-zinc-100 pl-3">
+                    {subs.map((sub, subIndex) => (
+                      <CategoryRow
+                        key={sub.id}
+                        category={sub}
+                        index={subIndex}
+                        total={subs.length}
+                        compact
+                        saving={saving}
+                        onOpen={() => setEditingId(sub.id)}
+                        onMove={(direction) => onChange(moveAmong(categories, subIds, sub.id, direction))}
+                        onRemove={() => removeCategory(sub.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
               </li>
             );
           })}
         </ul>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={addCategory}
@@ -395,6 +446,36 @@ export default function ProductCategoriesEditor({
           <Plus className="h-4 w-4" />
           Nova categoria
         </button>
+
+        {topCategories.length > 0 ? (
+          <div className="flex items-center gap-1.5">
+            <select
+              value={newSubParentId}
+              onChange={(e) => setNewSubParentId(e.target.value)}
+              disabled={saving}
+              className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-xs text-zinc-700"
+            >
+              <option value="">Em qual categoria?</option>
+              {topCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name || "Sem nome"}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const parentId = newSubParentId || topCategories[0]?.id;
+                if (parentId) addSubcategory(parentId);
+              }}
+              disabled={saving}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-dashed border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova subcategoria
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <button
@@ -416,6 +497,26 @@ export default function ProductCategoriesEditor({
           </>
         )}
       </button>
+
+      <Dialog open={editingCategory != null} onOpenChange={(open) => !open && setEditingId(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogTitle className="text-sm font-medium text-zinc-800">
+            {editingIsSub ? "Subcategoria" : "Categoria"}
+          </DialogTitle>
+          {editingCategory ? (
+            <CategoryEditForm
+              category={editingCategory}
+              products={products}
+              saving={saving}
+              uploadingId={uploadingId}
+              compact={editingIsSub}
+              onChange={(patch) => onChange(updateCategoryById(categories, editingCategory.id, patch))}
+              onPhotoChange={(file) => void handlePhotoChange(editingCategory.id, file)}
+              onCropSavedUrl={onCropSavedUrl}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
