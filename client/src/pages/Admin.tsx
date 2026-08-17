@@ -60,6 +60,7 @@ import {
   isFaviconUrlSchemaError,
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
+  isOwnedProductsBannerUrlsSchemaError,
   isPageBackgroundOpacityError,
   isPageBackgroundsPerPageError,
   isPageBackgroundSplitError,
@@ -525,6 +526,7 @@ type AppearanceCardId =
   | "whatsapp"
   | "colors"
   | "banners"
+  | "owned-banner"
   | "page-backgrounds";
 
 const ADMIN_SHORTCUTS: { id: string; icon: LucideIcon; label: string }[] = [
@@ -700,6 +702,8 @@ export default function AdminPage() {
   const [siteHeroDesktopUrls, setSiteHeroDesktopUrls] = useState<string[]>([]);
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [heroDesktopPendingFiles, setHeroDesktopPendingFiles] = useState<File[]>([]);
+  const [ownedBannerUrls, setOwnedBannerUrls] = useState<string[]>([]);
+  const [ownedBannerPendingFiles, setOwnedBannerPendingFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [faviconFile, setFaviconFile] = useState<File | null>(null);
   const [bgLoginFile, setBgLoginFile] = useState<File | null>(null);
@@ -731,6 +735,7 @@ export default function AdminPage() {
   const bgAppFileInputRef = useRef<HTMLInputElement>(null);
   const heroFileInputRef = useRef<HTMLInputElement>(null);
   const heroDesktopFileInputRef = useRef<HTMLInputElement>(null);
+  const ownedBannerFileInputRef = useRef<HTMLInputElement>(null);
 
   const [kitProductId, setKitProductId] = useState("");
   const [kitBonusIds, setKitBonusIds] = useState<Record<string, boolean>>({});
@@ -1094,6 +1099,7 @@ export default function AdminPage() {
         setSiteBgOpacityPercent(row.page_background_opacity_percent);
         setSiteHeroUrls(row.hero_banner_urls);
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
+        setOwnedBannerUrls(row.owned_products_banner_urls);
         setSiteColors(row.colors);
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
         setDashboardSectionsConfig(row.dashboard_sections_config);
@@ -2149,6 +2155,12 @@ export default function AdminPage() {
       const bannerUrls = [...siteHeroUrls, ...uploadedHeroUrls];
       const bannerDesktopUrls = [...siteHeroDesktopUrls, ...uploadedHeroDesktopUrls];
 
+      const uploadedOwnedBannerUrls: string[] = [];
+      for (const file of ownedBannerPendingFiles) {
+        uploadedOwnedBannerUrls.push(await uploadFileToStorage(file, IMAGE_BUCKET, "images", "site"));
+      }
+      const ownedBannerFinalUrls = [...ownedBannerUrls, ...uploadedOwnedBannerUrls];
+
       const legacyBgMirror = appBgUrl ?? loginBgUrl ?? null;
 
       const colorsPayload = {
@@ -2179,17 +2191,26 @@ export default function AdminPage() {
 
       let heroBannerUrlsDropped = false;
       let heroBannerDesktopUrlsDropped = false;
+      let ownedBannerUrlsDropped = false;
 
       const upsertSiteSettings = async (row: Record<string, unknown>) => {
         const withHero = {
           ...row,
           hero_banner_urls: bannerUrls,
           hero_banner_desktop_urls: bannerDesktopUrls,
+          owned_products_banner_urls: ownedBannerFinalUrls,
         };
         let { error: upsertError } = await supabase.from("site_settings").upsert(withHero);
+        if (upsertError && isOwnedProductsBannerUrlsSchemaError(upsertError.message)) {
+          ownedBannerUrlsDropped = ownedBannerFinalUrls.length > 0;
+          const { owned_products_banner_urls: _o, ...withoutOwned } = withHero;
+          const retry = await supabase.from("site_settings").upsert(withoutOwned);
+          upsertError = retry.error;
+        }
         if (upsertError && isHeroBannerDesktopUrlsSchemaError(upsertError.message)) {
           heroBannerDesktopUrlsDropped = bannerDesktopUrls.length > 0;
-          const { hero_banner_desktop_urls: _d, ...withoutDesktop } = withHero;
+          const { hero_banner_desktop_urls: _d, owned_products_banner_urls: _o2, ...withoutDesktop } =
+            withHero;
           const retry = await supabase.from("site_settings").upsert(withoutDesktop);
           upsertError = retry.error;
         }
@@ -2247,6 +2268,9 @@ export default function AdminPage() {
       setSiteAppBgUrl(appBgUrl);
       setSiteHeroUrls(bannerUrls);
       setSiteHeroDesktopUrls(bannerDesktopUrls);
+      setOwnedBannerUrls(ownedBannerFinalUrls);
+      setOwnedBannerPendingFiles([]);
+      if (ownedBannerFileInputRef.current) ownedBannerFileInputRef.current.value = "";
       setHeroPendingFiles([]);
       setHeroDesktopPendingFiles([]);
       if (heroFileInputRef.current) heroFileInputRef.current.value = "";
@@ -2266,6 +2290,10 @@ export default function AdminPage() {
       } else if (heroBannerDesktopUrlsDropped) {
         toast.warning(
           "Banners de desktop não foram gravados. Execute a migração hero_banner_desktop_urls no Supabase."
+        );
+      } else if (ownedBannerUrlsDropped) {
+        toast.warning(
+          "Banner de Meus produtos não foi gravado. Execute a migração 20260817130000_owned_products_banner.sql no Supabase."
         );
       } else if (siteColorsDropped) {
         toast.warning(
@@ -2800,6 +2828,12 @@ export default function AdminPage() {
                       status: `${siteHeroUrls.length + heroPendingFiles.length} imagens`,
                     },
                     {
+                      id: "owned-banner" as const,
+                      icon: GalleryHorizontal,
+                      label: "Banner — Meus produtos",
+                      status: `${ownedBannerUrls.length + ownedBannerPendingFiles.length} imagens`,
+                    },
+                    {
                       id: "page-backgrounds" as const,
                       icon: Image,
                       label: "Fundo por página",
@@ -2864,7 +2898,9 @@ export default function AdminPage() {
                               ? "Cores do site"
                               : openAppearanceCard === "banners"
                                 ? "Banners do topo (carrossel)"
-                                : "Fundo por página"}
+                                : openAppearanceCard === "owned-banner"
+                                  ? "Banner — Meus produtos"
+                                  : "Fundo por página"}
               </DialogTitle>
 
               {openAppearanceCard === "logo" ? (
@@ -3277,6 +3313,93 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => removeHeroDesktopPendingAt(i)}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {openAppearanceCard === "owned-banner" ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-zinc-500">
+                      Banner opcional exibido embaixo da lista em &quot;Meus produtos&quot;, diferente do
+                      banner da Início. Deixe vazio pra não mostrar nada ali.
+                    </p>
+                    {(ownedBannerUrls.length > 0 || ownedBannerPendingFiles.length > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOwnedBannerUrls([]);
+                          setOwnedBannerPendingFiles([]);
+                          if (ownedBannerFileInputRef.current) ownedBannerFileInputRef.current.value = "";
+                        }}
+                        disabled={siteSaving}
+                        className="inline-flex shrink-0 items-center gap-1 text-xs text-red-700 hover:underline disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        Limpar todos
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 rounded-lg border border-zinc-200/80 bg-white/80 p-3">
+                    <input
+                      ref={ownedBannerFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const next = Array.from(e.target.files ?? []);
+                        if (next.length) setOwnedBannerPendingFiles((p) => [...p, ...next]);
+                        e.target.value = "";
+                      }}
+                      className="w-full text-xs file:mr-2 file:rounded-md file:border-0 file:bg-[#6B705C] file:px-2 file:py-1.5 file:text-white"
+                      disabled={siteSaving}
+                    />
+                    {ownedBannerUrls.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        {ownedBannerUrls.map((url, i) => (
+                          <li
+                            key={`ob-${url}-${i}`}
+                            className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                              {url.slice(0, 72)}
+                              {url.length > 72 ? "…" : ""}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setOwnedBannerUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                              disabled={siteSaving}
+                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                            >
+                              Remover
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {ownedBannerPendingFiles.length > 0 && (
+                      <ul className="space-y-1.5 text-xs">
+                        <li className="text-zinc-500">A enviar ao salvar:</li>
+                        {ownedBannerPendingFiles.map((file, i) => (
+                          <li
+                            key={`obp-${file.name}-${i}`}
+                            className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-700">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOwnedBannerPendingFiles((prev) => prev.filter((_, idx) => idx !== i))
+                              }
                               disabled={siteSaving}
                               className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
                             >

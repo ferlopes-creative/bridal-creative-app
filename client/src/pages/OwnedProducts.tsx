@@ -10,12 +10,7 @@ import WeddingGreeting from "@/components/WeddingGreeting";
 import WhatsAppSupportButton from "@/components/WhatsAppSupportButton";
 import { ProductList, type Product } from "@/components/ProductGrid";
 import { useAppData } from "@/contexts/AppDataContext";
-import {
-  useSiteSettings,
-  resolveDashboardBackground,
-  resolveHeroBannerMobileUrls,
-  resolveHeroBannerDesktopUrls,
-} from "@/contexts/SiteSettingsContext";
+import { useSiteSettings, resolveDashboardBackground } from "@/contexts/SiteSettingsContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { useNotificationBellBadge } from "@/hooks/useNotificationBellBadge";
 import { canAccessProduct } from "@/lib/productAccess";
@@ -34,16 +29,8 @@ export default function OwnedProducts() {
 
   const pageBgUrl = resolveDashboardBackground(settings);
   const logoUrl = settings.logo_url;
-  const heroMobileUrls = useMemo(
-    () => resolveHeroBannerMobileUrls(settings),
-    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
-  );
-  const heroDesktopUrls = useMemo(
-    () => resolveHeroBannerDesktopUrls(settings),
-    [settings.hero_banner_urls, settings.hero_banner_desktop_urls]
-  );
   const isMobile = useIsMobile();
-  const activeHeroUrls = isMobile ? heroMobileUrls : heroDesktopUrls;
+  const activeHeroUrls = settings.owned_products_banner_urls;
   const showBanner = activeHeroUrls.length > 0;
 
   useEffect(() => {

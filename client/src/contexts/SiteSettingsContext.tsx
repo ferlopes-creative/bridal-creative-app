@@ -45,6 +45,8 @@ export type SiteSettings = {
   hero_banner_urls: string[];
   /** Vazio no CMS = no app usa hero_banner_urls no desktop */
   hero_banner_desktop_urls: string[];
+  /** Banner próprio da aba "Meus produtos" — opcional, diferente do banner da Início. */
+  owned_products_banner_urls: string[];
   colors: SiteColors;
   whatsapp_url: string | null;
   dashboard_section_order: DashboardSectionId[];
@@ -69,6 +71,7 @@ const defaultSettings: SiteSettings = {
   hero_image_url: null,
   hero_banner_urls: [],
   hero_banner_desktop_urls: [],
+  owned_products_banner_urls: [],
   colors: { ...DEFAULT_SITE_COLORS },
   whatsapp_url: null,
   dashboard_section_order: [...DEFAULT_DASHBOARD_SECTION_ORDER],
@@ -119,6 +122,9 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
     hero_banner_desktop_urls: Array.isArray(partial.hero_banner_desktop_urls)
       ? partial.hero_banner_desktop_urls.filter((u): u is string => typeof u === "string")
       : defaultSettings.hero_banner_desktop_urls,
+    owned_products_banner_urls: Array.isArray(partial.owned_products_banner_urls)
+      ? partial.owned_products_banner_urls.filter((u): u is string => typeof u === "string")
+      : defaultSettings.owned_products_banner_urls,
     whatsapp_url:
       typeof partial.whatsapp_url === "string" ? partial.whatsapp_url : defaultSettings.whatsapp_url,
     dashboard_section_order: parseDashboardSectionOrder(partial.dashboard_section_order),
@@ -251,6 +257,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         hero_image_url: row.hero_image_url,
         hero_banner_urls: row.hero_banner_urls,
         hero_banner_desktop_urls: row.hero_banner_desktop_urls,
+        owned_products_banner_urls: row.owned_products_banner_urls,
         colors: row.colors,
         whatsapp_url: row.whatsapp_url,
         dashboard_section_order: row.dashboard_section_order,

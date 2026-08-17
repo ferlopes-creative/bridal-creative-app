@@ -26,6 +26,7 @@ export type SiteSettingsRow = {
   hero_image_url: string | null;
   hero_banner_urls: string[];
   hero_banner_desktop_urls: string[];
+  owned_products_banner_urls: string[];
   colors: SiteColors;
   whatsapp_url: string | null;
   dashboard_section_order: DashboardSectionId[];
@@ -87,6 +88,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     data.hero_banner_desktop_urls,
     null
   );
+  const owned_products_banner_urls = parseHeroBannerUrls(data.owned_products_banner_urls, null);
   return {
     logo_url: (data.logo_url as string | null | undefined) ?? null,
     favicon_url: (data.favicon_url as string | null | undefined) ?? null,
@@ -97,6 +99,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     hero_image_url: legacyHero,
     hero_banner_urls,
     hero_banner_desktop_urls,
+    owned_products_banner_urls,
     colors: resolveSiteColors(data),
     whatsapp_url: (data.whatsapp_url as string | null | undefined)?.trim() || null,
     dashboard_section_order: parseDashboardSectionOrder(data.dashboard_section_order),
@@ -145,6 +148,11 @@ export function isHeroBannerUrlsSchemaError(message: string | undefined): boolea
 export function isHeroBannerDesktopUrlsSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("hero_banner_desktop") || m.includes("schema cache");
+}
+
+export function isOwnedProductsBannerUrlsSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("owned_products_banner_urls") || m.includes("schema cache");
 }
 
 export function isPageBackgroundSplitError(message: string | undefined): boolean {
