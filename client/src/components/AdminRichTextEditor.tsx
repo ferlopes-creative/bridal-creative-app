@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mark, mergeAttributes } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -32,9 +32,8 @@ const CURATED_ICONS = [
 ];
 
 const FONT_FAMILIES = [
-  { label: "Fonte", value: "" },
+  { label: "Montserrat (padrão)", value: "" },
   { label: "Cinzel", value: "Cinzel" },
-  { label: "Montserrat", value: "Montserrat" },
   { label: "Cormorant Garamond", value: "Cormorant Garamond" },
   { label: "IBM Plex Mono", value: "IBM Plex Mono" },
   { label: "Georgia", value: "Georgia" },
@@ -42,7 +41,7 @@ const FONT_FAMILIES = [
 ];
 
 const FONT_SIZES = [
-  { label: "Tamanho", value: "" },
+  { label: "Tamanho padrão", value: "" },
   { label: "12px", value: "12px" },
   { label: "14px", value: "14px" },
   { label: "16px", value: "16px" },
@@ -94,11 +93,9 @@ export default function AdminRichTextEditor({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fontFileInputRef = useRef<HTMLInputElement | null>(null);
-  const fontInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingFont, setUploadingFont] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const fontListId = useId();
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -185,7 +182,6 @@ export default function AdminRichTextEditor({
     try {
       const font = await onUploadFont(file);
       setFontFamily(font.name);
-      if (fontInputRef.current) fontInputRef.current.value = font.name;
     } finally {
       setUploadingFont(false);
     }
@@ -207,6 +203,9 @@ export default function AdminRichTextEditor({
     "h-7 rounded border border-zinc-200 bg-white px-1.5 text-xs text-zinc-600 outline-none focus:border-[#6B705C]/50";
 
   const isImageSelected = editor.isActive("image");
+  const textStyleAttrs = editor.getAttributes("textStyle");
+  const currentFontFamily: string = textStyleAttrs.fontFamily || "";
+  const currentFontSize: string = textStyleAttrs.fontSize || "";
 
   return (
     <div className="tiptap-admin-scope overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -254,29 +253,28 @@ export default function AdminRichTextEditor({
           Moldura
         </button>
         <span className="mx-0.5 my-1 w-px bg-zinc-200" aria-hidden />
-        <input
-          ref={fontInputRef}
-          list={fontListId}
-          type="text"
-          placeholder="Fonte (digite ou escolha)"
+        <select
+          value={currentFontFamily}
+          onChange={(e) => setFontFamily(e.target.value)}
           disabled={disabled}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            setFontFamily(e.currentTarget.value.trim());
-          }}
-          onBlur={(e) => setFontFamily(e.currentTarget.value.trim())}
-          title="Digite o nome de qualquer fonte, ou escolha uma sugestão"
-          className={`${selectClass} w-40`}
-        />
-        <datalist id={fontListId}>
-          {FONT_FAMILIES.filter((font) => font.value).map((font) => (
-            <option key={font.value} value={font.value} />
+          title="Fonte do texto selecionado"
+          className={`${selectClass} w-36`}
+        >
+          {FONT_FAMILIES.map((font) => (
+            <option key={font.label} value={font.value}>
+              {font.label}
+            </option>
           ))}
-          {(customFonts ?? []).map((font) => (
-            <option key={font.id} value={font.name} />
-          ))}
-        </datalist>
+          {(customFonts ?? []).length > 0 && (
+            <optgroup label="Suas fontes">
+              {(customFonts ?? []).map((font) => (
+                <option key={font.id} value={font.name}>
+                  {font.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
         {onUploadFont && (
           <>
             <button
@@ -303,12 +301,10 @@ export default function AdminRichTextEditor({
           </>
         )}
         <select
-          value=""
-          onChange={(e) => {
-            setFontSize(e.target.value);
-            e.target.value = "";
-          }}
+          value={currentFontSize}
+          onChange={(e) => setFontSize(e.target.value)}
           disabled={disabled}
+          title="Tamanho do texto selecionado"
           className={selectClass}
         >
           {FONT_SIZES.map((size) => (

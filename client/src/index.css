@@ -237,6 +237,10 @@
    * TipTap / ProseMirror: Tailwind preflight remove marcadores de lista e achata headings.
    * Escopo restrito ao admin para não afetar o restante do app.
    */
+  .tiptap-admin-scope .ProseMirror {
+    font-family: var(--font-body);
+  }
+
   .tiptap-admin-scope .ProseMirror h1 {
     font-size: 1.35rem;
     font-weight: 600;
