@@ -372,7 +372,12 @@ export default function Dashboard() {
           if (sectionCategories.length === 0) return null;
           return (
             <section key={section.id} className="mt-6 md:mt-9">
-              <h2 className="app-section-title">{section.title.toUpperCase()}</h2>
+              <h2
+                className="mb-3.5 text-sm text-bc-primary sm:text-lg"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 600 }}
+              >
+                {section.title.toUpperCase()}
+              </h2>
               <div className="flex gap-6 overflow-x-auto pb-1 sm:gap-10">
                 {sectionCategories.map((category) => (
                   <button

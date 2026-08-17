@@ -59,7 +59,7 @@ export default function Notifications() {
     <div className="relative min-h-screen w-full overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       <div className="relative mx-auto w-full max-w-6xl px-4 pt-5">
-        <header className="mb-4 flex items-center justify-between">
+        <header className="sticky top-0 z-30 mb-4 flex items-center justify-between bg-bc-page-bg/95 py-2 backdrop-blur-sm">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center">
             <BrandLogo src={logoUrl} className="max-h-14 max-w-14 object-contain" />
           </div>

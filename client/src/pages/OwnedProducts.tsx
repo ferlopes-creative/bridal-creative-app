@@ -114,7 +114,7 @@ export default function OwnedProducts() {
     <div className="relative min-h-screen overflow-x-hidden bg-bc-page-bg pb-[max(8rem,calc(6rem+env(safe-area-inset-bottom)))]">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
 
-      <div className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
+      <div className="sticky top-0 z-30 mx-auto flex h-16 w-full max-w-6xl items-center justify-between bg-bc-page-bg/95 px-4 pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-sm">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center">
           <BrandLogo src={logoUrl} className="max-h-10 max-w-10 object-contain" />
         </div>

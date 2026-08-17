@@ -42,7 +42,10 @@ export function ProductPrice({
   const strongClass = light ? "text-white/80" : "text-bc-primary/75";
 
   return (
-    <p className={`flex items-baseline gap-1.5 font-mono font-normal ${className}`}>
+    <p
+      className={`flex items-baseline justify-start gap-1.5 font-normal ${className}`}
+      style={{ fontFamily: "var(--font-display)" }}
+    >
       {hasPromo ? (
         <>
           <span className={`text-[10px] line-through ${mutedClass}`}>{formatPriceBRL(price)}</span>
@@ -118,7 +121,7 @@ export function ProductCard({
       <ProductPrice
         price={product.price}
         promoPrice={product.promo_price}
-        className="mt-1 justify-center"
+        className="mt-1"
         light={showFrame}
       />
     ) : null;

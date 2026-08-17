@@ -84,7 +84,7 @@ export default function CategoryProducts() {
   return (
     <div className="relative min-h-screen bg-bc-page-bg px-4 py-6">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
-      <div className="relative mx-auto mb-6 flex w-full max-w-6xl items-center justify-between gap-3">
+      <div className="sticky top-0 z-30 mx-auto mb-6 flex w-full max-w-6xl items-center justify-between gap-3 bg-bc-page-bg/95 py-2 backdrop-blur-sm">
         <button
           type="button"
           onClick={() => setLocation("/dashboard")}

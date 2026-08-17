@@ -1,5 +1,5 @@
 import { ExternalLink, PlayCircle, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DOMPurify from "isomorphic-dompurify";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -185,10 +185,41 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   const slidesKey = slides.map((s) => s.url).join();
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const mainScrollRef = useRef<HTMLDivElement>(null);
+  const programmaticScrollUntilRef = useRef(0);
+
   useEffect(() => {
     setActiveIndex(0);
+    mainScrollRef.current?.scrollTo({ left: 0 });
   }, [slidesKey]);
-  const activeSlide = slides[Math.min(activeIndex, slides.length - 1)] ?? slides[0];
+
+  useEffect(() => {
+    const el = mainScrollRef.current;
+    const child = el?.children[activeIndex] as HTMLElement | undefined;
+    if (!el || !child) return;
+    const target = child.offsetLeft - (el.clientWidth - child.clientWidth) / 2;
+    if (Math.abs(el.scrollLeft - target) < 4) return;
+    programmaticScrollUntilRef.current = Date.now() + 500;
+    el.scrollTo({ left: target, behavior: "smooth" });
+  }, [activeIndex]);
+
+  const handleMainScroll = () => {
+    if (Date.now() < programmaticScrollUntilRef.current) return;
+    const el = mainScrollRef.current;
+    if (!el) return;
+    const center = el.scrollLeft + el.clientWidth / 2;
+    let closest = 0;
+    let closestDist = Infinity;
+    Array.from(el.children).forEach((child, i) => {
+      const c = child as HTMLElement;
+      const dist = Math.abs(c.offsetLeft + c.clientWidth / 2 - center);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = i;
+      }
+    });
+    setActiveIndex(closest);
+  };
 
   const accessButtonClass = (enabled: boolean) =>
     `inline-flex items-center justify-center gap-2 border px-5 py-2.5 text-xs tracking-[0.1em] transition-colors md:text-sm ${
@@ -263,25 +294,31 @@ export default function ProductView({ product, canAccess }: ProductViewProps) {
   );
 
   return (
-    <section className="mx-auto w-full min-w-0 max-w-2xl">
+    <section className="mx-auto w-full min-w-0 max-w-2xl pb-16">
       <div className="mx-auto w-full max-w-xs sm:max-w-sm">
-        <div className="aspect-square w-full overflow-hidden bg-[#f4f5ef]">
-          {activeSlide.kind === "video" ? (
-            <video
-              key={activeSlide.url}
-              src={activeSlide.url}
-              controls
-              preload="metadata"
-              className="h-full w-full bg-[#1c1e17] object-contain"
-            />
-          ) : (
-            <img
-              key={activeSlide.url}
-              src={activeSlide.url}
-              alt={activeSlide.alt}
-              className="h-full w-full object-cover"
-            />
-          )}
+        <div
+          ref={mainScrollRef}
+          onScroll={handleMainScroll}
+          className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {slides.map((slide, index) => (
+            <div
+              key={`${slide.url}-${index}`}
+              className="aspect-square w-[85%] shrink-0 snap-center overflow-hidden bg-[#f4f5ef]"
+            >
+              {slide.kind === "video" ? (
+                <video
+                  src={slide.url}
+                  controls
+                  preload="metadata"
+                  className="h-full w-full bg-[#1c1e17] object-contain"
+                />
+              ) : (
+                <img src={slide.url} alt={slide.alt} className="h-full w-full object-cover" />
+              )}
+            </div>
+          ))}
         </div>
 
         {slides.length > 1 && (
