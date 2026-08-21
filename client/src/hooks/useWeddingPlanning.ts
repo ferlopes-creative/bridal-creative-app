@@ -7,7 +7,7 @@ import {
   getUpcomingTasksExcludingPriority,
   getUpcomingVendorPayments,
   type ChecklistItem,
-  type CompactTimelineItem,
+  type CompactWeddingTimeline,
   type PrioritizedTask,
   type UpcomingVendorPayment,
   type Vendor,
@@ -19,7 +19,7 @@ export type WeddingPlanningSummary = {
   completionPercentage: number;
   contractedSuppliers: number;
   amountRemaining: number;
-  compactTimeline: CompactTimelineItem[];
+  timeline: CompactWeddingTimeline;
   planningPhase: string;
   priorityTasks: PrioritizedTask[];
   upcomingPayments: UpcomingVendorPayment[];
@@ -52,7 +52,7 @@ export function useWeddingPlanning(
     const priorityTaskIds = new Set(priorityTasks.map((t) => t.id));
     const upcomingTasks = getUpcomingTasksExcludingPriority(checklist, priorityTaskIds, weddingDateIso, now, 3);
     const upcomingPayments = getUpcomingVendorPayments(vendors, now, 2);
-    const compactTimeline = getCompactWeddingTimeline(now, weddingDateIso);
+    const timeline = getCompactWeddingTimeline(now, weddingDateIso);
     const planningPhase = getPlanningPhase(daysUntilWedding);
 
     return {
@@ -60,7 +60,7 @@ export function useWeddingPlanning(
       completionPercentage,
       contractedSuppliers: vendors.length,
       amountRemaining: Math.max(0, totalContracted - totalPaid),
-      compactTimeline,
+      timeline,
       planningPhase,
       priorityTasks,
       upcomingPayments,

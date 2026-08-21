@@ -13,7 +13,7 @@
   --wp-gold: #a98b4f;
   --wp-sage: #7c8a72;
   --wp-line: #e5e0d8;
-  --wp-radius: 14px;
+  --wp-radius: 10px;
 
   position: relative;
   background: var(--bc-page-bg, var(--wp-paper));
@@ -1042,9 +1042,9 @@
   --wp2-border: #e5e0d6;
   --wp2-champagne: #c7b98e;
   --wp2-overdue: #8a4a45;
-  --wp2-radius-sm: 8px;
-  --wp2-radius-md: 12px;
-  --wp2-radius-lg: 16px;
+  --wp2-radius-sm: 6px;
+  --wp2-radius-md: 8px;
+  --wp2-radius-lg: 10px;
   --wp2-section-gap: 28px;
   --wp2-item-gap: 12px;
 
@@ -1058,10 +1058,14 @@
 .wp-page .wp2-home > * + * {
   margin-top: var(--wp2-section-gap);
 }
+/* casal + hero ficam visualmente colados, não como duas seções separadas */
+.wp-page .wp2-home > .wp2-header + .wp2-hero {
+  margin-top: 14px;
+}
 
-/* ---------- 1. Header ---------- */
+/* ---------- Nome do casal (fora do hero, colado nele) ---------- */
 .wp-page .wp2-header {
-  min-height: 150px;
+  min-height: 0;
 }
 .wp-page .wp2-header-top {
   display: flex;
@@ -1077,12 +1081,12 @@
   text-transform: uppercase;
 }
 .wp-page .wp2-couple-name {
-  margin-top: 4px;
-  font-family: "Cinzel", serif;
-  font-weight: 500;
-  font-size: 24px;
-  line-height: 1.25;
-  color: var(--wp2-text);
+  margin-top: 2px;
+  font-family: "DaysOfCharity", "Cormorant Garamond", cursive;
+  font-weight: 400;
+  font-size: 38px;
+  line-height: 1.1;
+  color: var(--wp2-olive-dark);
   letter-spacing: 0.01em;
 }
 .wp-page .wp2-edit-btn {
@@ -1090,7 +1094,7 @@
   background: none;
   border: none;
   padding: 6px;
-  margin-top: 2px;
+  margin-top: 6px;
   color: var(--wp2-muted);
   min-width: 44px;
   min-height: 44px;
@@ -1102,83 +1106,131 @@
   color: var(--wp2-olive);
 }
 
-.wp-page .wp2-countdown {
-  margin-top: 18px;
+/* ---------- 1. Hero: contagem regressiva + data + timeline + resumo ---------- */
+.wp-page .wp2-hero {
+  position: relative;
+  background: linear-gradient(155deg, #efe9d8 0%, #e4e3d1 55%, #d9decb 100%);
+  border: 1px solid rgba(98, 105, 77, 0.14);
+  border-radius: var(--wp2-radius-lg);
+  padding: 24px 22px 20px;
+  color: var(--wp2-olive-dark);
+}
+
+.wp-page .wp2-hero-countdown {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
-.wp-page .wp2-countdown-num {
+.wp-page .wp2-hero-num {
   font-family: "Cinzel", serif;
-  font-size: 46px;
+  font-size: 48px;
   line-height: 1;
   font-weight: 500;
   color: var(--wp2-olive-dark);
 }
-.wp-page .wp2-countdown-unit {
-  font-size: 13px;
-  color: var(--wp2-muted);
+.wp-page .wp2-hero-unit {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: rgba(62, 69, 51, 0.68);
 }
-.wp-page .wp2-wedding-date {
-  margin-top: 4px;
+.wp-page .wp2-hero-date {
+  margin-top: 6px;
   font-size: 13px;
-  color: var(--wp2-muted);
+  color: rgba(62, 69, 51, 0.68);
 }
 
-.wp-page .wp2-timeline {
-  margin-top: 14px;
+.wp-page .wp2-hero-timeline {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(98, 105, 77, 0.16);
+}
+.wp-page .wp2-hero-timeline-row {
+  position: relative;
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.wp-page .wp2-hero-timeline-line {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  height: 1px;
+  background: rgba(98, 105, 77, 0.28);
+}
+.wp-page .wp2-hero-timeline-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
-  font-size: 10.5px;
+}
+.wp-page .wp2-hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wp2-bg);
+  border: 1px solid rgba(98, 105, 77, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wp-page .wp2-hero-dot.wp2-dot-current {
+  width: 10px;
+  height: 10px;
+  background: var(--wp2-olive);
+  border-color: var(--wp2-olive);
+  box-shadow: 0 0 0 3px rgba(98, 105, 77, 0.18);
+}
+.wp-page .wp2-hero-dot.wp2-dot-wedding {
+  width: 15px;
+  height: 15px;
+  background: var(--wp2-champagne);
+  border-color: var(--wp2-champagne);
+  color: var(--wp2-olive-dark);
+  box-shadow: 0 0 0 3px rgba(199, 185, 142, 0.32);
+}
+.wp-page .wp2-hero-timeline-label {
+  font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--wp2-muted);
-  min-height: 16px;
+  color: rgba(62, 69, 51, 0.45);
 }
-.wp-page .wp2-timeline-item {
-  color: var(--wp2-muted);
+.wp-page .wp2-hero-timeline-label.wp2-active {
+  color: var(--wp2-olive-dark);
 }
-.wp-page .wp2-timeline-item.wp2-active {
-  color: var(--wp2-olive);
-}
-.wp-page .wp2-timeline-sep {
-  color: var(--wp2-border);
-}
-.wp-page .wp2-timeline-tag {
-  font-weight: 400;
-  color: var(--wp2-muted);
-  text-transform: none;
-  letter-spacing: 0;
+.wp-page .wp2-hero-timeline-caption {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(62, 69, 51, 0.68);
 }
 
-/* ---------- 2. Resumo compacto ---------- */
-.wp-page .wp2-summary {
+.wp-page .wp2-hero-summary {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(98, 105, 77, 0.16);
   display: flex;
   align-items: stretch;
-  border-top: 1px solid var(--wp2-border);
-  border-bottom: 1px solid var(--wp2-border);
-  padding: 16px 0;
 }
-.wp-page .wp2-summary-item {
+.wp-page .wp2-hero-summary-item {
   flex: 1;
   text-align: center;
-  padding: 0 8px;
 }
-.wp-page .wp2-summary-item + .wp2-summary-item {
-  border-left: 1px solid var(--wp2-border);
+.wp-page .wp2-hero-summary-item + .wp2-hero-summary-item {
+  border-left: 1px solid rgba(98, 105, 77, 0.16);
 }
-.wp-page .wp2-summary-value {
-  font-size: 19px;
+.wp-page .wp2-hero-summary-value {
+  font-size: 17px;
   font-weight: 600;
   color: var(--wp2-olive-dark);
   white-space: nowrap;
 }
-.wp-page .wp2-summary-label {
+.wp-page .wp2-hero-summary-label {
   margin-top: 2px;
-  font-size: 11px;
-  color: var(--wp2-muted);
+  font-size: 10.5px;
+  color: rgba(62, 69, 51, 0.6);
 }
 
 /* ---------- Cabeçalho de seção (compartilhado) ---------- */
@@ -1255,11 +1307,27 @@
 }
 .wp-page .wp2-task-due.wp2-overdue {
   color: var(--wp2-overdue);
+  font-weight: 600;
+}
+.wp-page .wp2-task-due.wp2-urgent {
+  color: var(--wp2-olive-dark);
+  font-weight: 600;
+}
+.wp-page .wp2-empty-block {
+  margin-top: 14px;
+}
+.wp-page .wp2-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--wp2-text);
 }
 .wp-page .wp2-empty-note {
   margin-top: 14px;
   font-size: 13px;
   color: var(--wp2-muted);
+}
+.wp-page .wp2-empty-block .wp2-empty-note {
+  margin-top: 2px;
 }
 
 /* ---------- 4. Próximos pagamentos ---------- */
@@ -1306,25 +1374,26 @@
   margin-top: 14px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--wp2-border);
-  border: 1px solid var(--wp2-border);
-  border-radius: var(--wp2-radius-md);
-  overflow: hidden;
+  gap: 10px;
 }
 .wp-page .wp2-category-btn {
   background: var(--wp2-bg);
-  border: none;
-  padding: 14px 14px;
-  min-height: 76px;
+  border: 1px solid var(--wp2-border);
+  border-radius: var(--wp2-radius-md);
+  padding: 16px;
+  min-height: 78px;
   text-align: left;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
 }
 .wp-page .wp2-category-btn:hover {
+  border-color: var(--wp2-olive);
+}
+.wp-page .wp2-category-btn.wp2-category-accent {
   background: var(--wp2-olive-light);
+  border-color: transparent;
 }
 .wp-page .wp2-category-icon {
   color: var(--wp2-olive);
@@ -1347,11 +1416,22 @@
     padding-right: 20px;
   }
   .wp-page .wp2-couple-name {
-    font-size: 21px;
+    font-size: 32px;
   }
-  .wp-page .wp2-countdown-num {
-    font-size: 40px;
+  .wp-page .wp2-hero-num {
+    font-size: 42px;
   }
+  .wp-page .wp2-hero {
+    padding: 20px 18px 18px;
+  }
+}
+
+/* ---------- bottom nav: só nesta aba (BottomAppNav é filho de .wp-page aqui) ---------- */
+.wp-page nav[aria-label="Navegação principal"] button[aria-current="page"] {
+  background: rgba(199, 185, 142, 0.24);
+}
+.wp-page nav[aria-label="Navegação principal"] button[aria-current="page"] span {
+  font-weight: 600;
 }
 
 /* ---------- skeleton ---------- */

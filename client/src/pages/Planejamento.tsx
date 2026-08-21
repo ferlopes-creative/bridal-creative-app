@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Calculator, CheckSquare, ChevronRight, Pencil, Store, Users } from "lucide-react";
+import { Calculator, CheckSquare, ChevronRight, Pencil, Star, Store, Users } from "lucide-react";
 import { toast } from "sonner";
 import BottomAppNav from "@/components/BottomAppNav";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
@@ -1359,8 +1359,8 @@ function PlanningHome({
 }) {
   return (
     <div className="wp2-home">
-      <WeddingHeader details={details} planning={planning} onEdit={onEditCouple} />
-      <PlanningSummary planning={planning} />
+      <WeddingHeader details={details} onEdit={onEditCouple} />
+      <PlanningHero details={details} planning={planning} />
       <NowSection planning={planning} onToggleTask={onToggleTask} />
       <UpcomingPayments planning={planning} onSeeAll={() => onNavigate("budget")} />
       <PlanningCategories onNavigate={onNavigate} onGoToGuests={onGoToGuests} />
@@ -1369,20 +1369,16 @@ function PlanningHome({
   );
 }
 
-/* ---------- 1. Header + contagem regressiva + mini timeline ---------- */
+/* ---------- Nome do casal — fica fora do hero, em fonte manuscrita, bem coladinho nele ---------- */
 function WeddingHeader({
   details,
-  planning,
   onEdit,
 }: {
   details: WeddingDetails | null;
-  planning: WeddingPlanningSummary;
   onEdit: () => void;
 }) {
   const brideName = details?.bride_name?.trim() || "___";
   const groomName = details?.groom_name?.trim() || "___";
-  const timeline = planning.compactTimeline;
-  const compressed = timeline.length === 2;
 
   return (
     <header className="wp2-header">
@@ -1397,52 +1393,83 @@ function WeddingHeader({
           <Pencil size={17} strokeWidth={1.8} />
         </button>
       </div>
-
-      <div className="wp2-countdown">
-        <span className="wp2-countdown-num">{planning.daysUntilWedding}</span>
-        <span className="wp2-countdown-unit">
-          dia{planning.daysUntilWedding === 1 ? "" : "s"} para o grande dia
-        </span>
-      </div>
-      <div className="wp2-wedding-date">{formatDateBR(details?.wedding_date)}</div>
-
-      {timeline.length > 0 && (
-        <div className="wp2-timeline">
-          {timeline.map((item, index) => (
-            <Fragment key={`${item.year}-${item.month}`}>
-              {index > 0 && <span className="wp2-timeline-sep">{compressed ? "···" : "—"}</span>}
-              <span className={`wp2-timeline-item ${item.isCurrent || item.isWeddingMonth ? "wp2-active" : ""}`}>
-                {item.label}
-                {item.isCurrent && !item.isWeddingMonth && <span className="wp2-timeline-tag"> · agora</span>}
-                {item.isWeddingMonth && (
-                  <span className="wp2-timeline-tag">
-                    {compressed ? ` ${item.year}` : ""} · casamento
-                  </span>
-                )}
-              </span>
-            </Fragment>
-          ))}
-        </div>
-      )}
     </header>
   );
 }
 
-/* ---------- 2. Resumo compacto (3 colunas, 1 faixa) ---------- */
-function PlanningSummary({ planning }: { planning: WeddingPlanningSummary }) {
+/* ---------- 1. Hero: contagem regressiva + data + mini timeline (pontos) + resumo de 3 números ---------- */
+function PlanningHero({
+  details,
+  planning,
+}: {
+  details: WeddingDetails | null;
+  planning: WeddingPlanningSummary;
+}) {
+  const items = planning.timeline.items;
+  const monthsRemaining = planning.timeline.monthsRemaining;
+  const timelineCaption =
+    items.length === 0
+      ? ""
+      : monthsRemaining <= 0
+        ? "É este mês!"
+        : monthsRemaining === 1
+          ? "Falta 1 mês para o casamento"
+          : `Faltam ${monthsRemaining} meses para o casamento`;
+
   return (
-    <div className="wp2-summary">
-      <div className="wp2-summary-item">
-        <div className="wp2-summary-value">{planning.completionPercentage}%</div>
-        <div className="wp2-summary-label">planejado</div>
+    <div className="wp2-hero">
+      <div className="wp2-hero-countdown">
+        <span className="wp2-hero-num">{planning.daysUntilWedding}</span>
+        <span className="wp2-hero-unit">
+          dia{planning.daysUntilWedding === 1 ? "" : "s"}
+          <br />
+          para o grande dia
+        </span>
       </div>
-      <div className="wp2-summary-item">
-        <div className="wp2-summary-value">{planning.contractedSuppliers}</div>
-        <div className="wp2-summary-label">fornecedor{planning.contractedSuppliers === 1 ? "" : "es"}</div>
-      </div>
-      <div className="wp2-summary-item">
-        <div className="wp2-summary-value">{formatCurrencyCompact(planning.amountRemaining)}</div>
-        <div className="wp2-summary-label">a pagar</div>
+      <div className="wp2-hero-date">{formatDateBR(details?.wedding_date)}</div>
+
+      {items.length > 1 && (
+        <div className="wp2-hero-timeline">
+          <div className="wp2-hero-timeline-row">
+            <span className="wp2-hero-timeline-line" aria-hidden />
+            {items.map((item) => (
+              <span className="wp2-hero-timeline-item" key={`${item.year}-${item.month}`}>
+                <span
+                  className={`wp2-hero-dot ${item.isCurrent ? "wp2-dot-current" : ""} ${
+                    item.isWeddingMonth ? "wp2-dot-wedding" : ""
+                  }`}
+                >
+                  {item.isWeddingMonth && <Star size={9} strokeWidth={0} fill="currentColor" />}
+                </span>
+                <span
+                  className={`wp2-hero-timeline-label ${
+                    item.isCurrent || item.isWeddingMonth ? "wp2-active" : ""
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </span>
+            ))}
+          </div>
+          {timelineCaption && <p className="wp2-hero-timeline-caption">{timelineCaption}</p>}
+        </div>
+      )}
+
+      <div className="wp2-hero-summary">
+        <div className="wp2-hero-summary-item">
+          <div className="wp2-hero-summary-value">{planning.completionPercentage}%</div>
+          <div className="wp2-hero-summary-label">planejado</div>
+        </div>
+        <div className="wp2-hero-summary-item">
+          <div className="wp2-hero-summary-value">{planning.contractedSuppliers}</div>
+          <div className="wp2-hero-summary-label">
+            fornecedor{planning.contractedSuppliers === 1 ? "" : "es"}
+          </div>
+        </div>
+        <div className="wp2-hero-summary-item">
+          <div className="wp2-hero-summary-value">{formatCurrencyCompact(planning.amountRemaining)}</div>
+          <div className="wp2-hero-summary-label">a pagar</div>
+        </div>
       </div>
     </div>
   );
@@ -1484,7 +1511,15 @@ function NowSection({
               <div className="wp2-task-main">
                 <div className="wp2-task-title">{task.title}</div>
               </div>
-              <div className={`wp2-task-due ${task.priorityLevel === "overdue" ? "wp2-overdue" : ""}`}>
+              <div
+                className={`wp2-task-due ${
+                  task.priorityLevel === "overdue"
+                    ? "wp2-overdue"
+                    : task.priorityLevel === "urgent"
+                      ? "wp2-urgent"
+                      : ""
+                }`}
+              >
                 {formatTaskDueLabel(task.dueDate, now)}
               </div>
             </div>
@@ -1509,7 +1544,10 @@ function UpcomingPayments({
         <h2>Próximos pagamentos</h2>
       </div>
       {planning.upcomingPayments.length === 0 ? (
-        <p className="wp2-empty-note">Nenhum pagamento próximo.</p>
+        <div className="wp2-empty-block">
+          <p className="wp2-empty-title">Nenhum pagamento próximo</p>
+          <p className="wp2-empty-note">Tudo certo por enquanto.</p>
+        </div>
       ) : (
         planning.upcomingPayments.map((payment) => (
           <div className="wp2-payment-row" key={payment.vendorId}>
@@ -1546,23 +1584,23 @@ function PlanningCategories({
         <h2>Planeje por área</h2>
       </div>
       <div className="wp2-category-grid">
-        <button type="button" className="wp2-category-btn" onClick={onGoToGuests}>
-          <Users className="wp2-category-icon" size={19} strokeWidth={1.6} />
+        <button type="button" className="wp2-category-btn wp2-category-accent" onClick={onGoToGuests}>
+          <Users className="wp2-category-icon" size={18} strokeWidth={1.6} />
           <span className="wp2-category-title">Convidados</span>
           <span className="wp2-category-sub">Lista e RSVP</span>
         </button>
         <button type="button" className="wp2-category-btn" onClick={() => onNavigate("vendors")}>
-          <Store className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <Store className="wp2-category-icon" size={18} strokeWidth={1.6} />
           <span className="wp2-category-title">Fornecedores</span>
           <span className="wp2-category-sub">Contratos</span>
         </button>
         <button type="button" className="wp2-category-btn" onClick={() => onNavigate("budget")}>
-          <Calculator className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <Calculator className="wp2-category-icon" size={18} strokeWidth={1.6} />
           <span className="wp2-category-title">Orçamento</span>
           <span className="wp2-category-sub">Custos</span>
         </button>
-        <button type="button" className="wp2-category-btn" onClick={() => onNavigate("checklist")}>
-          <CheckSquare className="wp2-category-icon" size={19} strokeWidth={1.6} />
+        <button type="button" className="wp2-category-btn wp2-category-accent" onClick={() => onNavigate("checklist")}>
+          <CheckSquare className="wp2-category-icon" size={18} strokeWidth={1.6} />
           <span className="wp2-category-title">Checklist</span>
           <span className="wp2-category-sub">Tarefas</span>
         </button>

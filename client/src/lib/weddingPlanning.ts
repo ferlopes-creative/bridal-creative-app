@@ -134,43 +134,56 @@ export type CompactTimelineItem = {
 
 const MONTH_LABELS_PT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
-/** Mini timeline (mês atual → mês do casamento), gerada a partir das datas — nunca hardcoded.
- * Quando faltam muitos meses, mostra só os dois extremos (o componente desenha "···" entre eles). */
+export type CompactWeddingTimeline = {
+  items: CompactTimelineItem[];
+  /** Meses inteiros até o casamento (0 = é este mês). */
+  monthsRemaining: number;
+};
+
+/** Mini timeline visual (mês atual → mês do casamento), gerada a partir das datas — nunca hardcoded.
+ * Perto do casamento mostra todo mês intermediário; longe, resume a 1-2 meses de referência
+ * entre o atual e o do casamento (nunca vira uma timeline enorme). */
 export function getCompactWeddingTimeline(
   currentDate: Date,
   weddingDateIso: string | null | undefined
-): CompactTimelineItem[] {
-  if (!weddingDateIso) return [];
+): CompactWeddingTimeline {
+  if (!weddingDateIso) return { items: [], monthsRemaining: 0 };
   const [wy, wm, wd] = weddingDateIso.split("-").map(Number);
-  if (!wy || !wm || !wd) return [];
+  if (!wy || !wm || !wd) return { items: [], monthsRemaining: 0 };
   const weddingMonth = wm - 1;
   const curMonth = currentDate.getMonth();
   const curYear = currentDate.getFullYear();
   const monthsBetween = (wy - curYear) * 12 + (weddingMonth - curMonth);
 
   if (monthsBetween <= 0) {
-    return [{ month: weddingMonth, year: wy, label: MONTH_LABELS_PT[weddingMonth], isCurrent: true, isWeddingMonth: true }];
+    return {
+      items: [{ month: weddingMonth, year: wy, label: MONTH_LABELS_PT[weddingMonth], isCurrent: true, isWeddingMonth: true }],
+      monthsRemaining: 0,
+    };
   }
 
   const items: CompactTimelineItem[] = [
     { month: curMonth, year: curYear, label: MONTH_LABELS_PT[curMonth], isCurrent: true, isWeddingMonth: false },
   ];
 
+  const pushMonthAtOffset = (offset: number) => {
+    const total = curYear * 12 + curMonth + offset;
+    const y = Math.floor(total / 12);
+    const m = ((total % 12) + 12) % 12;
+    items.push({ month: m, year: y, label: MONTH_LABELS_PT[m], isCurrent: false, isWeddingMonth: false });
+  };
+
   if (monthsBetween <= 3) {
-    let m = curMonth;
-    let y = curYear;
-    for (let i = 1; i < monthsBetween; i++) {
-      m += 1;
-      if (m > 11) {
-        m = 0;
-        y += 1;
-      }
-      items.push({ month: m, year: y, label: MONTH_LABELS_PT[m], isCurrent: false, isWeddingMonth: false });
-    }
+    for (let i = 1; i < monthsBetween; i++) pushMonthAtOffset(i);
+  } else if (monthsBetween <= 7) {
+    pushMonthAtOffset(Math.round(monthsBetween / 2));
+  } else {
+    pushMonthAtOffset(Math.round(monthsBetween / 3));
+    pushMonthAtOffset(Math.round((monthsBetween * 2) / 3));
   }
 
   items.push({ month: weddingMonth, year: wy, label: MONTH_LABELS_PT[weddingMonth], isCurrent: false, isWeddingMonth: true });
-  return items;
+  return { items, monthsRemaining: monthsBetween };
 }
 
 /** Frase curta da fase atual do planejamento — regra de código, sem IA em tempo real. */
