@@ -397,7 +397,12 @@ export default function Planejamento() {
 
     const purchasedIds = new Set((purchasesRes.data || []).map((p) => String(p.product_id)));
     const premiumProductId = productRes.data?.id ? String(productRes.data.id) : null;
-    const isPremiumValue = hasWeddingPremiumAccess(purchasedIds, premiumProductId);
+    /**
+     * Temporário: Planejamento liberado pra todo mundo por decisão estratégica (sem cobrança
+     * por enquanto). Pra voltar a cobrar, troque a linha abaixo de volta por:
+     * hasWeddingPremiumAccess(purchasedIds, premiumProductId)
+     */
+    const isPremiumValue = true;
     const premiumLinkValue = productRes.data?.link_compra || null;
     const vendorsValue = (vendorsRes.data as Vendor[]) || [];
     const guestsValue = (guestsRes.data as Guest[]) || [];
