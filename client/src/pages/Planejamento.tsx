@@ -19,6 +19,7 @@ import {
   formatDateShortBR,
   formatDaysFromNowShort,
   formatTaskDueLabel,
+  getChecklistItemPriority,
   GUEST_STATUS_LABEL,
   hasWeddingPremiumAccess,
   moneyBR,
@@ -819,15 +820,27 @@ export default function Planejamento() {
               {checklistGroups.map(([phaseName, items]) => (
                 <div className="wp-checklist-group" key={phaseName}>
                   <h4>{phaseName}</h4>
-                  {items.map((item) => (
-                    <div className={`wp-check-item ${item.done ? "wp-done" : ""}`} key={item.id}>
-                      <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
-                      <label>{item.title}</label>
-                      <button className="wp-mini-x" onClick={() => void handleRemoveTask(item)} title="Remover">
-                        ✕
-                      </button>
-                    </div>
-                  ))}
+                  {items.map((item) => {
+                    // vermelho = atraso; amarelo = perto (até 7 dias); verde = ainda de boa
+                    const priorityColor = item.done
+                      ? ""
+                      : (() => {
+                          const level = getChecklistItemPriority(item, details?.wedding_date, new Date());
+                          return level === "overdue" ? "wp-priority-red" : level === "urgent" ? "wp-priority-yellow" : "wp-priority-green";
+                        })();
+                    return (
+                      <div
+                        className={`wp-check-item ${item.done ? "wp-done" : ""} ${priorityColor}`}
+                        key={item.id}
+                      >
+                        <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
+                        <label>{item.title}</label>
+                        <button className="wp-mini-x" onClick={() => void handleRemoveTask(item)} title="Remover">
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
                   <button className="wp-add-task-link" onClick={() => void handleAddTask(phaseName)}>
                     + Adicionar tarefa
                   </button>
@@ -1360,7 +1373,7 @@ function PlanningHome({
   return (
     <div className="wp2-home">
       <WeddingHeader details={details} onEdit={onEditCouple} />
-      <PlanningHero details={details} planning={planning} />
+      <PlanningHero planning={planning} />
       <NowSection planning={planning} onToggleTask={onToggleTask} />
       <UpcomingPayments planning={planning} onSeeAll={() => onNavigate("budget")} />
       <PlanningCategories onNavigate={onNavigate} onGoToGuests={onGoToGuests} />
@@ -1384,10 +1397,11 @@ function WeddingHeader({
     <header className="wp2-header">
       <div className="wp2-header-top">
         <div>
-          <p className="wp2-eyebrow">Seu casamento</p>
+          <p className="wp2-eyebrow">Casamento de</p>
           <h1 className="wp2-couple-name">
             {brideName} &amp; {groomName}
           </h1>
+          <p className="wp2-header-date">{formatDateBR(details?.wedding_date)}</p>
         </div>
         <button type="button" className="wp2-edit-btn" onClick={onEdit} aria-label="Editar informações">
           <Pencil size={17} strokeWidth={1.8} />
@@ -1397,14 +1411,8 @@ function WeddingHeader({
   );
 }
 
-/* ---------- 1. Hero: contagem regressiva + data + mini timeline (pontos) + resumo de 3 números ---------- */
-function PlanningHero({
-  details,
-  planning,
-}: {
-  details: WeddingDetails | null;
-  planning: WeddingPlanningSummary;
-}) {
+/* ---------- 1. Hero: "Faltam para o grande dia" + contagem + mini timeline (pontos) + resumo de 3 números ---------- */
+function PlanningHero({ planning }: { planning: WeddingPlanningSummary }) {
   const items = planning.timeline.items;
   const monthsRemaining = planning.timeline.monthsRemaining;
   const timelineCaption =
@@ -1418,15 +1426,11 @@ function PlanningHero({
 
   return (
     <div className="wp2-hero">
+      <p className="wp2-hero-label">Faltam para o grande dia</p>
       <div className="wp2-hero-countdown">
         <span className="wp2-hero-num">{planning.daysUntilWedding}</span>
-        <span className="wp2-hero-unit">
-          dia{planning.daysUntilWedding === 1 ? "" : "s"}
-          <br />
-          para o grande dia
-        </span>
+        <span className="wp2-hero-unit">dia{planning.daysUntilWedding === 1 ? "" : "s"}</span>
       </div>
-      <div className="wp2-hero-date">{formatDateBR(details?.wedding_date)}</div>
 
       {items.length > 1 && (
         <div className="wp2-hero-timeline">

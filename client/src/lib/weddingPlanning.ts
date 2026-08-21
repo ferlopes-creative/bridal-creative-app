@@ -238,6 +238,16 @@ export function getTaskPriority(dueDate: Date | null, currentDate: Date): TaskPr
   return "later";
 }
 
+/** Prioridade de um item do checklist a partir da fase + data do casamento — usado
+ * na tela de checklist completa (fora da home) pra colorir o traço de cada tarefa. */
+export function getChecklistItemPriority(
+  item: ChecklistItem,
+  weddingDateIso: string | null | undefined,
+  currentDate: Date
+): TaskPriorityLevel {
+  return getTaskPriority(computeTaskDueDate(item.phase, weddingDateIso), currentDate);
+}
+
 const TASK_PRIORITY_ORDER: Record<TaskPriorityLevel, number> = { overdue: 0, urgent: 1, upcoming: 2, later: 3 };
 
 function sortByPriorityThenDue(a: PrioritizedTask, b: PrioritizedTask): number {
