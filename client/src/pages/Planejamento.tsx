@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
-import { Calculator, CheckSquare, ChevronRight, Heart, Store, Users } from "lucide-react";
+import { Calculator, CheckSquare, ChevronRight, Pencil, Store, Users } from "lucide-react";
+import { toast } from "sonner";
 import BottomAppNav from "@/components/BottomAppNav";
-import { PageLoading } from "@/components/PageLoading";
 import PageBackgroundTexture from "@/components/PageBackgroundTexture";
 import { useAppAccessState } from "@/contexts/AppAccessContext";
 import { resolvePlanejamentoBackground, useSiteSettings } from "@/contexts/SiteSettingsContext";
+import { useWeddingPlanning, type WeddingPlanningSummary } from "@/hooks/useWeddingPlanning";
 import { LOGIN_PATH } from "@/lib/authGuard";
 import { loginOrRegisterWithEmail } from "@/lib/authEmailLogin";
 import { clearGuestMode, isGuestMode } from "@/lib/guestMode";
@@ -13,9 +14,11 @@ import { readLocalCache, writeLocalCache } from "@/lib/localCache";
 import { supabase } from "@/lib/supabase";
 import {
   VENDOR_CATEGORIES,
-  daysUntil,
+  formatCurrencyCompact,
   formatDateBR,
   formatDateShortBR,
+  formatDaysFromNowShort,
+  formatTaskDueLabel,
   GUEST_STATUS_LABEL,
   hasWeddingPremiumAccess,
   moneyBR,
@@ -23,6 +26,7 @@ import {
   type Guest,
   type GuestSide,
   type GuestStatus,
+  type PrioritizedTask,
   type Vendor,
   type WeddingDetails,
 } from "@/lib/weddingPlanning";
@@ -545,8 +549,13 @@ export default function Planejamento() {
   /* -------------------- checklist -------------------- */
   async function toggleTask(item: ChecklistItem) {
     if (!userId) return;
-    await supabase.from("checklist_items").update({ done: !item.done }).eq("id", item.id);
-    setChecklist((prev) => prev.map((c) => (c.id === item.id ? { ...c, done: !c.done } : c)));
+    const nextDone = !item.done;
+    setChecklist((prev) => prev.map((c) => (c.id === item.id ? { ...c, done: nextDone } : c)));
+    const { error } = await supabase.from("checklist_items").update({ done: nextDone }).eq("id", item.id);
+    if (error) {
+      setChecklist((prev) => prev.map((c) => (c.id === item.id ? { ...c, done: item.done } : c)));
+      toast.error("Não foi possível salvar essa tarefa. Tente de novo.");
+    }
   }
 
   async function handleAddPhase() {
@@ -630,8 +639,6 @@ export default function Planejamento() {
   const totalPaid = useMemo(() => vendors.reduce((s, v) => s + v.paid_value, 0), [vendors]);
   const totalContracted = useMemo(() => vendors.reduce((s, v) => s + v.contracted_value, 0), [vendors]);
   const budgetPct = details && details.budget_total > 0 ? Math.min(100, Math.round((totalPaid / details.budget_total) * 100)) : 0;
-  const days = daysUntil(details?.wedding_date);
-  const checklistPct = checklist.length ? Math.round((checklist.filter((c) => c.done).length / checklist.length) * 100) : 0;
   const checklistGroups = useMemo(() => {
     const map = new Map<string, ChecklistItem[]>();
     checklist.forEach((item) => {
@@ -642,135 +649,32 @@ export default function Planejamento() {
   }, [checklist]);
   const guestConfirmed = guests.filter((g) => g.status === "confirmado").length;
   const guestPending = guests.filter((g) => g.status === "pendente").length;
-  const upcomingTasks = useMemo(() => checklist.filter((c) => !c.done).slice(0, 5), [checklist]);
+  /** Resumo compacto usado só pela home (view "dashboard") — ver useWeddingPlanning. */
+  const planning = useWeddingPlanning(details, vendors, checklist);
 
   /* ============================================================ RENDER ============================================================ */
   if (phase === "loading") {
-    return <PageLoading label="Carregando seu planejamento..." className="min-h-screen" />;
+    return (
+      <div className="wp-page">
+        <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
+        <PlanningSkeleton />
+        <BottomAppNav />
+      </div>
+    );
   }
 
   return (
     <div className="wp-page">
       <PageBackgroundTexture imageUrl={pageBgUrl} settings={settings} />
       {view === "dashboard" ? (
-        <div className="wp-wrap">
-          <div className="wp-page-header">
-            <h1>
-              Casamento de {details?.bride_name || "___"} e {details?.groom_name || "___"}
-            </h1>
-            <button className="wp-icon-btn-light" onClick={() => setEditCoupleOpen(true)} aria-label="Editar informações">
-              ✎
-            </button>
-          </div>
-
-          <div className="wp-hero">
-            <div>
-              <div className="wp-hero-label">Faltam para o grande dia</div>
-              <div className="wp-hero-date">{formatDateBR(details?.wedding_date)}</div>
-              <div className="wp-countdown">
-                <span className="wp-num">{days}</span>
-                <span className="wp-unit">dias</span>
-              </div>
-            </div>
-            <div className="wp-hero-budget">
-              <div className="wp-label">Orçamento total</div>
-              <div className="wp-value">{moneyBR(details?.budget_total)}</div>
-              <div className="wp-bar-track">
-                <div className="wp-bar-fill" style={{ width: `${budgetPct}%` }} />
-              </div>
-              <div className="wp-pct">
-                {budgetPct}% do orçamento já pago ({moneyBR(totalPaid)})
-              </div>
-            </div>
-          </div>
-
-          <div className="wp-pair-grid">
-            <div className="wp-card wp-stat-card">
-              <div className="wp-stat-card-head">
-                <span className="wp-stat-card-icon">
-                  <Store size={16} strokeWidth={1.8} />
-                </span>
-                <div>
-                  <h3>Fornecedores</h3>
-                  <div className="wp-sub">Contratados até agora</div>
-                </div>
-              </div>
-              <div className="wp-stat">{vendors.length}</div>
-              <div className="wp-stat-label">fornecedor{vendors.length === 1 ? "" : "es"}</div>
-              <button className="wp-card-footer" onClick={() => setView("vendors")}>
-                Ver todos
-                <ChevronRight size={14} strokeWidth={2} />
-              </button>
-            </div>
-            <div className="wp-card wp-stat-card">
-              <div className="wp-stat-card-head">
-                <span className="wp-stat-card-icon">
-                  <CheckSquare size={16} strokeWidth={1.8} />
-                </span>
-                <div>
-                  <h3>Checklist</h3>
-                  <div className="wp-sub">Progresso geral das tarefas</div>
-                </div>
-              </div>
-              <div className="wp-stat">{checklistPct}%</div>
-              <div className="wp-stat-label">concluído</div>
-              <button className="wp-card-footer" onClick={() => setView("checklist")}>
-                Ver checklist
-                <ChevronRight size={14} strokeWidth={2} />
-              </button>
-            </div>
-          </div>
-
-          <p className="wp-quick-access-label">Acesso rápido</p>
-          <div className="wp-shortcut-row">
-            <button className="wp-shortcut-btn" onClick={() => setView("budget")}>
-              <span className="wp-shortcut-icon">
-                <Calculator size={18} strokeWidth={1.8} />
-              </span>
-              Orçamento
-            </button>
-            <button className="wp-shortcut-btn" onClick={() => setView("vows")}>
-              <span className="wp-shortcut-icon">
-                <Heart size={18} strokeWidth={1.8} />
-              </span>
-              Votos
-            </button>
-            <button className="wp-shortcut-btn" onClick={goToGuestPage}>
-              <span className="wp-shortcut-icon">
-                <Users size={18} strokeWidth={1.8} />
-              </span>
-              Convidados
-            </button>
-          </div>
-
-          <div className="wp-section">
-            <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <h2>Próximas tarefas</h2>
-              </div>
-              <div className="wp-section-head-right">
-                <button className="wp-btn-ghost" onClick={() => setView("checklist")}>
-                  Ver tudo
-                </button>
-              </div>
-            </div>
-            <div className="wp-card">
-              {upcomingTasks.length === 0 ? (
-                <p className="wp-sub" style={{ marginBottom: 0 }}>
-                  Tudo em dia por aqui — nenhuma tarefa pendente 🎉
-                </p>
-              ) : (
-                upcomingTasks.map((item) => (
-                  <div className="wp-check-item" key={item.id}>
-                    <input type="checkbox" checked={item.done} onChange={() => void toggleTask(item)} />
-                    <label>{item.title}</label>
-                    <span className="wp-task-phase">{item.phase}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+        <PlanningHome
+          details={details}
+          planning={planning}
+          onEditCouple={() => setEditCoupleOpen(true)}
+          onNavigate={setView}
+          onGoToGuests={goToGuestPage}
+          onToggleTask={(item) => void toggleTask(item)}
+        />
       ) : view === "vendors" ? (
         <div className="wp-wrap">
           <button className="wp-back-link" onClick={() => setView("dashboard")}>
@@ -782,9 +686,7 @@ export default function Planejamento() {
 
           <div className="wp-section">
             <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <span className="wp-badge-free">Grátis</span>
-              </div>
+              <div />
               <div className="wp-section-head-right">
                 <button className="wp-btn" onClick={() => setVendorModal({ open: true, vendor: null })}>
                   + Adicionar fornecedor
@@ -832,7 +734,6 @@ export default function Planejamento() {
             <div className="wp-section-head">
               <div className="wp-section-head-left">
                 <h2>Controle financeiro por fornecedor</h2>
-                <span className="wp-badge-premium">Premium</span>
               </div>
             </div>
             <div
@@ -907,9 +808,7 @@ export default function Planejamento() {
           </div>
           <div className="wp-section">
             <div className="wp-section-head">
-              <div className="wp-section-head-left">
-                <span className="wp-badge-free">Itens padrão grátis</span>
-              </div>
+              <div />
               <div className="wp-section-head-right">
                 <button className="wp-btn-ghost" onClick={() => void handleAddPhase()}>
                   + Nova fase
@@ -975,7 +874,6 @@ export default function Planejamento() {
             <div className="wp-section-head">
               <div className="wp-section-head-left">
                 <h2>Orçamento por área</h2>
-                <span className="wp-badge-premium">Premium</span>
               </div>
             </div>
             <div
@@ -1228,7 +1126,7 @@ function VendorModal({
       </div>
       <div className="wp-field" onClick={() => !isPremium && onPremiumFieldClick()}>
         <label>
-          Categoria <span className="wp-premium-tag">· Premium (usada no gráfico)</span>
+          Categoria <span className="wp-premium-tag">· usada no gráfico</span>
         </label>
         <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={!isPremium}>
           <option value="">Selecione...</option>
@@ -1250,15 +1148,11 @@ function VendorModal({
         <input type="number" value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="0" />
       </div>
       <div className="wp-field" onClick={() => !isPremium && onPremiumFieldClick()}>
-        <label>
-          Data de fechamento <span className="wp-premium-tag">· Premium</span>
-        </label>
+        <label>Data de fechamento</label>
         <input type="date" value={closingDate} onChange={(e) => setClosingDate(e.target.value)} disabled={!isPremium} />
       </div>
       <div className="wp-field" onClick={() => !isPremium && onPremiumFieldClick()}>
-        <label>
-          Data do pagamento final <span className="wp-premium-tag">· Premium</span>
-        </label>
+        <label>Data do pagamento final</label>
         <input
           type="date"
           value={finalPaymentDate}
@@ -1267,9 +1161,7 @@ function VendorModal({
         />
       </div>
       <div className="wp-field" onClick={() => !isPremium && onPremiumFieldClick()}>
-        <label>
-          Como foi combinado o pagamento <span className="wp-premium-tag">· Premium</span>
-        </label>
+        <label>Como foi combinado o pagamento</label>
         <textarea
           rows={3}
           value={paymentTerms}
@@ -1442,6 +1334,321 @@ function GuestsView({
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================ HOME COMPACTA DO PLANEJAMENTO ============================================================
+ * PlanningHome: só 6 blocos (header, resumo, agora, pagamentos, áreas, próximos
+ * passos). Nada de cálculo aqui — tudo já vem pronto de useWeddingPlanning. */
+function PlanningHome({
+  details,
+  planning,
+  onEditCouple,
+  onNavigate,
+  onGoToGuests,
+  onToggleTask,
+}: {
+  details: WeddingDetails | null;
+  planning: WeddingPlanningSummary;
+  onEditCouple: () => void;
+  onNavigate: (view: DashView) => void;
+  onGoToGuests: () => void;
+  onToggleTask: (item: PrioritizedTask) => void;
+}) {
+  return (
+    <div className="wp2-home">
+      <WeddingHeader details={details} planning={planning} onEdit={onEditCouple} />
+      <PlanningSummary planning={planning} />
+      <NowSection planning={planning} onToggleTask={onToggleTask} />
+      <UpcomingPayments planning={planning} onSeeAll={() => onNavigate("budget")} />
+      <PlanningCategories onNavigate={onNavigate} onGoToGuests={onGoToGuests} />
+      <UpcomingTasks planning={planning} onSeeAll={() => onNavigate("checklist")} onToggleTask={onToggleTask} />
+    </div>
+  );
+}
+
+/* ---------- 1. Header + contagem regressiva + mini timeline ---------- */
+function WeddingHeader({
+  details,
+  planning,
+  onEdit,
+}: {
+  details: WeddingDetails | null;
+  planning: WeddingPlanningSummary;
+  onEdit: () => void;
+}) {
+  const brideName = details?.bride_name?.trim() || "___";
+  const groomName = details?.groom_name?.trim() || "___";
+  const timeline = planning.compactTimeline;
+  const compressed = timeline.length === 2;
+
+  return (
+    <header className="wp2-header">
+      <div className="wp2-header-top">
+        <div>
+          <p className="wp2-eyebrow">Seu casamento</p>
+          <h1 className="wp2-couple-name">
+            {brideName} &amp; {groomName}
+          </h1>
+        </div>
+        <button type="button" className="wp2-edit-btn" onClick={onEdit} aria-label="Editar informações">
+          <Pencil size={17} strokeWidth={1.8} />
+        </button>
+      </div>
+
+      <div className="wp2-countdown">
+        <span className="wp2-countdown-num">{planning.daysUntilWedding}</span>
+        <span className="wp2-countdown-unit">
+          dia{planning.daysUntilWedding === 1 ? "" : "s"} para o grande dia
+        </span>
+      </div>
+      <div className="wp2-wedding-date">{formatDateBR(details?.wedding_date)}</div>
+
+      {timeline.length > 0 && (
+        <div className="wp2-timeline">
+          {timeline.map((item, index) => (
+            <Fragment key={`${item.year}-${item.month}`}>
+              {index > 0 && <span className="wp2-timeline-sep">{compressed ? "···" : "—"}</span>}
+              <span className={`wp2-timeline-item ${item.isCurrent || item.isWeddingMonth ? "wp2-active" : ""}`}>
+                {item.label}
+                {item.isCurrent && !item.isWeddingMonth && <span className="wp2-timeline-tag"> · agora</span>}
+                {item.isWeddingMonth && (
+                  <span className="wp2-timeline-tag">
+                    {compressed ? ` ${item.year}` : ""} · casamento
+                  </span>
+                )}
+              </span>
+            </Fragment>
+          ))}
+        </div>
+      )}
+    </header>
+  );
+}
+
+/* ---------- 2. Resumo compacto (3 colunas, 1 faixa) ---------- */
+function PlanningSummary({ planning }: { planning: WeddingPlanningSummary }) {
+  return (
+    <div className="wp2-summary">
+      <div className="wp2-summary-item">
+        <div className="wp2-summary-value">{planning.completionPercentage}%</div>
+        <div className="wp2-summary-label">planejado</div>
+      </div>
+      <div className="wp2-summary-item">
+        <div className="wp2-summary-value">{planning.contractedSuppliers}</div>
+        <div className="wp2-summary-label">fornecedor{planning.contractedSuppliers === 1 ? "" : "es"}</div>
+      </div>
+      <div className="wp2-summary-item">
+        <div className="wp2-summary-value">{formatCurrencyCompact(planning.amountRemaining)}</div>
+        <div className="wp2-summary-label">a pagar</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 3. Agora: fase atual + até 3 tarefas prioritárias ---------- */
+function NowSection({
+  planning,
+  onToggleTask,
+}: {
+  planning: WeddingPlanningSummary;
+  onToggleTask: (item: PrioritizedTask) => void;
+}) {
+  const now = new Date();
+  const phrase =
+    planning.daysUntilWedding > 0
+      ? `Faltam ${planning.daysUntilWedding} dia${planning.daysUntilWedding === 1 ? "" : "s"}. ${planning.planningPhase}`
+      : planning.planningPhase;
+
+  return (
+    <section>
+      <div className="wp2-section-title">
+        <h2>Agora</h2>
+      </div>
+      <p className="wp2-now-phrase">{phrase}</p>
+      {planning.priorityTasks.length === 0 ? (
+        <p className="wp2-empty-note">Tudo em dia por aqui.</p>
+      ) : (
+        <div className="wp2-task-list">
+          {planning.priorityTasks.map((task) => (
+            <div className="wp2-task-row" key={task.id}>
+              <input
+                type="checkbox"
+                className="wp2-task-checkbox"
+                checked={task.done}
+                onChange={() => onToggleTask(task)}
+                aria-label={task.title}
+              />
+              <div className="wp2-task-main">
+                <div className="wp2-task-title">{task.title}</div>
+              </div>
+              <div className={`wp2-task-due ${task.priorityLevel === "overdue" ? "wp2-overdue" : ""}`}>
+                {formatTaskDueLabel(task.dueDate, now)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- 4. Próximos pagamentos (até 2) ---------- */
+function UpcomingPayments({
+  planning,
+  onSeeAll,
+}: {
+  planning: WeddingPlanningSummary;
+  onSeeAll: () => void;
+}) {
+  return (
+    <section>
+      <div className="wp2-section-title">
+        <h2>Próximos pagamentos</h2>
+      </div>
+      {planning.upcomingPayments.length === 0 ? (
+        <p className="wp2-empty-note">Nenhum pagamento próximo.</p>
+      ) : (
+        planning.upcomingPayments.map((payment) => (
+          <div className="wp2-payment-row" key={payment.vendorId}>
+            <div>
+              <div className="wp2-payment-name">{payment.vendorName}</div>
+              {payment.overdue ? <span className="wp2-payment-tag">ATRASADO</span> : null}
+              <span className="wp2-payment-date">{formatDateShortBR(payment.dueDate)}</span>
+            </div>
+            <div className="wp2-payment-amount">{formatCurrencyCompact(payment.amount)}</div>
+          </div>
+        ))
+      )}
+      <div className="wp2-see-all-row">
+        <button type="button" className="wp2-see-all" onClick={onSeeAll}>
+          Ver orçamento
+          <ChevronRight size={13} strokeWidth={2} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- 5. Planeje por área (grid 2x2) ---------- */
+function PlanningCategories({
+  onNavigate,
+  onGoToGuests,
+}: {
+  onNavigate: (view: DashView) => void;
+  onGoToGuests: () => void;
+}) {
+  return (
+    <section>
+      <div className="wp2-section-title">
+        <h2>Planeje por área</h2>
+      </div>
+      <div className="wp2-category-grid">
+        <button type="button" className="wp2-category-btn" onClick={onGoToGuests}>
+          <Users className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <span className="wp2-category-title">Convidados</span>
+          <span className="wp2-category-sub">Lista e RSVP</span>
+        </button>
+        <button type="button" className="wp2-category-btn" onClick={() => onNavigate("vendors")}>
+          <Store className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <span className="wp2-category-title">Fornecedores</span>
+          <span className="wp2-category-sub">Contratos</span>
+        </button>
+        <button type="button" className="wp2-category-btn" onClick={() => onNavigate("budget")}>
+          <Calculator className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <span className="wp2-category-title">Orçamento</span>
+          <span className="wp2-category-sub">Custos</span>
+        </button>
+        <button type="button" className="wp2-category-btn" onClick={() => onNavigate("checklist")}>
+          <CheckSquare className="wp2-category-icon" size={19} strokeWidth={1.6} />
+          <span className="wp2-category-title">Checklist</span>
+          <span className="wp2-category-sub">Tarefas</span>
+        </button>
+      </div>
+      <div className="wp2-see-all-row">
+        <button type="button" className="wp2-see-all" onClick={() => onNavigate("vows")}>
+          Mais ferramentas
+          <ChevronRight size={13} strokeWidth={2} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- 6. Próximos passos (até 3, sem repetir "Agora") ---------- */
+function UpcomingTasks({
+  planning,
+  onSeeAll,
+  onToggleTask,
+}: {
+  planning: WeddingPlanningSummary;
+  onSeeAll: () => void;
+  onToggleTask: (item: PrioritizedTask) => void;
+}) {
+  const now = new Date();
+  return (
+    <section>
+      <div className="wp2-section-title">
+        <h2>Próximos passos</h2>
+        <button type="button" className="wp2-see-all" onClick={onSeeAll}>
+          Ver todas
+          <ChevronRight size={13} strokeWidth={2} />
+        </button>
+      </div>
+      {planning.upcomingTasks.length === 0 ? (
+        <p className="wp2-empty-note">Seu planejamento está em dia.</p>
+      ) : (
+        <div className="wp2-task-list">
+          {planning.upcomingTasks.map((task) => (
+            <div className="wp2-task-row" key={task.id}>
+              <input
+                type="checkbox"
+                className="wp2-task-checkbox"
+                checked={task.done}
+                onChange={() => onToggleTask(task)}
+                aria-label={task.title}
+              />
+              <div className="wp2-task-main">
+                <div className="wp2-task-title">{task.title}</div>
+              </div>
+              <div className="wp2-task-due">{formatDaysFromNowShort(task.dueDate, now)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- skeleton de carregamento, na mesma estrutura compacta ---------- */
+function PlanningSkeleton() {
+  return (
+    <div className="wp2-home" aria-busy="true" aria-label="Carregando planejamento">
+      <div>
+        <div className="wp2-skel" style={{ width: 90, height: 11 }} />
+        <div className="wp2-skel" style={{ width: 200, height: 26, marginTop: 8 }} />
+        <div className="wp2-skel" style={{ width: 110, height: 44, marginTop: 18 }} />
+        <div className="wp2-skel" style={{ width: 160, height: 13, marginTop: 8 }} />
+        <div className="wp2-skel" style={{ width: "70%", height: 13, marginTop: 14 }} />
+      </div>
+      <div className="wp2-skel" style={{ width: "100%", height: 78 }} />
+      <div>
+        <div className="wp2-skel" style={{ width: 70, height: 16 }} />
+        <div className="wp2-skel" style={{ width: "100%", height: 90, marginTop: 16 }} />
+      </div>
+      <div>
+        <div className="wp2-skel" style={{ width: 160, height: 16 }} />
+        <div className="wp2-skel" style={{ width: "100%", height: 70, marginTop: 16 }} />
+      </div>
+      <div>
+        <div className="wp2-skel" style={{ width: 130, height: 16 }} />
+        <div className="wp2-skel" style={{ width: "100%", height: 170, marginTop: 16 }} />
+      </div>
+      <div>
+        <div className="wp2-skel" style={{ width: 140, height: 16 }} />
+        <div className="wp2-skel" style={{ width: "100%", height: 90, marginTop: 16 }} />
       </div>
     </div>
   );

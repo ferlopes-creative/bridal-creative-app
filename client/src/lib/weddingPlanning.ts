@@ -108,3 +108,223 @@ export const GUEST_STATUS_LABEL: Record<GuestStatus, string> = {
   pendente: "Aguardando",
   nao: "Não vai",
 };
+
+/* ============================================================ RESUMO COMPACTO (home do Planejamento) ============================================================
+ * Helpers puros usados só pela home compacta — não mexem no fetch/mutations
+ * existentes, só derivam uma leitura resumida de details/vendors/checklist. */
+
+/** "R$ 850" / "R$ 2 mil" / "R$ 18,5 mil" / "R$ 120 mil" / "R$ 1,2 mi" — evita números enormes na tela compacta. */
+export function formatCurrencyCompact(value: number | null | undefined): string {
+  const v = Math.abs(value || 0);
+  const sign = (value || 0) < 0 ? "-" : "";
+  if (v < 1_000) return `${sign}${moneyBR(v)}`;
+  if (v < 1_000_000) {
+    return `${sign}R$ ${(v / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+  }
+  return `${sign}R$ ${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+}
+
+export type CompactTimelineItem = {
+  month: number; // 0-11
+  year: number;
+  label: string; // "AGO"
+  isCurrent: boolean;
+  isWeddingMonth: boolean;
+};
+
+const MONTH_LABELS_PT = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+/** Mini timeline (mês atual → mês do casamento), gerada a partir das datas — nunca hardcoded.
+ * Quando faltam muitos meses, mostra só os dois extremos (o componente desenha "···" entre eles). */
+export function getCompactWeddingTimeline(
+  currentDate: Date,
+  weddingDateIso: string | null | undefined
+): CompactTimelineItem[] {
+  if (!weddingDateIso) return [];
+  const [wy, wm, wd] = weddingDateIso.split("-").map(Number);
+  if (!wy || !wm || !wd) return [];
+  const weddingMonth = wm - 1;
+  const curMonth = currentDate.getMonth();
+  const curYear = currentDate.getFullYear();
+  const monthsBetween = (wy - curYear) * 12 + (weddingMonth - curMonth);
+
+  if (monthsBetween <= 0) {
+    return [{ month: weddingMonth, year: wy, label: MONTH_LABELS_PT[weddingMonth], isCurrent: true, isWeddingMonth: true }];
+  }
+
+  const items: CompactTimelineItem[] = [
+    { month: curMonth, year: curYear, label: MONTH_LABELS_PT[curMonth], isCurrent: true, isWeddingMonth: false },
+  ];
+
+  if (monthsBetween <= 3) {
+    let m = curMonth;
+    let y = curYear;
+    for (let i = 1; i < monthsBetween; i++) {
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+      items.push({ month: m, year: y, label: MONTH_LABELS_PT[m], isCurrent: false, isWeddingMonth: false });
+    }
+  }
+
+  items.push({ month: weddingMonth, year: wy, label: MONTH_LABELS_PT[weddingMonth], isCurrent: false, isWeddingMonth: true });
+  return items;
+}
+
+/** Frase curta da fase atual do planejamento — regra de código, sem IA em tempo real. */
+export function getPlanningPhase(daysUntilWedding: number): string {
+  if (daysUntilWedding > 365) return "Comece pelos fornecedores principais.";
+  if (daysUntilWedding > 180) return "Hora de fechar os principais detalhes.";
+  if (daysUntilWedding > 90) return "Comece a revisar convidados, roupas e fornecedores.";
+  if (daysUntilWedding > 30) return "Hora de finalizar contratos e confirmações.";
+  return "Reta final: confirme tudo e cuide dos últimos detalhes.";
+}
+
+export type TaskPriorityLevel = "overdue" | "urgent" | "upcoming" | "later";
+
+export type PrioritizedTask = ChecklistItem & {
+  priorityLevel: TaskPriorityLevel;
+  dueDate: Date | null;
+};
+
+/** checklist_items não tem due date — a fase ("6 meses antes", "2 semanas antes") já carrega
+ * esse prazo, então derivamos a data recomendada a partir dela + da data do casamento. */
+function parsePhaseOffsetDays(phase: string): number | null {
+  const monthsMatch = phase.match(/(\d+)\s*m[eê]s/i);
+  if (monthsMatch) return Number(monthsMatch[1]) * 30;
+  const weeksMatch = phase.match(/(\d+)\s*semana/i);
+  if (weeksMatch) return Number(weeksMatch[1]) * 7;
+  return null;
+}
+
+function computeTaskDueDate(phase: string, weddingDateIso: string | null | undefined): Date | null {
+  if (!weddingDateIso) return null;
+  const offsetDays = parsePhaseOffsetDays(phase);
+  if (offsetDays == null) return null;
+  const [y, m, d] = weddingDateIso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const due = new Date(y, m - 1, d);
+  due.setDate(due.getDate() - offsetDays);
+  return due;
+}
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function getTaskPriority(dueDate: Date | null, currentDate: Date): TaskPriorityLevel {
+  if (!dueDate) return "later";
+  const diffDays = Math.round((startOfDay(dueDate).getTime() - startOfDay(currentDate).getTime()) / 86400000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 7) return "urgent";
+  if (diffDays <= 30) return "upcoming";
+  return "later";
+}
+
+const TASK_PRIORITY_ORDER: Record<TaskPriorityLevel, number> = { overdue: 0, urgent: 1, upcoming: 2, later: 3 };
+
+function sortByPriorityThenDue(a: PrioritizedTask, b: PrioritizedTask): number {
+  const byPriority = TASK_PRIORITY_ORDER[a.priorityLevel] - TASK_PRIORITY_ORDER[b.priorityLevel];
+  if (byPriority !== 0) return byPriority;
+  if (a.dueDate && b.dueDate) return a.dueDate.getTime() - b.dueDate.getTime();
+  if (a.dueDate) return -1;
+  if (b.dueDate) return 1;
+  return a.sort_order - b.sort_order;
+}
+
+/** As tarefas pendentes que mais precisam de atenção agora (seção "Agora"), no máx. `limit`. */
+export function getPriorityTasks(
+  checklist: ChecklistItem[],
+  weddingDateIso: string | null | undefined,
+  currentDate: Date,
+  limit = 3
+): PrioritizedTask[] {
+  const withPriority: PrioritizedTask[] = checklist
+    .filter((item) => !item.done)
+    .map((item) => {
+      const dueDate = computeTaskDueDate(item.phase, weddingDateIso);
+      return { ...item, dueDate, priorityLevel: getTaskPriority(dueDate, currentDate) };
+    });
+  withPriority.sort(sortByPriorityThenDue);
+  return withPriority.slice(0, limit);
+}
+
+/** Próximas tarefas (seção "Próximos passos"), excluindo as já mostradas em "Agora". */
+export function getUpcomingTasksExcludingPriority(
+  checklist: ChecklistItem[],
+  priorityTaskIds: Set<string>,
+  weddingDateIso: string | null | undefined,
+  currentDate: Date,
+  limit = 3
+): PrioritizedTask[] {
+  const rest: PrioritizedTask[] = checklist
+    .filter((item) => !item.done && !priorityTaskIds.has(item.id))
+    .map((item) => {
+      const dueDate = computeTaskDueDate(item.phase, weddingDateIso);
+      return { ...item, dueDate, priorityLevel: getTaskPriority(dueDate, currentDate) };
+    });
+  rest.sort(sortByPriorityThenDue);
+  return rest.slice(0, limit);
+}
+
+/** "Atrasada há 12 dias" / "Em 4 dias" / "11 set" — label de prazo pra seção "Agora". */
+export function formatTaskDueLabel(dueDate: Date | null, currentDate: Date): string {
+  if (!dueDate) return "";
+  const diffDays = Math.round((startOfDay(dueDate).getTime() - startOfDay(currentDate).getTime()) / 86400000);
+  if (diffDays < 0) {
+    const days = Math.abs(diffDays);
+    return `Atrasada há ${days} dia${days === 1 ? "" : "s"}`;
+  }
+  if (diffDays === 0) return "Hoje";
+  if (diffDays <= 7) return `Em ${diffDays} dia${diffDays === 1 ? "" : "s"}`;
+  return dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+}
+
+/** "18 dias" / "hoje" / "atrasada" — label curto pra seção "Próximos passos". */
+export function formatDaysFromNowShort(dueDate: Date | null, currentDate: Date): string {
+  if (!dueDate) return "";
+  const diffDays = Math.round((startOfDay(dueDate).getTime() - startOfDay(currentDate).getTime()) / 86400000);
+  if (diffDays < 0) return "atrasada";
+  if (diffDays === 0) return "hoje";
+  return `${diffDays} dia${diffDays === 1 ? "" : "s"}`;
+}
+
+export type UpcomingVendorPayment = {
+  vendorId: string;
+  vendorName: string;
+  amount: number;
+  dueDate: string; // ISO
+  overdue: boolean;
+};
+
+/** Próximos pagamentos, derivados do saldo em aberto de cada fornecedor (contracted - paid)
+ * com data de pagamento final cadastrada. Atrasado vem primeiro; depois, por proximidade. */
+export function getUpcomingVendorPayments(
+  vendors: Vendor[],
+  currentDate: Date,
+  limit = 2
+): UpcomingVendorPayment[] {
+  const today = startOfDay(currentDate);
+  const pending: UpcomingVendorPayment[] = vendors
+    .filter((v) => v.final_payment_date && v.contracted_value - v.paid_value > 0.01)
+    .map((v) => {
+      const [y, m, d] = v.final_payment_date!.split("-").map(Number);
+      const due = new Date(y, m - 1, d);
+      return {
+        vendorId: v.id,
+        vendorName: v.name,
+        amount: v.contracted_value - v.paid_value,
+        dueDate: v.final_payment_date!,
+        overdue: due.getTime() < today.getTime(),
+      };
+    });
+  pending.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    return a.dueDate.localeCompare(b.dueDate);
+  });
+  return pending.slice(0, limit);
+}
