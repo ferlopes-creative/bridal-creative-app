@@ -72,7 +72,7 @@ function Router() {
     <Suspense fallback={<PageLoading label="Carregando..." className="min-h-screen" />}>
       <Switch>
         <Route path="/">
-          <Redirect to="/login" />
+          <Redirect to="/dashboard" />
         </Route>
         <Route path="/login">
           <GuestOnly>
