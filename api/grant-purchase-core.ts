@@ -83,6 +83,16 @@ export async function ensureAuthUserByEmail(
   });
 
   if (createError) {
+    // Corrida entre requisições simultâneas para o mesmo e-mail (ex: a Cakto envia o produto
+    // principal e um orderbump quase ao mesmo tempo): outra requisição pode ter criado o usuário
+    // entre o findUserByEmail acima e este createUser. O Supabase relata isso com mensagens
+    // variadas ("already been registered", "Database error creating new user" por violação de
+    // constraint, etc.) — em vez de tentar prever o texto exato, checamos se o usuário passou a
+    // existir; se sim, tratamos como sucesso (idempotente) em vez de derrubar o webhook com 500.
+    const created = await findUserByEmail(supabase, email);
+    if (created) {
+      return { userId: created.id, createdUser: false };
+    }
     throw new GrantPurchaseError(createError.message, 500);
   }
 

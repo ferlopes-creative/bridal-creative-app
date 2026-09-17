@@ -1,14 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { ensureAuthUserByEmail } from "./grant-purchase-core.js";
 
-function getWebhookToken(req: any): string | undefined {
+export function getWebhookToken(req: any): string | undefined {
   const headerToken =
     req.headers?.["x-cakto-token"] ||
     req.headers?.["x-api-key"] ||
     req.headers?.authorization?.replace(/^Bearer\s+/i, "");
 
-  const bodyToken = req.body?.token || req.body?.api_key;
-  const queryToken = req.query?.token || req.query?.api_key;
+  const bodyToken = req.body?.token || req.body?.api_key || req.body?.secret;
+  const queryToken = req.query?.token || req.query?.api_key || req.query?.secret;
 
   return headerToken || bodyToken || queryToken;
 }
@@ -29,6 +29,11 @@ export function normalizePurchaseStatus(rawStatus: unknown): "active" | "refunde
     "cancelado",
     "cancelled",
     "canceled",
+    "refused",
+    "recusad",
+    "declined",
+    "expired",
+    "expirado",
   ];
 
   return refundedTerms.some((term) => status.includes(term)) ? "refunded" : "active";
@@ -68,7 +73,15 @@ export default async function handler(req: any, res: any) {
     }
 
     const body = (req.body || {}) as Record<string, any>;
-    const { email, rawProductId, rawStatus } = extractWebhookPurchase(body);
+    // A Cakto envia o payload dentro de `data` (ex: { secret, event, data: { customer, product, status } }).
+    // Outras plataformas (ex: Hotmart) enviam os campos direto na raiz — mantemos suporte a ambos formatos.
+    const payload =
+      body.data && typeof body.data === "object" ? (body.data as Record<string, any>) : body;
+
+    const { email, rawProductId, rawStatus: payloadStatus } = extractWebhookPurchase(payload);
+    // O `event` de nível superior da Cakto (ex: purchase_approved, purchase_refused, chargeback,
+    // refund) é mais confiável para detectar reembolso do que o `status` interno do payload.
+    const rawStatus = body.event ?? payloadStatus;
 
     if (!email || rawProductId == null || rawProductId === "") {
       return res.status(400).json({ error: "Missing data" });

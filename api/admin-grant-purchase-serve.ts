@@ -25,7 +25,7 @@ export type AdminGrantPurchaseResult =
         }[];
       };
     }
-  | { status: 400 | 401 | 500; body: { error: string } };
+  | { status: 400 | 401 | 404 | 500; body: { error: string } };
 
 function normalizeGrants(raw: unknown): GrantPurchaseInput[] {
   if (!raw || typeof raw !== "object") return [];
