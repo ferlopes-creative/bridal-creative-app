@@ -9,6 +9,7 @@ export default function HeroBanner({
   hasUnread,
   onNotifications,
   activeHeroUrls,
+  heroLinks,
   isMobile,
   showHero,
   weddingCountdownDays,
@@ -18,6 +19,8 @@ export default function HeroBanner({
   hasUnread: boolean;
   onNotifications: () => void;
   activeHeroUrls: string[];
+  /** URL da imagem → link ao tocar no banner */
+  heroLinks?: Record<string, string>;
   isMobile: boolean;
   showHero: boolean;
   /** Dias até o casamento; null/undefined esconde a faixa. */
@@ -30,6 +33,7 @@ export default function HeroBanner({
           {showHero ? (
             <SiteBannerCarousel
               urls={activeHeroUrls}
+              links={heroLinks}
               slideMinClass={isMobile ? "min-h-[240px]" : "min-h-[320px] lg:min-h-[360px]"}
               imageObjectPosition={isMobile ? "center" : "center top"}
             />

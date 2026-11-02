@@ -588,6 +588,7 @@ export default function Dashboard() {
         hasUnread={hasUnread}
         onNotifications={() => setLocation("/notifications")}
         activeHeroUrls={activeHeroUrls}
+        heroLinks={settings.hero_banner_links}
         isMobile={isMobile}
         showHero={showHero}
         weddingCountdownDays={weddingCountdownDays}

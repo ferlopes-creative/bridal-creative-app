@@ -26,6 +26,8 @@ export type SiteSettingsRow = {
   hero_image_url: string | null;
   hero_banner_urls: string[];
   hero_banner_desktop_urls: string[];
+  /** URL da imagem do banner → link aberto ao tocar nele */
+  hero_banner_links: Record<string, string>;
   owned_products_banner_urls: string[];
   colors: SiteColors;
   whatsapp_url: string | null;
@@ -80,6 +82,32 @@ export function parseHeroBannerUrls(raw: unknown, legacyHero: string | null): st
   return urls;
 }
 
+/** Completa com https:// quando a pessoa cola o link sem o protocolo. */
+export function normalizeBannerLink(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  return /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : `https://${t}`;
+}
+
+export function parseHeroBannerLinks(raw: unknown): Record<string, string> {
+  let value = raw;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value) as unknown;
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const links: Record<string, string> = {};
+  for (const [imageUrl, link] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof link === "string" && link.trim()) {
+      links[imageUrl] = normalizeBannerLink(link);
+    }
+  }
+  return links;
+}
+
 function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
   const raw = data.hero_banner_urls;
   const legacyHero = (data.hero_image_url as string | null | undefined)?.trim() || null;
@@ -99,6 +127,7 @@ function rowFromData(data: Record<string, unknown>): SiteSettingsRow {
     hero_image_url: legacyHero,
     hero_banner_urls,
     hero_banner_desktop_urls,
+    hero_banner_links: parseHeroBannerLinks(data.hero_banner_links),
     owned_products_banner_urls,
     colors: resolveSiteColors(data),
     whatsapp_url: (data.whatsapp_url as string | null | undefined)?.trim() || null,
@@ -148,6 +177,11 @@ export function isHeroBannerUrlsSchemaError(message: string | undefined): boolea
 export function isHeroBannerDesktopUrlsSchemaError(message: string | undefined): boolean {
   const m = (message || "").toLowerCase();
   return m.includes("hero_banner_desktop") || m.includes("schema cache");
+}
+
+export function isHeroBannerLinksSchemaError(message: string | undefined): boolean {
+  const m = (message || "").toLowerCase();
+  return m.includes("hero_banner_links");
 }
 
 export function isOwnedProductsBannerUrlsSchemaError(message: string | undefined): boolean {

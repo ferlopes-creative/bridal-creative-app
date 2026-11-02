@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 
 type SiteBannerCarouselProps = {
   urls: string[];
+  /** URL da imagem → link aberto ao tocar no slide; slide sem link não é clicável */
+  links?: Record<string, string>;
   /** Classes aplicadas a cada slide + viewport (altura mínima da faixa) */
   slideMinClass?: string;
   /** object-position da imagem (útil em faixas largas no desktop) */
@@ -21,6 +23,7 @@ type SiteBannerCarouselProps = {
  */
 export function SiteBannerCarousel({
   urls,
+  links,
   slideMinClass = "min-h-[240px]",
   imageObjectPosition = "center",
   className,
@@ -87,11 +90,9 @@ export function SiteBannerCarousel({
         setApi={setApi}
       >
         <CarouselContent className="-ml-0 flex h-full min-h-[inherit] items-stretch">
-          {urls.map((url, i) => (
-            <CarouselItem
-              key={`${url}-${i}`}
-              className={cn("relative h-full basis-full !pl-0", slideMinClass)}
-            >
+          {urls.map((url, i) => {
+            const link = links?.[url];
+            const image = (
               <img
                 src={url}
                 alt=""
@@ -100,8 +101,28 @@ export function SiteBannerCarousel({
                 decoding="async"
                 draggable={false}
               />
-            </CarouselItem>
-          ))}
+            );
+            return (
+              <CarouselItem
+                key={`${url}-${i}`}
+                className={cn("relative h-full basis-full !pl-0", slideMinClass)}
+              >
+                {link ? (
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 block"
+                    aria-label={`Abrir link do banner ${i + 1}`}
+                  >
+                    {image}
+                  </a>
+                ) : (
+                  image
+                )}
+              </CarouselItem>
+            );
+          })}
         </CarouselContent>
       </Carousel>
       {slideCount > 1 ? (

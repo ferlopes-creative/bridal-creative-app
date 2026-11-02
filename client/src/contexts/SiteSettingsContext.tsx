@@ -15,6 +15,7 @@ import {
   DEFAULT_PAGE_BACKGROUND_OPACITY_PERCENT,
   DEFAULT_DASHBOARD_SECTION_ORDER,
   fetchSiteSettingsRow,
+  parseHeroBannerLinks,
   type DashboardSectionId,
 } from "@/lib/siteSettingsRemote";
 
@@ -45,6 +46,8 @@ export type SiteSettings = {
   hero_banner_urls: string[];
   /** Vazio no CMS = no app usa hero_banner_urls no desktop */
   hero_banner_desktop_urls: string[];
+  /** URL da imagem do banner → link aberto ao tocar nele (vale para celular e desktop). */
+  hero_banner_links: Record<string, string>;
   /** Banner próprio da aba "Meus produtos" — opcional, diferente do banner da Início. */
   owned_products_banner_urls: string[];
   colors: SiteColors;
@@ -71,6 +74,7 @@ const defaultSettings: SiteSettings = {
   hero_image_url: null,
   hero_banner_urls: [],
   hero_banner_desktop_urls: [],
+  hero_banner_links: {},
   owned_products_banner_urls: [],
   colors: { ...DEFAULT_SITE_COLORS },
   whatsapp_url: null,
@@ -122,6 +126,7 @@ function mergeSiteSettings(partial: Record<string, unknown>): SiteSettings {
     hero_banner_desktop_urls: Array.isArray(partial.hero_banner_desktop_urls)
       ? partial.hero_banner_desktop_urls.filter((u): u is string => typeof u === "string")
       : defaultSettings.hero_banner_desktop_urls,
+    hero_banner_links: parseHeroBannerLinks(partial.hero_banner_links),
     owned_products_banner_urls: Array.isArray(partial.owned_products_banner_urls)
       ? partial.owned_products_banner_urls.filter((u): u is string => typeof u === "string")
       : defaultSettings.owned_products_banner_urls,
@@ -257,6 +262,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         hero_image_url: row.hero_image_url,
         hero_banner_urls: row.hero_banner_urls,
         hero_banner_desktop_urls: row.hero_banner_desktop_urls,
+        hero_banner_links: row.hero_banner_links,
         owned_products_banner_urls: row.owned_products_banner_urls,
         colors: row.colors,
         whatsapp_url: row.whatsapp_url,

@@ -62,6 +62,8 @@ import {
   isHeroBannerDesktopUrlsSchemaError,
   isHeroBannerUrlsSchemaError,
   isOwnedProductsBannerUrlsSchemaError,
+  isHeroBannerLinksSchemaError,
+  normalizeBannerLink,
   isPageBackgroundOpacityError,
   isPageBackgroundsPerPageError,
   isPageBackgroundSplitError,
@@ -717,6 +719,7 @@ export default function AdminPage() {
   );
   const [siteHeroUrls, setSiteHeroUrls] = useState<string[]>([]);
   const [siteHeroDesktopUrls, setSiteHeroDesktopUrls] = useState<string[]>([]);
+  const [siteHeroLinks, setSiteHeroLinks] = useState<Record<string, string>>({});
   const [heroPendingFiles, setHeroPendingFiles] = useState<File[]>([]);
   const [heroDesktopPendingFiles, setHeroDesktopPendingFiles] = useState<File[]>([]);
   const [ownedBannerUrls, setOwnedBannerUrls] = useState<string[]>([]);
@@ -1110,6 +1113,7 @@ export default function AdminPage() {
         setSiteBgOpacityPercent(row.page_background_opacity_percent);
         setSiteHeroUrls(row.hero_banner_urls);
         setSiteHeroDesktopUrls(row.hero_banner_desktop_urls);
+        setSiteHeroLinks(row.hero_banner_links);
         setOwnedBannerUrls(row.owned_products_banner_urls);
         setSiteColors(row.colors);
         setSiteWhatsappUrl(row.whatsapp_url ?? "");
@@ -2181,6 +2185,12 @@ export default function AdminPage() {
       }
       const bannerUrls = [...siteHeroUrls, ...uploadedHeroUrls];
       const bannerDesktopUrls = [...siteHeroDesktopUrls, ...uploadedHeroDesktopUrls];
+      // Só guarda links de banners que continuam no carrossel
+      const bannerLinks: Record<string, string> = {};
+      for (const url of [...bannerUrls, ...bannerDesktopUrls]) {
+        const link = normalizeBannerLink(siteHeroLinks[url] ?? "");
+        if (link) bannerLinks[url] = link;
+      }
 
       const uploadedOwnedBannerUrls: string[] = [];
       for (const file of ownedBannerPendingFiles) {
@@ -2219,15 +2229,24 @@ export default function AdminPage() {
       let heroBannerUrlsDropped = false;
       let heroBannerDesktopUrlsDropped = false;
       let ownedBannerUrlsDropped = false;
+      let heroBannerLinksDropped = false;
 
       const upsertSiteSettings = async (row: Record<string, unknown>) => {
-        const withHero = {
+        let withHero: Record<string, unknown> = {
           ...row,
           hero_banner_urls: bannerUrls,
           hero_banner_desktop_urls: bannerDesktopUrls,
           owned_products_banner_urls: ownedBannerFinalUrls,
+          ...(heroBannerLinksDropped ? {} : { hero_banner_links: bannerLinks }),
         };
         let { error: upsertError } = await supabase.from("site_settings").upsert(withHero);
+        if (upsertError && isHeroBannerLinksSchemaError(upsertError.message)) {
+          heroBannerLinksDropped = true;
+          const { hero_banner_links: _l, ...withoutLinks } = withHero;
+          withHero = withoutLinks;
+          const retry = await supabase.from("site_settings").upsert(withHero);
+          upsertError = retry.error;
+        }
         if (upsertError && isOwnedProductsBannerUrlsSchemaError(upsertError.message)) {
           ownedBannerUrlsDropped = ownedBannerFinalUrls.length > 0;
           const { owned_products_banner_urls: _o, ...withoutOwned } = withHero;
@@ -2295,6 +2314,7 @@ export default function AdminPage() {
       setSiteAppBgUrl(appBgUrl);
       setSiteHeroUrls(bannerUrls);
       setSiteHeroDesktopUrls(bannerDesktopUrls);
+      setSiteHeroLinks(bannerLinks);
       setOwnedBannerUrls(ownedBannerFinalUrls);
       setOwnedBannerPendingFiles([]);
       if (ownedBannerFileInputRef.current) ownedBannerFileInputRef.current.value = "";
@@ -2317,6 +2337,10 @@ export default function AdminPage() {
       } else if (heroBannerDesktopUrlsDropped) {
         toast.warning(
           "Banners de desktop não foram gravados. Execute a migração hero_banner_desktop_urls no Supabase."
+        );
+      } else if (heroBannerLinksDropped && Object.keys(bannerLinks).length > 0) {
+        toast.warning(
+          "Banners salvos, mas os links não foram gravados. Execute a migração 20261102120000_hero_banner_links.sql no Supabase."
         );
       } else if (ownedBannerUrlsDropped) {
         toast.warning(
@@ -2384,6 +2408,23 @@ export default function AdminPage() {
   const removeHeroDesktopPendingAt = (index: number) => {
     setHeroDesktopPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const setHeroLinkFor = (url: string, link: string) => {
+    setSiteHeroLinks((prev) => ({ ...prev, [url]: link }));
+  };
+
+  const renderHeroLinkInput = (url: string) => (
+    <input
+      type="url"
+      inputMode="url"
+      value={siteHeroLinks[url] ?? ""}
+      onChange={(e) => setHeroLinkFor(url, e.target.value)}
+      disabled={siteSaving}
+      placeholder="Link ao tocar no banner (opcional) — ex.: https://chat.whatsapp.com/…"
+      className="h-8 w-full rounded-md border border-zinc-200 px-2 text-xs"
+      spellCheck={false}
+    />
+  );
 
   const clearAllHeroBanners = () => {
     setSiteHeroUrls([]);
@@ -3225,6 +3266,8 @@ export default function AdminPage() {
                     <p className="text-xs text-zinc-500">
                       No celular use imagens em retrato ou quadradas; no desktop, faixas largas (ex.
                       1920×480 px). Se só enviar mobile, o mesmo carrossel aparece em todos os tamanhos.
+                      Cada banner pode ter um link ao tocar — imagens novas ganham o campo depois de
+                      salvar.
                     </p>
                     {(siteHeroUrls.length > 0 ||
                       siteHeroDesktopUrls.length > 0 ||
@@ -3261,20 +3304,23 @@ export default function AdminPage() {
                         {siteHeroUrls.map((url, i) => (
                           <li
                             key={`m-${url}-${i}`}
-                            className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                            className="space-y-1.5 rounded border border-zinc-200 bg-white px-2 py-1.5"
                           >
-                            <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                              {url.slice(0, 72)}
-                              {url.length > 72 ? "…" : ""}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeHeroUrlAt(i)}
-                              disabled={siteSaving}
-                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                            >
-                              Remover
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                                {url.slice(0, 72)}
+                                {url.length > 72 ? "…" : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeHeroUrlAt(i)}
+                                disabled={siteSaving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </div>
+                            {renderHeroLinkInput(url)}
                           </li>
                         ))}
                       </ul>
@@ -3324,20 +3370,23 @@ export default function AdminPage() {
                         {siteHeroDesktopUrls.map((url, i) => (
                           <li
                             key={`d-${url}-${i}`}
-                            className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+                            className="space-y-1.5 rounded border border-zinc-200 bg-white px-2 py-1.5"
                           >
-                            <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
-                              {url.slice(0, 72)}
-                              {url.length > 72 ? "…" : ""}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeHeroDesktopUrlAt(i)}
-                              disabled={siteSaving}
-                              className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
-                            >
-                              Remover
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-zinc-600" title={url}>
+                                {url.slice(0, 72)}
+                                {url.length > 72 ? "…" : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeHeroDesktopUrlAt(i)}
+                                disabled={siteSaving}
+                                className="shrink-0 text-red-700 hover:underline disabled:opacity-50"
+                              >
+                                Remover
+                              </button>
+                            </div>
+                            {renderHeroLinkInput(url)}
                           </li>
                         ))}
                       </ul>
